@@ -1,0 +1,174 @@
+/* style.css */
+/* Styles généraux pour l'affichage sur tablette */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f7f6;
+    color: #333;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+.page-container {
+    width: 90%;
+    max-width: 1000px;
+    padding: 20px;
+    background: white;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+    display: none; 
+}
+
+.page-container.active {
+    display: block;
+}
+
+/* --- Styles Identification Page --- */
+.identification-box {
+    text-align: center;
+    padding: 40px 20px;
+}
+#jury-name-input {
+    width: 80%;
+    padding: 15px;
+    margin: 20px 0;
+    font-size: 1.2em;
+    border: 2px solid #ccc;
+    border-radius: 5px;
+}
+#start-scoring-button {
+    padding: 15px 30px;
+    font-size: 1.3em;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+/* --- Styles Scoring Interface --- */
+.scoring-interface {
+    display: flex;
+    justify-content: space-between;
+    gap: 30px;
+    flex-wrap: wrap; 
+}
+
+.score-selection, .candidate-list {
+    flex: 1;
+    min-width: 300px;
+}
+
+/* Boutons de Score (5, 10, 15, 20) */
+.score-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.score-btn {
+    padding: 25px 10px;
+    font-size: 1.8em;
+    font-weight: bold;
+    border: 3px solid #ccc;
+    border-radius: 10px;
+    cursor: pointer;
+    background-color: #eee;
+}
+
+.score-btn.selected {
+    background-color: #28a745;
+    color: white;
+    border-color: #1e7e34;
+}
+
+.eliminated-btn {
+    grid-column: span 2;
+    background-color: #dc3545;
+    color: white;
+    border-color: #c82333;
+    font-size: 1.5em;
+}
+.eliminated-btn.selected {
+    background-color: #8c232f;
+}
+
+/* Liste des Candidats */
+#candidate-select {
+    width: 100%;
+    height: 350px; 
+    padding: 10px;
+    font-size: 1.1em;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+/* Style pour les candidats déjà notés (grisé/désactivé) */
+#candidate-select option.scored {
+    background-color: #e9ecef !important; 
+    color: #6c757d !important;
+    text-decoration: line-through;
+}
+
+#validate-button {
+    width: 100%;
+    padding: 20px;
+    font-size: 1.5em;
+    margin-top: 20px;
+    background-color: #ffc107;
+    color: #333;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+#validate-button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+/* --- Styles Pop-up de Confirmation (Modale) --- */
+.modal {
+    display: none; 
+    position: fixed; 
+    z-index: 100; 
+    left: 0;
+    top: 0;
+    width: 100%; 
+    height: 100%; 
+    background-color: rgba(0,0,0,0.4); 
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: auto;
+    padding: 40px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 500px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+#confirm-send-button, #cancel-send-button {
+    padding: 15px 30px;
+    border: none;
+    border-radius: 5px;
+    font-size: 1.1em;
+    cursor: pointer;
+    margin: 10px;
+}
+#confirm-send-button {
+    background-color: #28a745;
+    color: white;
+}
+#cancel-send-button {
+    background-color: #6c757d;
+    color: white;
+}

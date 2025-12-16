@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Concours Éloquence - Espace Jury</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="identification-page" class="page-container active">
+        <div class="identification-box">
+            <h1>Bienvenue, Jury !</h1>
+            <p>Veuillez entrer votre nom pour commencer la notation.</p>
+            <input type="text" id="jury-name-input" placeholder="Ex: Mme. Dupont / M. Martin" required>
+            <button id="start-scoring-button">Accéder à la Notation</button>
+            <div id="error-message" class="error-message"></div>
+        </div>
+    </div>
+
+    <div id="scoring-page" class="page-container">
+        <h2>Notation en cours pour : <span id="current-jury-name"></span></h2>
+        
+        <div class="scoring-interface">
+            
+            <div class="score-selection">
+                <h3>Attribuer une Note</h3>
+                <p>Sélectionnez une note pour le candidat choisi :</p>
+                <div class="score-buttons">
+                    <button class="score-btn" data-score="5">5</button>
+                    <button class="score-btn" data-score="10">10</button>
+                    <button class="score-btn" data-score="15">15</button>
+                    <button class="score-btn" data-score="20">20</button>
+                    <button class="score-btn eliminated-btn" data-score="Elimine">ÉLIMINÉ</button>
+                </div>
+                
+                <h4 id="selected-score-display">Note sélectionnée : Aucune</h4>
+                
+                <button id="validate-button" disabled>Valider la Note</button>
+            </div>
+
+            <div class="candidate-list">
+                <h3>Candidats (35)</h3>
+                <p>Cochez le candidat à évaluer :</p>
+                <select id="candidate-select" size="10">
+                    <option value="" disabled selected>Chargement...</option>
+                </select>
+                <div id="selected-candidate-display">Candidat sélectionné : Aucun</div>
+            </div>
+            
+        </div>
+    </div>
+
+    <div id="confirmation-modal" class="modal">
+        <div class="modal-content">
+            <h3>Confirmer l'enregistrement</h3>
+            <p>Êtes-vous sûr de vouloir enregistrer ce score ?</p>
+            <p>Jury : <strong id="modal-jury-name"></strong></p>
+            <p>Candidat : <strong id="modal-candidate-name"></strong></p>
+            <p>Note : <strong id="modal-score"></strong></p>
+            
+            <button id="confirm-send-button">Oui, Confirmer et Envoyer</button>
+            <button id="cancel-send-button">Annuler</button>
+        </div>
+    </div>
+
+
+    <script src="https://www.gstatic.com/firebasejs/10.1.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js"></script>
+    
+    <script type="module" src="firebase-init.js"></script>
+    <script type="module" src="script.js"></script>
+</body>
+</html>
