@@ -5,24 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Administration - Résultats Concours</title>
     <style>
-        /* CSS pour l'affichage du tableau de bord */
         body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f7f6; }
         h1, h2 { color: #007bff; border-bottom: 2px solid #ccc; padding-bottom: 10px; }
         
-        button { 
+        /* Styles Boutons */
+        .action-button { 
             padding: 10px 20px; 
             font-size: 1.1em; 
             border: none; 
             border-radius: 5px; 
             cursor: pointer; 
-            margin-bottom: 20px;
+            margin-bottom: 20px; 
         }
-        button:hover { opacity: 0.9; }
+        .load-button { 
+            background-color: #28a745; 
+            color: white; 
+            margin-right: 10px;
+        }
+        .load-button:hover { background-color: #1e7e34; }
 
-        /* Style spécifique au bouton de chargement */
-        .load-btn { background-color: #28a745; color: white; }
-        
-        /* Style spécifique à la zone de réinitialisation */
+        /* Zone de Réinitialisation */
         .reset-zone {
             margin-bottom: 20px; 
             padding: 15px; 
@@ -30,11 +32,11 @@
             background-color: #f8d7da; 
             border-radius: 5px;
         }
-        .reset-btn { 
+        .reset-button { 
             background-color: #dc3545; 
             color: white; 
-            margin-right: 10px;
         }
+        .reset-button:hover { background-color: #c82333; }
         
         /* Styles pour la Matrice */
         #scores-matrix { 
@@ -85,12 +87,12 @@
     
     <div class="reset-zone">
         <h2>Zone de Gestion et de Réinitialisation</h2>
-        <p>ATTENTION : Cette action supprimera TOUTES les données de la base de données Firestore : les noms des jurys enregistrés et les scores attribués. Cette action est irréversible.</p>
-        <button onclick="confirmResetAllData()" class="reset-btn">Réinitialiser TOUS les Scores et Jurys</button>
+        <p>ATTENTION : Cette action supprimera TOUTES les données de la base de données Firestore : les scores attribués.</p>
+        <button onclick="confirmResetAllData()" class="action-button reset-button">Réinitialiser TOUS les Scores</button>
     </div>
-    
+
     <p>Cliquez pour récupérer et calculer les scores de tous les jurys.</p>
-    <button onclick="loadAllScores()" class="load-btn">Charger et Calculer les Résultats</button>
+    <button onclick="loadAllScores()" class="action-button load-button">Charger et Calculer les Résultats</button>
 
     <h2>Matrice des Scores (Jury vs Candidats)</h2>
     <p>Ce tableau affiche le score donné par chaque jury à chaque candidat.</p>
@@ -128,14 +130,21 @@
     <script type="module">
         // Logique de l'administrateur
         import { db } from './firebase-init.js';
-        import { collection, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
+        import { 
+            collection, 
+            getDocs, 
+            deleteDoc, 
+            doc, 
+            query, 
+            where // Ajout de l'importation de deleteDoc et doc
+        } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
 
         // Liste des 35 candidats (doit correspondre à celle de script.js)
         const CANDIDATES = Array.from({length: 35}, (_, i) => ({
             id: `C${i + 1}`,
             name: `Candidat ${i + 1}`
         }));
-        
+
         // --------------------------------------------------------------------------------
         // FONCTION D'ADMINISTRATION : RÉINITIALISATION COMPLÈTE
         // --------------------------------------------------------------------------------
@@ -162,29 +171,25 @@
                 await Promise.all(deletePromises);
 
                 console.log("Tous les scores ont été supprimés de Firebase.");
-                
-                // 2. Mettre à jour l'affichage de la page Admin
-                alert("Réinitialisation complète réussie ! Tous les scores ont été supprimés.");
+
+                // 2. Mettre à jour l'affichage après suppression
+                alert("Réinitialisation complète réussie ! Tous les scores ont été supprimés. Les jurys devront se reconnecter.");
                 
                 // Effacer l'affichage des tableaux après la suppression
                 document.getElementById('scores-matrix').querySelector('tbody').innerHTML = '';
                 document.getElementById('podium-body').innerHTML = '';
                 document.getElementById('total-candidates').textContent = 'Total de candidats évalués : 0';
-                
-                // Optionnel : Forcer le rechargement de la page pour une propreté maximale
-                // window.location.reload(); 
 
             } catch (error) {
                 console.error("Erreur lors de la réinitialisation des données :", error);
                 alert("Erreur lors de la réinitialisation. Vérifiez la console.");
             }
         }
-        
+
         // --------------------------------------------------------------------------------
-        // FONCTION D'ADMINISTRATION : CHARGER ET CALCULER LES RÉSULTATS
+        // FONCTION PRINCIPALE : CHARGEMENT DES SCORES
         // --------------------------------------------------------------------------------
         
-        // Fonction principale appelée par le bouton
         window.loadAllScores = async function() {
             try {
                 // Récupération de tous les scores de la collection "scores"
@@ -198,9 +203,6 @@
 
                 if (rawScores.length === 0) {
                     alert("Aucun score trouvé dans la base de données.");
-                    document.getElementById('scores-matrix').querySelector('tbody').innerHTML = '';
-                    document.getElementById('podium-body').innerHTML = '';
-                    document.getElementById('total-candidates').textContent = 'Total de candidats évalués : 0';
                     return;
                 }
 
@@ -246,7 +248,7 @@
                 
                 // --- 3. Construction du Podium ---
                 
-                buildPodium(aggregatedData);
+                buildPodium(aggregatedData, rawScores);
 
             } catch (error) {
                 console.error("Erreur lors du chargement des scores :", error);
@@ -271,23 +273,26 @@
             
             CANDIDATES.forEach(candidate => {
                 const row = matrixBody.insertRow();
+                // Vérifier si le candidat a été noté au moins une fois
+                if (!aggregatedData[candidate.id].hasScores && sortedJuries.length > 0) return; 
+
                 row.innerHTML += `<td class="candidate-name">${candidate.name} (${candidate.id})</td>`;
                 
                 // Affichage des notes par jury
                 sortedJuries.forEach(jury => {
-                    const score = aggregatedData[candidate.id]?.scores[jury] || '-';
+                    const score = aggregatedData[candidate.id].scores[jury] || '-';
                     const cellClass = score === 'Elimine' ? 'eliminado' : '';
                     
                     row.innerHTML += `<td class="${cellClass}">${score}</td>`;
                 });
                 
                 // Affichage du Total
-                const total = aggregatedData[candidate.id]?.total || 0;
+                const total = aggregatedData[candidate.id].total;
                 row.innerHTML += `<td class="total-score">${total}</td>`;
             });
         }
 
-        function buildPodium(aggregatedData) {
+        function buildPodium(aggregatedData, rawScores) {
             let finalScores = Object.keys(aggregatedData).map(id => aggregatedData[id]);
 
             // Filtrer les candidats qui n'ont reçu aucun score
@@ -320,9 +325,9 @@
                 const row = podiumBody.insertRow();
                 let rankClass = '';
                 
-                // Règle d'élimination (Si 3 jurys ou plus ont mis "Éliminé" : Éliminé du concours)
-                const isEliminated = candidate.elimineCount >= 3;
-                
+                // Règle: Éliminé si 3 jurys ou plus ont mis "Éliminé"
+                const isEliminated = candidate.elimineCount >= 3; 
+
                 // Gestion des classes pour le style
                 if (isEliminated) {
                     rankClass = 'eliminated-row';
@@ -336,8 +341,11 @@
 
                 row.className = rankClass;
                 
-                const statut = isEliminated
-                    ? `ÉLIMINÉ (par ${candidate.elimineCount} jurys)` 
+                // Le nombre de jurys qui ont donné un score au candidat
+                const totalJuriesScore = Object.keys(aggregatedData[candidate.id].scores).length;
+
+                const statut = isEliminated 
+                    ? `ÉLIMINÉ (par ${candidate.elimineCount}/${totalJuriesScore} jurys)` 
                     : 'Qualifié';
 
                 row.innerHTML += `<td>${isEliminated ? '—' : rank}</td>`;
