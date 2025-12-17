@@ -1,14 +1,15 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Administration - Résultats Concours</title>
-    <style>
-        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f7f6; }
-        h1, h2 { color: #007bff; border-bottom: 2px solid #ccc; padding-bottom: 10px; }
-        /* Style général des boutons */
-        .action-button { 
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administration - Résultats Concours</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f7f6; }
+        h1, h2 { color: #007bff; border-bottom: 2px solid #ccc; padding-bottom: 10px; }
+        
+        /* Styles pour tous les boutons d'action */
+        .action-button { 
             padding: 10px 20px; 
             font-size: 1.1em; 
             border: none; 
@@ -16,54 +17,57 @@
             cursor: pointer; 
             margin-bottom: 20px; 
         }
-        /* Style du bouton Charger */
-        .load-button {
+        
+        /* Style spécifique pour le bouton CHARGEMENT (Vert) */
+        .load-button { 
             background-color: #28a745; 
-            color: white; 
+            color: white;
+            transition: background-color 0.3s; 
         }
-        .load-button:hover { background-color: #1e7e34; }
-        
-        /* Styles pour la Matrice */
-        #scores-matrix { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin-bottom: 40px;
-            background: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        #scores-matrix th, #scores-matrix td { 
-            border: 1px solid #ddd; 
-            padding: 8px; 
-            text-align: center;
-        }
-        #scores-matrix th { 
-            background-color: #f2f2f2; 
-            font-weight: bold; 
-        }
-        .candidate-name { text-align: left; font-weight: bold; }
-        .total-score { background-color: #ffc107; font-weight: bold; }
-        .eliminado { background-color: #dc3545; color: white; }
-        
-        /* Styles pour le Podium */
-        #podium-table { 
-            width: 100%; /* Ajusté pour prendre toute la largeur */
-            max-width: 600px;
-            margin-top: 20px; 
-            border-collapse: collapse;
-            background: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        #podium-table th, #podium-table td {
-            border: 1px solid #ddd;
-            padding: 10px;
-            text-align: center;
-        }
-        .rank-1 { background-color: gold; font-weight: bold; }
-        .rank-2 { background-color: silver; font-weight: bold; }
-        .rank-3 { background-color: #cd7f32; color: white; font-weight: bold; }
-        .eliminated-row { background-color: #6c757d; color: white; }
+        .load-button:hover { background-color: #1e7e34; }
 
-        /* NOUVEAUX STYLES pour la zone de Réinitialisation */
+        /* Styles pour la Matrice */
+        #scores-matrix { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-bottom: 40px;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            font-size: 0.9em;
+        }
+        #scores-matrix th, #scores-matrix td { 
+            border: 1px solid #ddd; 
+            padding: 8px; 
+            text-align: center;
+        }
+        #scores-matrix th { 
+            background-color: #f2f2f2; 
+            font-weight: bold; 
+        }
+        .candidate-name { text-align: left; font-weight: bold; }
+        .total-score { background-color: #ffc107; font-weight: bold; }
+        .eliminado { background-color: #dc3545; color: white; }
+        
+        /* Styles pour le Podium */
+        #podium-table { 
+            width: 100%;
+            max-width: 600px;
+            margin-top: 20px; 
+            border-collapse: collapse;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        #podium-table th, #podium-table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+        .rank-1 { background-color: gold; font-weight: bold; }
+        .rank-2 { background-color: silver; font-weight: bold; }
+        .rank-3 { background-color: #cd7f32; color: white; font-weight: bold; }
+        .eliminated-row { background-color: #6c757d; color: white; }
+
+        /* Styles pour la zone de Réinitialisation */
         .reset-zone {
             margin-top: 50px;
             padding: 15px; 
@@ -75,44 +79,45 @@
             background-color: #dc3545 !important; /* Rouge vif */
             color: white;
             font-weight: bold;
+            transition: background-color 0.3s;
         }
         .reset-button:hover { background-color: #c82333 !important; }
-    </style>
+    </style>
 </head>
 <body>
 
-    <h1>Tableau de bord Administrateur</h1>
-    <p>Cliquez pour récupérer et calculer les scores de tous les jurys.</p>
-    <button onclick="loadAllScores()" class="action-button load-button">Charger et Calculer les Résultats</button>
+    <h1>Tableau de bord Administrateur</h1>
+    <p>Cliquez pour récupérer et calculer les scores de tous les jurys.</p>
+    <button onclick="loadAllScores()" class="action-button load-button">Charger et Calculer les Résultats</button>
 
-    <h2>Matrice des Scores (Jury vs Candidats)</h2>
-    <p>Ce tableau affiche le score donné par chaque jury à chaque candidat.</p>
-    <table id="scores-matrix">
-        <thead>
-            <tr>
-                <th>Candidat</th>
-            </tr>
-        </thead>
-        <tbody>
-            </tbody>
-    </table>
+    <h2>Matrice des Scores (Jury vs Candidats)</h2>
+    <p>Ce tableau affiche le score donné par chaque jury à chaque candidat.</p>
+    <table id="scores-matrix">
+        <thead>
+            <tr>
+                <th>Candidat</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
 
-    <hr>
+    <hr>
 
-    <h2>Classement (Top 18)</h2>
-    <p id="total-candidates">Total de candidats évalués : 0</p>
-    <table id="podium-table">
-        <thead>
-            <tr>
-                <th>Rang</th>
-                <th>Candidat</th>
-                <th>Score Total</th>
-                <th>Statut</th>
-            </tr>
-        </thead>
-        <tbody id="podium-body">
-        </tbody>
-    </table>
+    <h2>Classement (Top 18)</h2>
+    <p id="total-candidates">Total de candidats évalués : 0</p>
+    <table id="podium-table">
+        <thead>
+            <tr>
+                <th>Rang</th>
+                <th>Candidat</th>
+                <th>Score Total</th>
+                <th>Statut</th>
+            </tr>
+        </thead>
+        <tbody id="podium-body">
+        </tbody>
+    </table>
 
     <div class="reset-zone">
         <h2>Zone de Réinitialisation (pour les tests)</h2>
@@ -121,22 +126,22 @@
     </div>
 
 
-    <script src="https://www.gstatic.com/firebasejs/10.1.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js"></script>
-    
-    <script type="module" src="firebase-init.js"></script>
-    <script type="module">
-        // Logique de l'administrateur
-        import { db } from './firebase-init.js';
+    <script src="https://www.gstatic.com/firebasejs/10.1.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js"></script>
+    
+    <script type="module" src="firebase-init.js"></script>
+    <script type="module">
+        // Logique de l'administrateur
+        import { db } from './firebase-init.js';
         // Importation des fonctions deleteDoc et doc pour la suppression
-        import { collection, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
+        import { collection, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
 
-        // Liste des 35 candidats (doit correspondre à celle de script.js)
-        const CANDIDATES = Array.from({length: 35}, (_, i) => ({
-            id: `C${i + 1}`,
-            name: `Candidat ${i + 1}`
-        }));
-        
+        // Liste des 35 candidats (doit correspondre à celle de script.js)
+        const CANDIDATES = Array.from({length: 35}, (_, i) => ({
+            id: `C${i + 1}`,
+            name: `Candidat ${i + 1}`
+        }));
+        
 
         // --------------------------------------------------------------------------------
         // NOUVELLES FONCTIONS : RÉINITIALISATION COMPLÈTE
@@ -182,167 +187,167 @@
         // --------------------------------------------------------------------------------
         // FONCTION PRINCIPALE EXISTANTE
         // --------------------------------------------------------------------------------
-        
-        // Fonction principale appelée par le bouton
-        window.loadAllScores = async function() {
-            try {
-                // Récupération de tous les scores de la collection "scores"
-                const scoresRef = collection(db, "scores");
-                const snapshot = await getDocs(scoresRef);
-                
-                const rawScores = [];
-                snapshot.forEach(doc => {
-                    rawScores.push(doc.data());
-                });
+        
+        // Fonction principale appelée par le bouton
+        window.loadAllScores = async function() {
+            try {
+                // Récupération de tous les scores de la collection "scores"
+                const scoresRef = collection(db, "scores");
+                const snapshot = await getDocs(scoresRef);
+                
+                const rawScores = [];
+                snapshot.forEach(doc => {
+                    rawScores.push(doc.data());
+                });
 
-                if (rawScores.length === 0) {
-                    alert("Aucun score trouvé dans la base de données.");
-                    return;
-                }
+                if (rawScores.length === 0) {
+                    alert("Aucun score trouvé dans la base de données.");
+                    return;
+                }
 
-                // --- 1. Agrégation des données ---
-                const aggregatedData = {};
-                const juryList = new Set();
-                
-                // Initialisation des données pour chaque candidat
-                CANDIDATES.forEach(c => {
-                    aggregatedData[c.id] = { 
-                        name: c.name, 
-                        total: 0, 
-                        scores: {},
-                        elimineCount: 0,
-                        hasScores: false // Pour filtrer les candidats non évalués
-                    };
-                });
+                // --- 1. Agrégation des données ---
+                const aggregatedData = {};
+                const juryList = new Set();
+                
+                // Initialisation des données pour chaque candidat
+                CANDIDATES.forEach(c => {
+                    aggregatedData[c.id] = { 
+                        name: c.name, 
+                        total: 0, 
+                        scores: {},
+                        elimineCount: 0,
+                        hasScores: false // Pour filtrer les candidats non évalués
+                    };
+                });
 
-                // Traitement des scores reçus
-                rawScores.forEach(score => {
-                    const candidateId = score.candidateId;
-                    const juryName = score.juryName;
-                    const note = score.score;
+                // Traitement des scores reçus
+                rawScores.forEach(score => {
+                    const candidateId = score.candidateId;
+                    const juryName = score.juryName;
+                    const note = score.score;
 
-                    if (!aggregatedData[candidateId]) return;
+                    if (!aggregatedData[candidateId]) return;
 
-                    juryList.add(juryName);
-                    aggregatedData[candidateId].scores[juryName] = note;
-                    aggregatedData[candidateId].hasScores = true;
-                    
-                    if (note !== "Elimine") {
-                        // Utilise un score de 0 pour les éliminés dans le calcul du total
-                        aggregatedData[candidateId].total += parseInt(note);
-                    } else {
-                        aggregatedData[candidateId].elimineCount += 1;
-                    }
-                });
-                
-                const sortedJuries = Array.from(juryList).sort();
-                
-                // --- 2. Construction de la Matrice (Tableau Excel) ---
-                
-                buildScoreMatrix(aggregatedData, sortedJuries);
-                
-                // --- 3. Construction du Podium ---
-                
-                buildPodium(aggregatedData, rawScores);
+                    juryList.add(juryName);
+                    aggregatedData[candidateId].scores[juryName] = note;
+                    aggregatedData[candidateId].hasScores = true;
+                    
+                    if (note !== "Elimine") {
+                        // Utilise un score de 0 pour les éliminés dans le calcul du total
+                        aggregatedData[candidateId].total += parseInt(note);
+                    } else {
+                        aggregatedData[candidateId].elimineCount += 1;
+                    }
+                });
+                
+                const sortedJuries = Array.from(juryList).sort();
+                
+                // --- 2. Construction de la Matrice (Tableau Excel) ---
+                
+                buildScoreMatrix(aggregatedData, sortedJuries);
+                
+                // --- 3. Construction du Podium ---
+                
+                buildPodium(aggregatedData, rawScores);
 
-            } catch (error) {
-                console.error("Erreur lors du chargement des scores :", error);
-                alert("Erreur de connexion à Firebase. Vérifiez la console pour les détails.");
-            }
-        }
+            } catch (error) {
+                console.error("Erreur lors du chargement des scores :", error);
+                alert("Erreur de connexion à Firebase. Vérifiez la console pour les détails.");
+            }
+        }
 
-        function buildScoreMatrix(aggregatedData, sortedJuries) {
-            const matrixTable = document.getElementById('scores-matrix');
-            const matrixHeadRow = matrixTable.querySelector('thead tr');
-            const matrixBody = matrixTable.querySelector('tbody');
-            
-            // Mise à jour de l'entête : Candidat | Jury 1 | Jury 2 | ... | Total
-            matrixHeadRow.innerHTML = '<th>Candidat</th>';
-            sortedJuries.forEach(jury => {
-                matrixHeadRow.innerHTML += `<th>${jury}</th>`;
-            });
-            matrixHeadRow.innerHTML += '<th>Total</th>';
+        function buildScoreMatrix(aggregatedData, sortedJuries) {
+            const matrixTable = document.getElementById('scores-matrix');
+            const matrixHeadRow = matrixTable.querySelector('thead tr');
+            const matrixBody = matrixTable.querySelector('tbody');
+            
+            // Mise à jour de l'entête : Candidat | Jury 1 | Jury 2 | ... | Total
+            matrixHeadRow.innerHTML = '<th>Candidat</th>';
+            sortedJuries.forEach(jury => {
+                matrixHeadRow.innerHTML += `<th>${jury}</th>`;
+            });
+            matrixHeadRow.innerHTML += '<th>Total</th>';
 
-            // Mise à jour du corps
-            matrixBody.innerHTML = '';
-            
-            CANDIDATES.forEach(candidate => {
-                const row = matrixBody.insertRow();
-                row.innerHTML += `<td class="candidate-name">${candidate.name} (${candidate.id})</td>`;
-                
-                // Affichage des notes par jury
-                sortedJuries.forEach(jury => {
-                    const score = aggregatedData[candidate.id].scores[jury] || '-';
-                    const cellClass = score === 'Elimine' ? 'eliminado' : '';
-                    
-                    row.innerHTML += `<td class="${cellClass}">${score}</td>`;
-                });
-                
-                // Affichage du Total
-                const total = aggregatedData[candidate.id].total;
-                row.innerHTML += `<td class="total-score">${total}</td>`;
-            });
-        }
+            // Mise à jour du corps
+            matrixBody.innerHTML = '';
+            
+            CANDIDATES.forEach(candidate => {
+                const row = matrixBody.insertRow();
+                row.innerHTML += `<td class="candidate-name">${candidate.name} (${candidate.id})</td>`;
+                
+                // Affichage des notes par jury
+                sortedJuries.forEach(jury => {
+                    const score = aggregatedData[candidate.id].scores[jury] || '-';
+                    const cellClass = score === 'Elimine' ? 'eliminado' : '';
+                    
+                    row.innerHTML += `<td class="${cellClass}">${score}</td>`;
+                });
+                
+                // Affichage du Total
+                const total = aggregatedData[candidate.id].total;
+                row.innerHTML += `<td class="total-score">${total}</td>`;
+            });
+        }
 
-        function buildPodium(aggregatedData, rawScores) {
-            let finalScores = Object.keys(aggregatedData).map(id => aggregatedData[id]);
+        function buildPodium(aggregatedData, rawScores) {
+            let finalScores = Object.keys(aggregatedData).map(id => aggregatedData[id]);
 
-            // Filtrer les candidats qui n'ont reçu aucun score
-            finalScores = finalScores.filter(c => c.hasScores);
-            
-            // Tri : Du plus grand total au plus petit
-            finalScores.sort((a, b) => b.total - a.total);
-            
-            // Mise à jour de la table du Podium
-            const podiumBody = document.getElementById('podium-body');
-            podiumBody.innerHTML = '';
-            
-            let rank = 0;
-            let displayedCount = 0;
-            const topLimit = 18; // Afficher le Top 18
+            // Filtrer les candidats qui n'ont reçu aucun score
+            finalScores = finalScores.filter(c => c.hasScores);
+            
+            // Tri : Du plus grand total au plus petit
+            finalScores.sort((a, b) => b.total - a.total);
+            
+            // Mise à jour de la table du Podium
+            const podiumBody = document.getElementById('podium-body');
+            podiumBody.innerHTML = '';
+            
+            let rank = 0;
+            let displayedCount = 0;
+            const topLimit = 18; // Afficher le Top 18
 
-            // Affichage du classement
-            finalScores.forEach((candidate, index) => {
-                // On arrête l'affichage si on a atteint la limite, sauf s'il est éliminé et qu'il faut le montrer
-                if (displayedCount >= topLimit) return; 
+            // Affichage du classement
+            finalScores.forEach((candidate, index) => {
+                // On arrête l'affichage si on a atteint la limite, sauf s'il est éliminé et qu'il faut le montrer
+                if (displayedCount >= topLimit) return; 
 
-                // Attribution du rang
-                if (index === 0 || candidate.total < finalScores[index - 1].total) {
-                    rank = displayedCount + 1;
-                }
-                
-                // Incrémenter le nombre affiché
-                displayedCount++;
-                
-                const row = podiumBody.insertRow();
-                let rankClass = '';
-                
-                // Gestion des classes pour le style
-                if (candidate.elimineCount >= 3) { // Règle: Éliminé si 3 jurys ou plus ont mis "Éliminé"
-                    rankClass = 'eliminated-row';
-                } else if (rank === 1) {
-                    rankClass = 'rank-1';
-                } else if (rank === 2) {
-                    rankClass = 'rank-2';
-                } else if (rank === 3) {
-                    rankClass = 'rank-3';
-                }
+                // Attribution du rang
+                if (index === 0 || candidate.total < finalScores[index - 1].total) {
+                    rank = displayedCount + 1;
+                }
+                
+                // Incrémenter le nombre affiché
+                displayedCount++;
+                
+                const row = podiumBody.insertRow();
+                let rankClass = '';
+                
+                // Gestion des classes pour le style
+                if (candidate.elimineCount >= 3) { // Règle: Éliminé si 3 jurys ou plus ont mis "Éliminé"
+                    rankClass = 'eliminated-row';
+                } else if (rank === 1) {
+                    rankClass = 'rank-1';
+                } else if (rank === 2) {
+                    rankClass = 'rank-2';
+                } else if (rank === 3) {
+                    rankClass = 'rank-3';
+                }
 
-                row.className = rankClass;
-                
-                const statut = candidate.elimineCount >= 3 
-                    ? `ÉLIMINÉ (par ${candidate.elimineCount}/${Object.keys(aggregatedData[candidate.id].scores).length} jurys)` 
-                    : 'Qualifié';
+                row.className = rankClass;
+                
+                const statut = candidate.elimineCount >= 3 
+                    ? `ÉLIMINÉ (par ${candidate.elimineCount}/${Object.keys(aggregatedData[candidate.id].scores).length} jurys)` 
+                    : 'Qualifié';
 
-                row.innerHTML += `<td>${candidate.elimineCount >= 3 ? '—' : rank}</td>`;
-                row.innerHTML += `<td>${candidate.name}</td>`;
-                row.innerHTML += `<td>${candidate.total}</td>`;
-                row.innerHTML += `<td>${statut}</td>`;
-            });
-            
-            document.getElementById('total-candidates').textContent = `Total de candidats ayant reçu un score : ${finalScores.length} (Top 18 affichés)`;
-        }
+                row.innerHTML += `<td>${candidate.elimineCount >= 3 ? '—' : rank}</td>`;
+                row.innerHTML += `<td>${candidate.name}</td>`;
+                row.innerHTML += `<td>${candidate.total}</td>`;
+                row.innerHTML += `<td>${statut}</td>`;
+            });
+            
+            document.getElementById('total-candidates').textContent = `Total de candidats ayant reçu un score : ${finalScores.length} (Top 18 affichés)`;
+        }
 
-    </script>
+    </script>
 </body>
 </html>
