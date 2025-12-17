@@ -16,7 +16,7 @@
             border-radius: 5px; 
             cursor: pointer; 
             margin-bottom: 20px; 
-            margin-right: 10px; /* Ajout d'une petite marge entre les boutons */
+            margin-right: 10px;
             transition: background-color 0.3s; 
         }
         
@@ -27,18 +27,41 @@
         }
         .load-button:hover { background-color: #1e7e34; }
 
-        /* Style spécifique pour les boutons de TÉLÉCHARGEMENT (Orange/Bleu) */
+        /* Style spécifique pour les boutons de TÉLÉCHARGEMENT (Bleu/Jaune) */
         .export-button {
-            background-color: #ffc107; /* Jaune/Orange */
-            color: #343a40; /* Texte foncé */
+            background-color: #ffc107;
+            color: #343a40;
             font-weight: bold;
         }
         .export-button.excel {
-             background-color: #007bff; /* Bleu */
+             background-color: #007bff;
              color: white;
         }
         .export-button:hover {
             opacity: 0.9;
+        }
+
+        /* Styles de la zone de CANDIDATS */
+        .candidate-zone {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            border-radius: 5px;
+        }
+        .candidate-zone textarea {
+            width: 98%;
+            min-height: 150px;
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+        .candidate-zone button.save {
+            background-color: #007bff;
+            color: white;
+        }
+        .candidate-zone button.load {
+            background-color: #6c757d;
+            color: white;
         }
 
         /* Styles pour la Matrice */
@@ -59,7 +82,7 @@
             background-color: #f2f2f2; 
             font-weight: bold; 
         }
-        .candidate-name { text-align: left; font-weight: bold; }
+        .candidate-name-cell { text-align: left; font-weight: bold; }
         .total-score { background-color: #ffc107; font-weight: bold; }
         .eliminado { background-color: #dc3545; color: white; }
         
@@ -91,7 +114,7 @@
             border-radius: 5px;
         }
         .reset-button {
-            background-color: #dc3545 !important; /* Rouge vif */
+            background-color: #dc3545 !important;
             color: white;
             font-weight: bold;
         }
@@ -101,7 +124,20 @@
 <body>
 
     <h1>Tableau de bord Administrateur</h1>
-    <p>Cliquez pour récupérer et calculer les scores de tous les jurys.</p>
+    
+    <div class="candidate-zone">
+        <h2>1. Gestion de la Liste des Candidats</h2>
+        <p>Entrez un nom de candidat par ligne. L'ordre des lignes définira l'identifiant (C1, C2, C3...).</p>
+        <textarea id="candidate-names" placeholder="Ex:&#10;Alice Dupont&#10;Bob Martin&#10;Charles Legrand"></textarea>
+        <br><br>
+        <button onclick="saveCandidateList()" class="action-button save">Sauvegarder la Liste (dans Firebase)</button>
+        <button onclick="loadCandidateList()" class="action-button load">Charger la Liste Actuelle (depuis Firebase)</button>
+    </div>
+
+    <hr>
+    
+    <h2>2. Affichage des Résultats</h2>
+    <p>Cliquez pour récupérer et calculer les scores de tous les jurys en fonction de la liste de candidats sauvegardée.</p>
     
     <div>
         <button onclick="loadAllScores()" class="action-button load-button">Charger et Calculer les Résultats</button>
@@ -140,7 +176,7 @@
     </table>
 
     <div class="reset-zone">
-        <h2>Zone de Réinitialisation (pour les tests)</h2>
+        <h2>3. Zone de Réinitialisation (pour les tests)</h2>
         <p>ATTENTION : Cette action supprimera TOUTES les données de la base de données Firestore (scores) et videra VOTRE nom de jury enregistré pour pouvoir refaire des tests.</p>
         <button onclick="confirmResetAllData()" class="action-button reset-button">Supprimer TOUS les Scores et Réinitialiser le Jury</button>
     </div>
@@ -154,22 +190,92 @@
     <script type="module">
         // Logique de l'administrateur
         import { db } from './firebase-init.js';
-        import { collection, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
+        import { 
+            collection, 
+            getDocs, 
+            deleteDoc, 
+            doc,
+            setDoc, // Ajout pour sauvegarder la liste
+            getDoc  // Ajout pour charger la liste
+        } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
 
-        // Liste des 35 candidats (doit correspondre à celle de script.js)
-        const CANDIDATES = Array.from({length: 35}, (_, i) => ({
-            id: `C${i + 1}`,
-            name: `Candidat ${i + 1}`
-        }));
-        
-        let aggregatedData = {}; // Global pour l'export Excel/Image
-        let rawScores = []; // Global pour l'export Excel/Image
+        // Variables globales pour stocker les données
+        let CANDIDATES = []; // Liste des candidats sera chargée ici
+        let aggregatedData = {};
+        let rawScores = []; 
 
         // --------------------------------------------------------------------------------
-        // FONCTIONS D'EXPORTATION
+        // NOUVELLES FONCTIONS : GESTION DES CANDIDATS
         // --------------------------------------------------------------------------------
 
-        // Fonction pour exporter la Matrice de Scores vers Excel (CSV)
+        // Sauvegarde la liste des noms dans Firestore
+        window.saveCandidateList = async function() {
+            const textarea = document.getElementById('candidate-names');
+            const names = textarea.value.split('\n')
+                                       .map(name => name.trim())
+                                       .filter(name => name.length > 0);
+
+            if (names.length === 0) {
+                alert("Veuillez entrer au moins un nom de candidat.");
+                return;
+            }
+
+            // Crée le tableau d'objets CANDIDATES
+            const newCandidates = names.map((name, index) => ({
+                id: `C${index + 1}`,
+                name: name
+            }));
+            
+            try {
+                // Utilise un document fixe (par exemple 'list') dans une nouvelle collection 'candidats'
+                await setDoc(doc(db, "candidats", "liste_actuelle"), { candidates: newCandidates });
+                
+                CANDIDATES = newCandidates;
+                alert(`Liste de ${newCandidates.length} candidats sauvegardée avec succès dans Firebase !`);
+
+            } catch (error) {
+                console.error("Erreur lors de la sauvegarde de la liste :", error);
+                alert("Erreur lors de la sauvegarde. Vérifiez la console.");
+            }
+        }
+
+        // Charge la liste des noms depuis Firestore
+        window.loadCandidateList = async function() {
+            try {
+                const docRef = doc(db, "candidats", "liste_actuelle");
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    if (data.candidates && Array.isArray(data.candidates)) {
+                        
+                        CANDIDATES = data.candidates; // Met à jour la variable globale
+                        
+                        // Affiche la liste dans la zone de texte
+                        document.getElementById('candidate-names').value = CANDIDATES.map(c => c.name).join('\n');
+                        
+                        alert(`${CANDIDATES.length} candidats chargés depuis Firebase.`);
+                    } else {
+                        alert("La structure des données de candidats n'est pas valide.");
+                    }
+                } else {
+                    alert("Aucune liste de candidats trouvée dans Firebase. Veuillez en entrer une et la sauvegarder.");
+                    document.getElementById('candidate-names').value = '';
+                    CANDIDATES = [];
+                }
+            } catch (error) {
+                console.error("Erreur lors du chargement de la liste :", error);
+                alert("Erreur de connexion à Firebase. Vérifiez la console.");
+            }
+        }
+
+        // Charger la liste des candidats au démarrage
+        loadCandidateList(); 
+
+        // --------------------------------------------------------------------------------
+        // FONCTIONS D'EXPORTATION (EXISTANTES)
+        // --------------------------------------------------------------------------------
+
         window.exportToExcel = function() {
             if (Object.keys(aggregatedData).length === 0) {
                 alert("Veuillez d'abord charger les résultats.");
@@ -186,13 +292,11 @@
             // 2. Récupérer les lignes de données
             matrixTable.querySelectorAll('tbody tr').forEach(row => {
                 const rowData = Array.from(row.querySelectorAll('td')).map(td => {
-                    // Remplacer les virgules par des points pour éviter les problèmes de format CSV dans certains tableurs
                     return td.textContent.replace(/,/g, '.');
                 });
                 csv.push(rowData.join(';'));
             });
 
-            // 3. Créer le lien de téléchargement
             const csvContent = "data:text/csv;charset=utf-8," + csv.join('\n');
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
@@ -203,7 +307,6 @@
             document.body.removeChild(link);
         }
 
-        // Fonction pour exporter le Podium vers une image (PNG)
         window.exportPodiumToImage = function() {
             if (document.getElementById('podium-body').children.length === 0) {
                 alert("Veuillez d'abord charger les résultats.");
@@ -212,12 +315,10 @@
 
             const podiumTable = document.getElementById('podium-table');
 
-            // Utilise la librairie html2canvas pour prendre une "photo" du tableau
             html2canvas(podiumTable, {
-                scale: 2, // Double la résolution pour une meilleure qualité
+                scale: 2,
                 useCORS: true 
             }).then(canvas => {
-                // Créer le lien de téléchargement
                 const link = document.createElement('a');
                 link.download = `podium_classement_${new Date().toLocaleDateString()}.png`;
                 link.href = canvas.toDataURL('image/png');
@@ -228,7 +329,7 @@
         }
 
         // --------------------------------------------------------------------------------
-        // NOUVELLES FONCTIONS : RÉINITIALISATION COMPLÈTE
+        // FONCTIONS DE RÉINITIALISATION (EXISTANTES)
         // --------------------------------------------------------------------------------
 
         window.confirmResetAllData = function() {
@@ -255,11 +356,9 @@
                 document.getElementById('podium-body').innerHTML = '';
                 document.getElementById('total-candidates').textContent = 'Total de candidats évalués : 0';
 
-                // Vider les données globales
                 aggregatedData = {};
                 rawScores = [];
 
-                // Nettoyage de ton stockage local pour tes tests
                 localStorage.clear(); 
                 
                 alert("Réinitialisation complète réussie ! Tous les scores ont été supprimés et VOTRE navigateur a été remis à zéro.");
@@ -271,17 +370,21 @@
         }
 
         // --------------------------------------------------------------------------------
-        // FONCTION PRINCIPALE EXISTANTE
+        // FONCTION PRINCIPALE DE CHARGEMENT DES SCORES (MISE À JOUR)
         // --------------------------------------------------------------------------------
         
-        // Fonction principale appelée par le bouton
         window.loadAllScores = async function() {
+            if (CANDIDATES.length === 0) {
+                alert("Veuillez charger ou sauvegarder la liste des candidats avant de calculer les scores.");
+                return;
+            }
+            
             try {
                 // Récupération de tous les scores de la collection "scores"
                 const scoresRef = collection(db, "scores");
                 const snapshot = await getDocs(scoresRef);
                 
-                rawScores = []; // Réinitialisation de la variable globale
+                rawScores = [];
                 snapshot.forEach(doc => {
                     rawScores.push(doc.data());
                 });
@@ -292,18 +395,18 @@
                 }
 
                 // --- 1. Agrégation des données ---
-                aggregatedData = {}; // Réinitialisation de la variable globale
+                aggregatedData = {};
                 const juryList = new Set();
                 
-                // Initialisation des données pour chaque candidat
+                // Initialisation des données pour chaque candidat (MAINTENANT depuis CANDIDATES globale)
                 CANDIDATES.forEach(c => {
                     aggregatedData[c.id] = { 
-                        id: c.id, // Ajout de l'ID pour le tri si nécessaire
+                        id: c.id,
                         name: c.name, 
                         total: 0, 
                         scores: {},
                         elimineCount: 0,
-                        hasScores: false // Pour filtrer les candidats non évalués
+                        hasScores: false
                     };
                 });
 
@@ -338,7 +441,7 @@
 
             } catch (error) {
                 console.error("Erreur lors du chargement des scores :", error);
-                alert("Erreur de connexion à Firebase. Vérifiez la console pour les détails. (Vérifiez votre fichier firebase-init.js et vos règles de sécurité)");
+                alert("Erreur de connexion à Firebase. Vérifiez la console pour les détails.");
             }
         }
 
@@ -347,70 +450,56 @@
             const matrixHeadRow = matrixTable.querySelector('thead tr');
             const matrixBody = matrixTable.querySelector('tbody');
             
-            // Mise à jour de l'entête : Candidat | Jury 1 | Jury 2 | ... | Total
             matrixHeadRow.innerHTML = '<th>Candidat</th>';
             sortedJuries.forEach(jury => {
                 matrixHeadRow.innerHTML += `<th>${jury}</th>`;
             });
             matrixHeadRow.innerHTML += '<th>Total</th>';
 
-            // Mise à jour du corps
             matrixBody.innerHTML = '';
             
             CANDIDATES.forEach(candidate => {
                 const row = matrixBody.insertRow();
-                // Affichage du nom du candidat sous le format Candidat X (CX)
-                row.innerHTML += `<td class="candidate-name">${candidate.name} (${candidate.id})</td>`;
+                row.innerHTML += `<td class="candidate-name-cell">${candidate.name} (${candidate.id})</td>`;
                 
-                // Affichage des notes par jury
                 sortedJuries.forEach(jury => {
-                    const score = aggregatedData[candidate.id].scores[jury] || '-';
+                    const score = aggregatedData[candidate.id]?.scores[jury] || '-';
                     const cellClass = score === 'Elimine' ? 'eliminado' : '';
                     
                     row.innerHTML += `<td class="${cellClass}">${score}</td>`;
                 });
                 
-                // Affichage du Total
-                const total = aggregatedData[candidate.id].total;
+                const total = aggregatedData[candidate.id]?.total || 0;
                 row.innerHTML += `<td class="total-score">${total}</td>`;
             });
         }
 
         function buildPodium(aggregatedData) {
             let finalScores = Object.keys(aggregatedData).map(id => aggregatedData[id]);
-
-            // Filtrer les candidats qui n'ont reçu aucun score
-            finalScores = finalScores.filter(c => c.hasScores);
+            finalScores = finalScores.filter(c => c.hasScores || c.total > 0);
             
-            // Tri : Du plus grand total au plus petit
             finalScores.sort((a, b) => b.total - a.total);
             
-            // Mise à jour de la table du Podium
             const podiumBody = document.getElementById('podium-body');
             podiumBody.innerHTML = '';
             
             let rank = 0;
             let displayedCount = 0;
-            const topLimit = 18; // Afficher le Top 18
+            const topLimit = 18;
 
-            // Affichage du classement
             finalScores.forEach((candidate, index) => {
-                // On arrête l'affichage si on a atteint la limite
                 if (displayedCount >= topLimit) return; 
 
-                // Attribution du rang
                 if (index === 0 || candidate.total < finalScores[index - 1].total) {
                     rank = displayedCount + 1;
                 }
                 
-                // Incrémenter le nombre affiché
                 displayedCount++;
                 
                 const row = podiumBody.insertRow();
                 let rankClass = '';
                 
-                // Gestion des classes pour le style
-                if (candidate.elimineCount >= 3) { // Règle: Éliminé si 3 jurys ou plus ont mis "Éliminé"
+                if (candidate.elimineCount >= 3) {
                     rankClass = 'eliminated-row';
                 } else if (rank === 1) {
                     rankClass = 'rank-1';
