@@ -1,239 +1,157 @@
-// script.js
-
-// Importation de l'objet de base de données depuis notre fichier d'initialisation
 import { db } from './firebase-init.js';
-
-// Fonctions Firebase pour interagir avec la base de données
 import { 
-    collection, 
-    addDoc, 
-    query, 
-    where, 
-    getDocs,
-    // NOUVEAUX IMPORTS : pour charger la liste des candidats depuis Firebase
-    getDoc, 
-    doc
+    collection, addDoc, query, where, getDocs, getDoc, doc 
 } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
 
 // --- VARIABLES GLOBALES ---
 let currentJuryName = '';
 let selectedCandidateId = null;
-let selectedScore = null;
-let scoredCandidates = []; // IDs des candidats déjà notés par ce jury
-
-// NOUVEAU : La liste des candidats est maintenant une variable modifiable (let)
+let selectedScore1 = null; // Note Fond
+let selectedScore2 = null; // Note Forme
 let CANDIDATES = [];
 
+// --------------------------------------------------------------------------------
+// INITIALISATION DES GRILLES DE BOUTONS
+// --------------------------------------------------------------------------------
+function createGrids() {
+    const gridFond = document.getElementById('grid-fond');
+    const gridForme = document.getElementById('grid-forme');
+    
+    // Création des boutons 1 à 20 pour les deux grilles
+    for (let i = 1; i <= 20; i++) {
+        // Grille Fond
+        const btn1 = document.createElement('button');
+        btn1.className = 'score-btn score-btn-1';
+        btn1.textContent = i;
+        btn1.onclick = () => selectScore(1, i, btn1);
+        gridFond.appendChild(btn1);
+
+        // Grille Forme
+        const btn2 = document.createElement('button');
+        btn2.className = 'score-btn score-btn-2';
+        btn2.textContent = i;
+        btn2.onclick = () => selectScore(2, i, btn2);
+        gridForme.appendChild(btn2);
+    }
+
+    // Ajout bouton élimination sur la note de fond
+    const btnElim = document.createElement('button');
+    btnElim.className = 'score-btn score-btn-1 eliminated';
+    btnElim.textContent = 'ÉLIMINATION DIRECTE';
+    btnElim.onclick = () => selectScore(1, 'Elimine', btnElim);
+    gridFond.appendChild(btnElim);
+}
+
+function selectScore(type, value, element) {
+    if (type === 1) {
+        selectedScore1 = value;
+        document.querySelectorAll('.score-btn-1').forEach(b => b.classList.remove('selected'));
+        document.getElementById('display-score-1').textContent = `Note Fond : ${value}`;
+    } else {
+        selectedScore2 = value;
+        document.querySelectorAll('.score-btn-2').forEach(b => b.classList.remove('selected'));
+        document.getElementById('display-score-2').textContent = `Note Forme : ${value}`;
+    }
+    element.classList.add('selected');
+    checkValidation();
+}
+
+createGrids();
 
 // --------------------------------------------------------------------------------
-// NOUVEAU : GESTION DU CHARGEMENT DE LA LISTE DEPUIS FIREBASE
+// LOGIQUE FIREBASE & INTERFACE
 // --------------------------------------------------------------------------------
 
 async function loadCandidatesFromFirebase() {
-    try {
-        const docRef = doc(db, "candidats", "liste_actuelle");
-        const docSnap = await getDoc(docRef);
-
-        if (docSnap.exists() && docSnap.data().candidates) {
-            CANDIDATES = docSnap.data().candidates;
-            // On s'assure que la liste est un tableau
-            if (!Array.isArray(CANDIDATES)) {
-                CANDIDATES = [];
-            }
-        } else {
-            console.warn("Aucune liste de candidats trouvée dans Firebase. Les jurys ne pourront pas noter tant qu'elle n'est pas sauvegardée via admin.html.");
-            alert("Erreur critique: La liste des candidats n'a pas été définie par l'administrateur.");
-        }
-    } catch (error) {
-        console.error("Erreur de chargement des candidats depuis Firebase:", error);
-        alert("Erreur de connexion à la base de données pour charger les candidats.");
+    const docRef = doc(db, "candidats", "liste_actuelle");
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+        CANDIDATES = docSnap.data().candidates;
     }
 }
 
+async function updateCandidateSelect() {
+    await loadCandidatesFromFirebase();
+    const select = document.getElementById('candidate-select');
+    select.innerHTML = '<option value="" disabled selected>-- Choisir un candidat --</option>';
 
-// --------------------------------------------------------------------------------
-// A. GESTION DE L'IDENTIFICATION (Page 1)
-// --------------------------------------------------------------------------------
+    // Récupérer les candidats déjà notés pour les griser
+    const q = query(collection(db, "scores"), where("juryName", "==", currentJuryName));
+    const snap = await getDocs(q);
+    const scoredIds = snap.docs.map(d => d.data().candidateId);
+
+    CANDIDATES.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = `${c.id} - ${c.name}`;
+        if (scoredIds.includes(c.id)) opt.disabled = true;
+        select.appendChild(opt);
+    });
+}
 
 document.getElementById('start-scoring-button').addEventListener('click', () => {
-    const input = document.getElementById('jury-name-input');
-    currentJuryName = input.value.trim();
+    currentJuryName = document.getElementById('jury-name-input').value.trim();
+    if (currentJuryName.length < 3) return;
 
-    if (currentJuryName.length < 3) {
-        document.getElementById('error-message').textContent = 'Veuillez entrer un nom de jury valide.';
-        return;
-    }
-
-    // Stockage local pour garder le nom du jury après envoi de score
     localStorage.setItem('currentJuryName', currentJuryName);
-    
-    // Bascule vers la page de notation
-    document.getElementById('current-jury-name').textContent = currentJuryName;
+    document.getElementById('current-jury-display').textContent = currentJuryName;
     document.getElementById('identification-page').classList.remove('active');
     document.getElementById('scoring-page').classList.add('active');
-
-    // NOUVEAU : Charger la liste AVANT de charger l'interface
-    loadCandidateList();
+    updateCandidateSelect();
 });
 
-// Vérification au chargement si le jury est déjà identifié
-const storedJuryName = localStorage.getItem('currentJuryName');
-if (storedJuryName) {
-    currentJuryName = storedJuryName;
-    document.getElementById('current-jury-name').textContent = currentJuryName;
-    document.getElementById('identification-page').classList.remove('active');
-    document.getElementById('scoring-page').classList.add('active');
-    
-    // NOUVEAU : Charger la liste AVANT de charger l'interface
-    loadCandidateList();
-}
-
-
-// --------------------------------------------------------------------------------
-// B. GESTION DE LA LISTE DES CANDIDATS (Chargement et Sélection)
-// --------------------------------------------------------------------------------
-
-async function loadCandidateList() {
-    // 1. NOUVEAU : Récupérer la liste des candidats depuis Firebase (si ce n'est pas déjà fait)
-    if (CANDIDATES.length === 0) {
-        await loadCandidatesFromFirebase();
-    }
-    
-    if (CANDIDATES.length === 0) {
-        // Afficher un message si la liste est toujours vide après l'appel à Firebase
-        document.getElementById('selected-candidate-display').textContent = 'Liste des candidats indisponible. Veuillez contacter l\'administrateur.';
-        return;
-    }
-
-    // 2. Récupérer les candidats déjà notés par CE JURY dans Firebase
-    const scoresRef = collection(db, "scores");
-    const q = query(scoresRef, where("juryName", "==", currentJuryName));
-    const querySnapshot = await getDocs(q);
-
-    // Mettre à jour la liste des IDs déjà notés
-    scoredCandidates = querySnapshot.docs.map(doc => doc.data().candidateId);
-
-    // 3. Remplir et mettre à jour l'affichage
-    const selectElement = document.getElementById('candidate-select');
-    selectElement.innerHTML = '<option value="" disabled selected>-- Sélectionnez un candidat --</option>'; 
-
-    CANDIDATES.forEach(candidate => {
-        const option = document.createElement('option');
-        option.value = candidate.id;
-        option.textContent = `${candidate.id} - ${candidate.name}`;
-        
-        // Désactiver et griser les candidats déjà notés
-        if (scoredCandidates.includes(candidate.id)) {
-            option.classList.add('scored');
-            option.disabled = true;
-        }
-
-        selectElement.appendChild(option);
-    });
-}
-
-// Écouteur pour la sélection d'un candidat
 document.getElementById('candidate-select').addEventListener('change', (e) => {
     selectedCandidateId = e.target.value;
-    // On doit chercher dans la variable globale CANDIDATES
-    const candidate = CANDIDATES.find(c => c.id === selectedCandidateId);
-    
-    // Vérification de sécurité au cas où un ID non trouvé serait sélectionné
-    if (candidate) {
-        document.getElementById('selected-candidate-display').textContent = `Candidat sélectionné : ${candidate.name}`;
-    } else {
-        document.getElementById('selected-candidate-display').textContent = `Candidat sélectionné : (ID Inconnu)`;
-    }
-    checkValidationStatus();
+    const name = CANDIDATES.find(c => c.id === selectedCandidateId).name;
+    document.getElementById('selected-candidate-display').textContent = `Candidat : ${name}`;
+    checkValidation();
 });
 
-
-// --------------------------------------------------------------------------------
-// C. GESTION DE LA SÉLECTION DU SCORE
-// --------------------------------------------------------------------------------
-
-document.querySelectorAll('.score-btn').forEach(button => {
-    button.addEventListener('click', (e) => {
-        // Gérer le style 'selected'
-        document.querySelectorAll('.score-btn').forEach(btn => btn.classList.remove('selected'));
-        e.target.classList.add('selected');
-        
-        selectedScore = e.target.dataset.score;
-        document.getElementById('selected-score-display').textContent = `Note sélectionnée : ${selectedScore}`;
-        
-        checkValidationStatus();
-    });
-});
-
-
-// --------------------------------------------------------------------------------
-// D. GESTION DU BOUTON VALIDER ET POP-UP
-// --------------------------------------------------------------------------------
-
-function checkValidationStatus() {
-    const validateButton = document.getElementById('validate-button');
-    // Le bouton est actif si un candidat ET un score sont choisis
-    validateButton.disabled = !(selectedCandidateId && selectedScore);
+function checkValidation() {
+    const btn = document.getElementById('validate-button');
+    btn.disabled = !(selectedCandidateId && selectedScore1 && selectedScore2);
 }
 
-document.getElementById('validate-button').addEventListener('click', () => {
-    const candidate = CANDIDATES.find(c => c.id === selectedCandidateId);
-    
-    // Si la liste n'a pas chargé ou si le candidat n'existe pas (sécurité)
-    if (!candidate) {
-        alert("Erreur de sélection du candidat. Veuillez contacter l'administrateur.");
-        return;
-    }
+// --------------------------------------------------------------------------------
+// ENVOI DES DONNÉES
+// --------------------------------------------------------------------------------
 
-    // Remplir le pop-up
-    document.getElementById('modal-jury-name').textContent = currentJuryName;
-    document.getElementById('modal-candidate-name').textContent = candidate.name;
-    document.getElementById('modal-score').textContent = selectedScore;
-    
-    // Afficher le pop-up
+document.getElementById('validate-button').addEventListener('click', () => {
+    const name = CANDIDATES.find(c => c.id === selectedCandidateId).name;
+    document.getElementById('modal-candidate').textContent = name;
+    document.getElementById('modal-s1').textContent = selectedScore1;
+    document.getElementById('modal-s2').textContent = selectedScore2;
     document.getElementById('confirmation-modal').style.display = 'flex';
 });
 
-document.getElementById('cancel-send-button').addEventListener('click', () => {
+document.getElementById('cancel-send-button').onclick = () => {
     document.getElementById('confirmation-modal').style.display = 'none';
-});
+};
 
-
-// --------------------------------------------------------------------------------
-// E. ENREGISTREMENT DANS FIREBASE (Confirmation Finale)
-// --------------------------------------------------------------------------------
-
-document.getElementById('confirm-send-button').addEventListener('click', async () => {
-    const modal = document.getElementById('confirmation-modal');
-    modal.style.display = 'none';
+document.getElementById('confirm-send-button').onclick = async () => {
+    document.getElementById('confirmation-modal').style.display = 'none';
+    
+    // Calcul de la pondération
+    let totalWeighted = 0;
+    if (selectedScore1 === 'Elimine') {
+        totalWeighted = 0; // Ou une valeur spécifique pour gérer l'élimination
+    } else {
+        totalWeighted = (parseInt(selectedScore1) * 3) + parseInt(selectedScore2);
+    }
 
     try {
-        // Envoi des données à Firestore
         await addDoc(collection(db, "scores"), {
             juryName: currentJuryName,
             candidateId: selectedCandidateId,
-            score: selectedScore,
+            score1: selectedScore1,
+            score2: selectedScore2,
+            totalWeightedScore: totalWeighted,
             timestamp: new Date()
         });
 
-        alert(`Score de ${selectedScore} pour ${selectedCandidateId} enregistré avec succès !`);
-
-        // --- Réinitialisation de l'interface ---
-        
-        // Recharger la liste pour désactiver le candidat noté
-        loadCandidateList();
-
-        selectedCandidateId = null;
-        selectedScore = null;
-        
-        document.querySelectorAll('.score-btn').forEach(btn => btn.classList.remove('selected'));
-        document.getElementById('selected-score-display').textContent = 'Note sélectionnée : Aucune';
-        document.getElementById('candidate-select').value = "";
-        document.getElementById('selected-candidate-display').textContent = 'Candidat sélectionné : Aucun';
-        checkValidationStatus();
-        
+        alert("Notes enregistrées !");
+        location.reload(); // Recharge pour vider les sélections
     } catch (e) {
-        console.error("Erreur lors de l'ajout du document : ", e);
-        alert("Erreur lors de l'enregistrement du score. Veuillez réessayer.");
+        alert("Erreur lors de l'envoi.");
     }
-});
+};
