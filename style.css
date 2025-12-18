@@ -1,40 +1,67 @@
 body {
-    font-family: Arial, sans-serif; background-color: #f4f7f6;
-    margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh;
+    font-family: Arial, sans-serif;
+    background-color: #f4f7f6;
+    margin: 0; display: flex; justify-content: center; align-items: center;
+    min-height: 100vh;
 }
 
 .page-container {
     background: white; padding: 30px; border-radius: 15px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 90%; max-width: 900px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    width: 90%; max-width: 900px;
     display: none; /* Cacher par défaut */
 }
 
-.page-container.active { display: block !important; }
+.page-container.active {
+    display: block; /* Afficher uniquement la page active */
+}
 
 /* Identification */
-.identification-box { text-align: center; display: flex; flex-direction: column; align-items: center; }
+.identification-box {
+    text-align: center;
+    display: flex; flex-direction: column; align-items: center;
+}
+
 #jury-name-input {
-    width: 100%; max-width: 350px; padding: 15px; margin-bottom: 20px;
+    width: 80%; padding: 15px; margin-bottom: 20px;
     font-size: 1.2em; border: 2px solid #ddd; border-radius: 8px;
 }
+
 #start-scoring-button {
-    width: 100%; max-width: 350px; padding: 15px; font-size: 1.2em;
-    background-color: #007bff; color: white; border: none; border-radius: 8px;
-    cursor: pointer; font-weight: bold;
+    width: 80%; padding: 15px; font-size: 1.2em;
+    background-color: #007bff; color: white; /* Bleu */
+    border: none; border-radius: 8px; cursor: pointer; font-weight: bold;
 }
 
 /* Notation */
-.scoring-interface { display: flex; gap: 20px; justify-content: space-between; }
+.scoring-interface { display: flex; gap: 30px; justify-content: space-between; }
 .score-selection { flex: 1.5; }
-.score-buttons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 15px 0; }
-.score-btn { padding: 15px; font-weight: bold; border: 2px solid #eee; border-radius: 8px; cursor: pointer; }
+.candidate-list { flex: 1; }
+
+.score-buttons {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 10px; margin: 15px 0;
+}
+
+.score-btn {
+    padding: 15px; font-weight: bold; border: 2px solid #eee;
+    background: #f9f9f9; border-radius: 8px; cursor: pointer;
+}
+
 .score-btn.selected { background: #28a745; color: white; border-color: #1e7e34; }
 .eliminated-btn { grid-column: span 4; background: #dc3545; color: white; }
 
-.candidate-list { flex: 1; }
-#candidate-select { width: 100%; height: 300px; }
+#candidate-select { width: 100%; height: 300px; font-size: 1em; }
 #validate-button {
-    width: 100%; padding: 15px; margin-top: 20px; background: #ffc107;
-    border: none; border-radius: 8px; font-weight: bold; cursor: pointer;
+    width: 100%; padding: 15px; margin-top: 20px;
+    background: #ffc107; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;
 }
 #validate-button:disabled { background: #ccc; cursor: not-allowed; }
+
+.modal {
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.6); align-items: center; justify-content: center;
+}
+.modal-content { background: white; padding: 30px; border-radius: 12px; text-align: center; }
+#confirm-send-button { background: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 5px; margin: 10px; }
+#cancel-send-button { background: #6c757d; color: white; padding: 10px 20px; border: none; border-radius: 5px; margin: 10px; }
