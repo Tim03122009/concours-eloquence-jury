@@ -9,81 +9,91 @@ body {
 
 .page-container {
     width: 95%; max-width: 1000px;
-    padding: 15px; background: white;
+    padding: 20px; background: white;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     border-radius: 10px; display: none; 
 }
 
 .page-container.active { display: block; }
 
-.identification-box { text-align: center; padding: 20px; }
-#jury-name-input { width: 80%; padding: 12px; margin: 15px 0; border: 2px solid #ccc; border-radius: 5px; }
+/* PAGE D'ACCUEIL */
+.identification-box {
+    text-align: center;
+    padding: 40px 20px;
+    display: flex;
+    flex-direction: column; /* Aligne les éléments l'un sous l'autre */
+    align-items: center;
+}
 
+#jury-name-input {
+    width: 100%; max-width: 400px;
+    padding: 15px; margin-bottom: 20px;
+    font-size: 1.2em; border: 2px solid #ccc; border-radius: 5px;
+}
+
+#start-scoring-button {
+    width: 100%; max-width: 400px;
+    padding: 15px; font-size: 1.3em;
+    background-color: #007bff; /* BOUTON BLEU */
+    color: white; border: none; border-radius: 5px;
+    cursor: pointer; font-weight: bold;
+}
+
+/* INTERFACE DE NOTATION */
 .scoring-interface {
     display: flex; justify-content: space-between;
-    gap: 20px; flex-wrap: nowrap; /* Force le côte à côte sur tablette */
+    gap: 20px; flex-wrap: nowrap;
 }
 
 .score-selection { flex: 1.2; }
 .candidate-list { flex: 0.8; }
 
-/* BOUTONS PLUS PETITS POUR TOUT RENTRER */
 .score-buttons {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr); /* 4 boutons sur une ligne */
-    gap: 8px;
-    margin: 10px 0;
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 8px; margin: 10px 0;
 }
 
 .score-btn {
-    padding: 15px 5px; /* Réduit de 25px à 15px */
-    font-size: 1.2em; /* Réduit de 1.8em */
-    font-weight: bold;
-    border: 2px solid #ccc;
-    border-radius: 8px;
-    cursor: pointer;
-    background-color: #eee;
+    padding: 15px 5px; font-size: 1.1em; font-weight: bold;
+    border: 2px solid #ccc; border-radius: 8px;
+    cursor: pointer; background-color: #eee;
 }
 
 .score-btn.selected {
-    background-color: #28a745;
-    color: white;
-    border-color: #1e7e34;
+    background-color: #28a745; color: white; border-color: #1e7e34;
 }
 
 .eliminated-btn {
-    grid-column: span 4;
-    padding: 10px;
-    font-size: 1em;
-    background-color: #dc3545;
-    color: white;
+    grid-column: span 4; background-color: #dc3545; color: white;
 }
 
 #candidate-select {
-    width: 100%;
-    height: 280px; /* Réduit pour laisser de la place aux boutons */
-    font-size: 1em;
+    width: 100%; height: 250px; font-size: 1.1em;
+}
+
+#candidate-select option.scored {
+    background-color: #e9ecef; color: #6c757d; text-decoration: line-through;
 }
 
 #validate-button {
-    width: 100%; padding: 15px;
-    font-size: 1.2em; background-color: #ffc107;
-    border: none; border-radius: 5px; cursor: pointer;
+    width: 100%; padding: 15px; font-size: 1.3em;
+    background-color: #ffc107; color: #333; border: none;
+    border-radius: 5px; cursor: pointer; margin-top: 15px;
 }
 
-#validate-button:disabled { background-color: #ccc; }
+#validate-button:disabled { background-color: #ccc; cursor: not-allowed; }
 
+/* MODALE */
 .modal {
-    display: none; position: fixed; z-index: 100; 
-    left: 0; top: 0; width: 100%; height: 100%;
-    background-color: rgba(0,0,0,0.5);
+    display: none; position: fixed; z-index: 100; left: 0; top: 0;
+    width: 100%; height: 100%; background: rgba(0,0,0,0.5);
     align-items: center; justify-content: center;
 }
 
 .modal-content {
-    background-color: white; padding: 20px;
-    width: 90%; max-width: 400px; border-radius: 10px; text-align: center;
+    background: white; padding: 30px; border-radius: 10px;
+    text-align: center; max-width: 400px; width: 90%;
 }
 
-#confirm-send-button { background-color: #28a745; color: white; padding: 10px; border:none; border-radius:5px; margin:5px; }
-#cancel-send-button { background-color: #6c757d; color: white; padding: 10px; border:none; border-radius:5px; margin:5px; }
+#confirm-send-button { background-color: #28a745; color: white; padding: 12px; border:none; border-radius:5px; margin:5px; cursor:pointer;}
+#cancel-send-button { background-color: #6c757d; color: white; padding: 12px; border:none; border-radius:5px; margin:5px; cursor:pointer;}

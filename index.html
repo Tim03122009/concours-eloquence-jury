@@ -22,10 +22,9 @@
         <h2>Jury : <span id="current-jury-name"></span></h2>
         
         <div class="scoring-interface">
-            
             <div class="score-selection">
-                <h3 style="margin-bottom:5px;">1. Fond (Coeff 3)</h3>
-                <div class="score-buttons grid-mini" id="group-1">
+                <h3>1. Fond (Coeff 3)</h3>
+                <div class="score-buttons" id="group-1">
                     <button class="score-btn s1" data-score="5">5</button>
                     <button class="score-btn s1" data-score="10">10</button>
                     <button class="score-btn s1" data-score="15">15</button>
@@ -33,16 +32,16 @@
                     <button class="score-btn s1 eliminated-btn" data-score="Elimine">ÉLIMINÉ</button>
                 </div>
 
-                <h3 style="margin: 15px 0 5px 0;">2. Forme (Coeff 1)</h3>
-                <div class="score-buttons grid-mini" id="group-2">
+                <h3>2. Forme (Coeff 1)</h3>
+                <div class="score-buttons" id="group-2">
                     <button class="score-btn s2" data-score="5">5</button>
                     <button class="score-btn s2" data-score="10">10</button>
                     <button class="score-btn s2" data-score="15">15</button>
                     <button class="score-btn s2" data-score="20">20</button>
                 </div>
                 
-                <h4 id="selected-score-display" style="margin-top:10px;">Sélection : Note 1 [-] | Note 2 [-]</h4>
-                <button id="validate-button" disabled>Valider la Notation</button>
+                <h4 id="selected-score-display">Sélection : Fond [-] | Forme [-]</h4>
+                <button id="validate-button" disabled>Valider la Note</button>
             </div>
 
             <div class="candidate-list">
@@ -50,9 +49,8 @@
                 <select id="candidate-select" size="12">
                     <option value="" disabled selected>Chargement...</option>
                 </select>
-                <div id="selected-candidate-display" style="font-weight:bold; color:#007bff; margin-top:5px;">Candidat : Aucun</div>
+                <div id="selected-candidate-display">Candidat : Aucun</div>
             </div>
-            
         </div>
     </div>
 
