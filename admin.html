@@ -3,90 +3,167 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Administration - Concours Éloquence</title>
+    <title>Administration - Résultats Concours</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; background-color: #f4f7f6; }
+        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f7f6; }
         h1, h2 { color: #007bff; border-bottom: 2px solid #ccc; padding-bottom: 10px; }
-        .action-button { padding: 10px 20px; font-size: 1.1em; border: none; border-radius: 5px; cursor: pointer; margin-bottom: 20px; }
+        
+        .action-button { 
+            padding: 10px 20px; font-size: 1.1em; border: none; 
+            border-radius: 5px; cursor: pointer; margin-bottom: 20px; 
+        }
         .load-button { background-color: #28a745; color: white; }
-        table { width: 100%; border-collapse: collapse; background: white; margin-bottom: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
-        th { background-color: #f2f2f2; }
-        .rank-1 { background-color: #ffd700; font-weight: bold; }
-        .reset-zone { margin-top: 50px; padding: 20px; border: 2px solid #dc3545; background-color: #f8d7da; border-radius: 8px; }
+        .load-button:hover { background-color: #1e7e34; }
+        
+        /* Matrice */
+        #scores-matrix { 
+            width: 100%; border-collapse: collapse; margin-bottom: 40px;
+            background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        #scores-matrix th, #scores-matrix td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        #scores-matrix th { background-color: #f2f2f2; font-weight: bold; }
+        .candidate-name { text-align: left; font-weight: bold; }
+        .total-score { background-color: #ffc107; font-weight: bold; }
+        
+        /* Podium */
+        #podium-table { width: 100%; max-width: 600px; border-collapse: collapse; background: white; }
+        #podium-table th, #podium-table td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+        .rank-1 { background-color: gold; }
+        .rank-2 { background-color: silver; }
+        .rank-3 { background-color: #cd7f32; color: white; }
+
+        /* Zone Rouge */
+        .reset-zone {
+            margin-top: 50px; padding: 20px; border: 2px solid #dc3545; 
+            background-color: #f8d7da; border-radius: 8px;
+        }
         .reset-button { background-color: #dc3545; color: white; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <h1>Tableau de bord Administrateur</h1>
-    <button onclick="loadAllScores()" class="action-button load-button">Actualiser les Résultats</button>
+    <button onclick="loadAllScores()" class="action-button load-button">Charger les Résultats</button>
 
     <h2>Matrice des Scores (Fond / Forme)</h2>
     <table id="scores-matrix">
-        <thead><tr id="matrix-header"><th>Candidat</th><th>Total</th></tr></thead>
+        <thead>
+            <tr id="matrix-header">
+                <th>Candidat</th>
+                <th>Total</th>
+            </tr>
+        </thead>
         <tbody id="matrix-body"></tbody>
     </table>
 
     <h2>Classement (Podium)</h2>
     <table id="podium-table">
-        <thead><tr><th>Rang</th><th>Candidat</th><th>Score Total</th></tr></thead>
+        <thead>
+            <tr>
+                <th>Rang</th>
+                <th>Candidat</th>
+                <th>Score Total</th>
+            </tr>
+        </thead>
         <tbody id="podium-body"></tbody>
     </table>
 
     <div class="reset-zone">
         <h2>Zone de Réinitialisation</h2>
-        <p>Action : Supprimer les scores et forcer la déconnexion des jurys (si F5).</p>
+        <p>Cette action supprimera tous les scores et forcera les jurys à redonner leur nom au prochain rafraîchissement de leur page.</p>
         <button onclick="confirmResetAllData()" class="action-button reset-button">RÉINITIALISER TOUT</button>
     </div>
 
     <script type="module">
         import { db } from './firebase-init.js';
-        import { collection, getDocs, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
+        import { collection, getDocs, deleteDoc, doc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
 
+        // --- CHARGEMENT DES SCORES ---
         window.loadAllScores = async function() {
-            const snapshot = await getDocs(collection(db, "scores"));
+            const scoresRef = collection(db, "scores");
+            const snapshot = await getDocs(scoresRef);
+            
             const juryList = new Set();
-            const results = {};
+            const results = {}; // { candId: { name, juryScores: { juryName: "Fond/Forme" }, total } }
 
             snapshot.forEach(doc => {
                 const data = doc.data();
                 juryList.add(data.juryName);
-                if (!results[data.candidateId]) results[data.candidateId] = { juryScores: {}, total: 0 };
+                
+                if (!results[data.candidateId]) {
+                    results[data.candidateId] = { juryScores: {}, total: 0 };
+                }
+                
                 results[data.candidateId].juryScores[data.juryName] = `${data.score1}/${data.score2}`;
                 results[data.candidateId].total += data.totalWeightedScore;
             });
 
-            const sortedJuries = Array.from(juryList).sort();
-            const header = document.getElementById('matrix-header');
-            header.innerHTML = '<th>Candidat</th>' + sortedJuries.map(j => `<th>${j}</th>`).join('') + '<th>Total</th>';
-
-            const body = document.getElementById('matrix-body');
-            body.innerHTML = '';
-            for (const id in results) {
-                let row = `<tr><td>${id}</td>`;
-                sortedJuries.forEach(j => row += `<td>${results[id].juryScores[j] || '-'}</td>`);
-                row += `<td><b>${results[id].total}</b></td></tr>`;
-                body.innerHTML += row;
-            }
-
-            const sortedPodium = Object.entries(results).sort((a,b) => b[1].total - a[1].total);
-            const pBody = document.getElementById('podium-body');
-            pBody.innerHTML = '';
-            sortedPodium.forEach((c, i) => {
-                pBody.innerHTML += `<tr class="${i===0?'rank-1':''}"><td>${i+1}</td><td>${c[0]}</td><td>${c[1].total}</td></tr>`;
-            });
+            buildTable(Array.from(juryList).sort(), results);
         };
 
+        function buildTable(juries, results) {
+            // Header
+            const header = document.getElementById('matrix-header');
+            header.innerHTML = '<th>Candidat</th>' + juries.map(j => `<th>${j}</th>`).join('') + '<th>Total</th>';
+
+            // Body
+            const body = document.getElementById('matrix-body');
+            body.innerHTML = '';
+            
+            for (const id in results) {
+                const row = document.createElement('tr');
+                let html = `<td class="candidate-name">${id}</td>`;
+                juries.forEach(j => {
+                    html += `<td>${results[id].juryScores[j] || '-'}</td>`;
+                });
+                html += `<td class="total-score">${results[id].total}</td>`;
+                row.innerHTML = html;
+                body.appendChild(row);
+            }
+
+            buildPodium(results);
+        }
+
+        function buildPodium(results) {
+            const sorted = Object.entries(results)
+                .map(([id, data]) => ({ id, total: data.total }))
+                .sort((a, b) => b.total - a.total);
+
+            const body = document.getElementById('podium-body');
+            body.innerHTML = '';
+            
+            sorted.forEach((cand, i) => {
+                const row = document.createElement('tr');
+                if(i === 0) row.className = 'rank-1';
+                if(i === 1) row.className = 'rank-2';
+                if(i === 2) row.className = 'rank-3';
+                
+                row.innerHTML = `<td>${i+1}</td><td>${cand.id}</td><td>${cand.total}</td>`;
+                body.appendChild(row);
+            });
+        }
+
+        // --- RÉINITIALISATION ---
         window.confirmResetAllData = async function() {
-            if (!confirm("Attention : supprimer tous les scores et déconnecter les jurys ?")) return;
+            if (!confirm("Voulez-vous vraiment TOUT supprimer ? Les jurys devront se reconnecter s'ils rechargent leur page.")) return;
+
             try {
-                const snap = await getDocs(collection(db, "scores"));
-                for (const d of snap.docs) await deleteDoc(doc(db, "scores", d.id));
-                await updateDoc(doc(db, "config", "session"), { current_id: Date.now().toString() });
-                alert("Réinitialisation réussie !");
+                // 1. Supprimer les scores
+                const snapshot = await getDocs(collection(db, "scores"));
+                for (const d of snapshot.docs) {
+                    await deleteDoc(doc(db, "scores", d.id));
+                }
+
+                // 2. Changer l'ID de session pour déconnecter les jurys
+                const newId = Date.now().toString();
+                await updateDoc(doc(db, "config", "session"), {
+                    current_id: newId
+                });
+
+                alert("Réinitialisation terminée.");
                 location.reload();
             } catch (e) {
+                console.error(e);
                 alert("Erreur. Vérifiez que la collection 'config/session' existe dans Firebase.");
             }
         };
