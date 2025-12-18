@@ -8,13 +8,12 @@
 </head>
 <body>
 
-    <div id="identification-page" class="page-container active">
+    <div id="identification-page" class="page-container">
         <div class="identification-box">
             <h1>Bienvenue, Jury !</h1>
-            <p>Veuillez entrer votre nom pour commencer la notation.</p>
-            <input type="text" id="jury-name-input" placeholder="Ex: Mme. Dupont / M. Martin" required>
+            <p>Entrez votre nom pour commencer la session.</p>
+            <input type="text" id="jury-name-input" placeholder="Ex: Mme. Dupont">
             <button id="start-scoring-button">Accéder à la Notation</button>
-            <div id="error-message" class="error-message"></div>
         </div>
     </div>
 
@@ -24,7 +23,7 @@
         <div class="scoring-interface">
             <div class="score-selection">
                 <h3>1. Fond (Coeff 3)</h3>
-                <div class="score-buttons" id="group-1">
+                <div class="score-buttons">
                     <button class="score-btn s1" data-score="5">5</button>
                     <button class="score-btn s1" data-score="10">10</button>
                     <button class="score-btn s1" data-score="15">15</button>
@@ -33,7 +32,7 @@
                 </div>
 
                 <h3>2. Forme (Coeff 1)</h3>
-                <div class="score-buttons" id="group-2">
+                <div class="score-buttons">
                     <button class="score-btn s2" data-score="5">5</button>
                     <button class="score-btn s2" data-score="10">10</button>
                     <button class="score-btn s2" data-score="15">15</button>
@@ -51,18 +50,6 @@
                 </select>
                 <div id="selected-candidate-display">Candidat : Aucun</div>
             </div>
-        </div>
-    </div>
-
-    <div id="confirmation-modal" class="modal">
-        <div class="modal-content">
-            <h3>Confirmer l'enregistrement</h3>
-            <p>Jury : <strong id="modal-jury-name"></strong></p>
-            <p>Candidat : <strong id="modal-candidate-name"></strong></p>
-            <p>Fond (x3) : <strong id="modal-score1"></strong></p>
-            <p>Forme (x1) : <strong id="modal-score2"></strong></p>
-            <button id="confirm-send-button">Confirmer et Envoyer</button>
-            <button id="cancel-send-button">Annuler</button>
         </div>
     </div>
 

@@ -1,110 +1,93 @@
 import { db } from './firebase-init.js';
 import { collection, addDoc, query, where, getDocs, getDoc, doc } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
 
-let currentJuryName = localStorage.getItem('currentJuryName') || '';
-let selectedCandidateId = null;
-let selectedScore1 = null;
-let selectedScore2 = null;
-let CANDIDATES = [];
+let juryName = localStorage.getItem('currentJuryName') || '';
+let storedSessionId = localStorage.getItem('sessionId') || '';
+let selectedId = null;
+let s1 = null; let s2 = null;
+let candidates = [];
 
-// PERSISTANCE : Charger directement si le nom existe
-if (currentJuryName) {
-    document.addEventListener('DOMContentLoaded', () => {
-        showScoringPage();
-    });
+// --- VERIFICATION SESSION AU CHARGEMENT ---
+async function checkSessionAndLoad() {
+    try {
+        const snap = await getDoc(doc(db, "config", "session"));
+        const firebaseSessionId = snap.exists() ? snap.data().current_id : '1';
+
+        // Si l'ID a changé dans Firebase (Reset Admin), on vide le nom local
+        if (storedSessionId !== firebaseSessionId) {
+            localStorage.clear();
+            juryName = '';
+            storedSessionId = firebaseSessionId;
+            document.getElementById('identification-page').classList.add('active');
+        } 
+        else if (juryName) {
+            showNotation();
+        } 
+        else {
+            document.getElementById('identification-page').classList.add('active');
+        }
+    } catch (e) {
+        document.getElementById('identification-page').classList.add('active');
+    }
 }
 
-function showScoringPage() {
-    document.getElementById('current-jury-name').textContent = currentJuryName;
+checkSessionAndLoad();
+
+function showNotation() {
+    document.getElementById('current-jury-name').textContent = juryName;
     document.getElementById('identification-page').classList.remove('active');
     document.getElementById('scoring-page').classList.add('active');
-    loadCandidateList();
+    loadData();
 }
 
-document.getElementById('start-scoring-button').addEventListener('click', () => {
-    const name = document.getElementById('jury-name-input').value.trim();
-    if (name.length < 3) return;
-    currentJuryName = name;
-    localStorage.setItem('currentJuryName', name);
-    showScoringPage();
-});
+// Bouton d'entrée
+document.getElementById('start-scoring-button').onclick = () => {
+    const val = document.getElementById('jury-name-input').value.trim();
+    if (val.length < 2) return;
+    juryName = val;
+    localStorage.setItem('currentJuryName', juryName);
+    localStorage.setItem('sessionId', storedSessionId);
+    showNotation();
+};
 
-async function loadCandidateList() {
-    const docSnap = await getDoc(doc(db, "candidats", "liste_actuelle"));
-    if (docSnap.exists()) { CANDIDATES = docSnap.data().candidates; }
+async function loadData() {
+    // Liste candidats
+    const cSnap = await getDoc(doc(db, "candidats", "liste_actuelle"));
+    if (cSnap.exists()) candidates = cSnap.data().candidates;
 
-    const q = query(collection(db, "scores"), where("juryName", "==", currentJuryName));
-    const snap = await getDocs(q);
-    const scoredIds = snap.docs.map(d => d.data().candidateId);
+    // Scores déjà mis
+    const q = query(collection(db, "scores"), where("juryName", "==", juryName));
+    const sSnap = await getDocs(q);
+    const done = sSnap.docs.map(d => d.data().candidateId);
 
     const select = document.getElementById('candidate-select');
     select.innerHTML = '';
-    CANDIDATES.forEach(c => {
+    candidates.forEach(c => {
         const opt = document.createElement('option');
         opt.value = c.id;
         opt.textContent = `${c.id} - ${c.name}`;
-        if (scoredIds.includes(c.id)) { opt.classList.add('scored'); opt.disabled = true; }
+        if (done.includes(c.id)) { opt.disabled = true; opt.style.color = "#ccc"; }
         select.appendChild(opt);
     });
 }
 
-document.getElementById('candidate-select').addEventListener('change', (e) => {
-    selectedCandidateId = e.target.value;
-    const name = CANDIDATES.find(c => c.id === selectedCandidateId).name;
-    document.getElementById('selected-candidate-display').textContent = `Candidat : ${name}`;
-    checkValidation();
-});
+// Sélection et Notes
+document.getElementById('candidate-select').onchange = (e) => {
+    selectedId = e.target.value;
+    const c = candidates.find(x => x.id === selectedId);
+    document.getElementById('selected-candidate-display').textContent = "Candidat : " + c.name;
+    updateBtn();
+};
 
 document.querySelectorAll('.score-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.onclick = (e) => {
         const val = e.target.dataset.score;
         if (e.target.classList.contains('s1')) {
-            selectedScore1 = val;
+            s1 = val;
             document.querySelectorAll('.s1').forEach(b => b.classList.remove('selected'));
         } else {
-            selectedScore2 = val;
+            s2 = val;
             document.querySelectorAll('.s2').forEach(b => b.classList.remove('selected'));
         }
         e.target.classList.add('selected');
-        document.getElementById('selected-score-display').textContent = `Sélection : Fond [${selectedScore1 || '-'}] | Forme [${selectedScore2 || '-'}]`;
-        checkValidation();
-    });
-});
-
-function checkValidation() {
-    document.getElementById('validate-button').disabled = !(selectedCandidateId && selectedScore1 && selectedScore2);
-}
-
-document.getElementById('validate-button').addEventListener('click', () => {
-    const name = CANDIDATES.find(c => c.id === selectedCandidateId).name;
-    document.getElementById('modal-jury-name').textContent = currentJuryName;
-    document.getElementById('modal-candidate-name').textContent = name;
-    document.getElementById('modal-score1').textContent = selectedScore1;
-    document.getElementById('modal-score2').textContent = selectedScore2;
-    document.getElementById('confirmation-modal').style.display = 'flex';
-});
-
-document.getElementById('confirm-send-button').addEventListener('click', async () => {
-    document.getElementById('confirmation-modal').style.display = 'none';
-    let total = (selectedScore1 === "Elimine") ? 0 : (parseInt(selectedScore1) * 3) + parseInt(selectedScore2);
-
-    try {
-        await addDoc(collection(db, "scores"), {
-            juryName: currentJuryName,
-            candidateId: selectedCandidateId,
-            score1: selectedScore1,
-            score2: selectedScore2,
-            totalWeightedScore: total,
-            timestamp: new Date()
-        });
-        alert("Enregistré !");
-        // Reset sans reload pour garder le nom du jury
-        selectedScore1 = null; selectedScore2 = null; selectedCandidateId = null;
-        document.querySelectorAll('.score-btn').forEach(b => b.classList.remove('selected'));
-        document.getElementById('selected-score-display').textContent = "Sélection : Fond [-] | Forme [-]";
-        document.getElementById('selected-candidate-display').textContent = "Candidat : Aucun";
-        loadCandidateList();
-    } catch (e) { alert("Erreur d'envoi."); }
-});
-
-document.getElementById('cancel-send-button').onclick = () => { document.getElementById('confirmation-modal').style.display = 'none'; };
+        document.getElementById('selected-score-display').textContent = `Fond [${s1 || '-'}] |

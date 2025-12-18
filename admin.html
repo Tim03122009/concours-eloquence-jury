@@ -8,178 +8,163 @@
         body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f7f6; }
         h1, h2 { color: #007bff; border-bottom: 2px solid #ccc; padding-bottom: 10px; }
         
-        .action-button { padding: 10px 20px; font-size: 1.1em; border: none; border-radius: 5px; cursor: pointer; margin-bottom: 20px; margin-right: 10px; transition: 0.3s; }
+        .action-button { 
+            padding: 10px 20px; font-size: 1.1em; border: none; 
+            border-radius: 5px; cursor: pointer; margin-bottom: 20px; 
+        }
         .load-button { background-color: #28a745; color: white; }
-        .export-button { background-color: #ffc107; color: #343a40; font-weight: bold; }
-        .export-button.excel { background-color: #007bff; color: white; }
-
-        .candidate-zone { margin-top: 20px; padding: 15px; border: 1px solid #ccc; background-color: #fff; border-radius: 5px; }
-        .candidate-zone textarea { width: 98%; min-height: 100px; padding: 10px; margin-bottom: 10px; }
-
-        #scores-matrix { width: 100%; border-collapse: collapse; margin-bottom: 40px; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 0.9em; }
-        #scores-matrix th, #scores-matrix td { border: 1px solid #ddd; padding: 10px; text-align: center; }
-        #scores-matrix th { background-color: #f2f2f2; }
+        .load-button:hover { background-color: #1e7e34; }
         
-        .detail-note { font-size: 0.8em; color: #666; display: block; border-bottom: 1px solid #eee; margin-bottom: 3px; }
-        .weighted-total { font-weight: bold; color: #007bff; }
-        .total-score { background-color: #ffc107; font-weight: bold; font-size: 1.1em; }
-        .eliminado { background-color: #dc3545; color: white; }
+        /* Matrice */
+        #scores-matrix { 
+            width: 100%; border-collapse: collapse; margin-bottom: 40px;
+            background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        #scores-matrix th, #scores-matrix td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        #scores-matrix th { background-color: #f2f2f2; font-weight: bold; }
+        .candidate-name { text-align: left; font-weight: bold; }
+        .total-score { background-color: #ffc107; font-weight: bold; }
+        
+        /* Podium */
+        #podium-table { width: 100%; max-width: 600px; border-collapse: collapse; background: white; }
+        #podium-table th, #podium-table td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+        .rank-1 { background-color: gold; }
+        .rank-2 { background-color: silver; }
+        .rank-3 { background-color: #cd7f32; color: white; }
 
-        #podium-table { width: 100%; max-width: 650px; border-collapse: collapse; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        #podium-table th, #podium-table td { border: 1px solid #ddd; padding: 12px; text-align: center; }
-        .rank-1 { background-color: gold; font-weight: bold; }
-        .rank-2 { background-color: silver; font-weight: bold; }
-        .rank-3 { background-color: #cd7f32; color: white; font-weight: bold; }
-        .eliminated-row { background-color: #6c757d; color: white; }
-
-        .reset-zone { margin-top: 50px; padding: 15px; border: 2px solid #dc3545; background-color: #f8d7da; border-radius: 5px; }
+        /* Zone Rouge */
+        .reset-zone {
+            margin-top: 50px; padding: 20px; border: 2px solid #dc3545; 
+            background-color: #f8d7da; border-radius: 8px;
+        }
+        .reset-button { background-color: #dc3545; color: white; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <h1>Tableau de bord Administrateur</h1>
-    
-    <div class="candidate-zone">
-        <h2>1. Liste des Candidats</h2>
-        <textarea id="candidate-names" placeholder="Un nom par ligne..."></textarea>
-        <button onclick="saveCandidateList()" class="action-button" style="background:#007bff; color:white;">Sauvegarder la Liste</button>
-    </div>
+    <button onclick="loadAllScores()" class="action-button load-button">Charger les Résultats</button>
 
-    <hr>
-    
-    <h2>2. Calcul des Résultats (Note1 x3 + Note2 x1)</h2>
-    <div>
-        <button onclick="loadAllScores()" class="action-button load-button">Charger et Calculer</button>
-        <button onclick="exportToExcel()" class="action-button export-button excel">Excel (.csv)</button>
-        <button onclick="exportPodiumToImage()" class="action-button export-button">Podium (Image)</button>
-    </div>
-
+    <h2>Matrice des Scores (Fond / Forme)</h2>
     <table id="scores-matrix">
-        <thead><tr><th>Candidat</th></tr></thead>
-        <tbody></tbody>
+        <thead>
+            <tr id="matrix-header">
+                <th>Candidat</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody id="matrix-body"></tbody>
     </table>
 
-    <h2>Classement Officiel</h2>
+    <h2>Classement (Podium)</h2>
     <table id="podium-table">
         <thead>
-            <tr><th>Rang</th><th>Candidat</th><th>Score Pondéré</th><th>Statut</th></tr>
+            <tr>
+                <th>Rang</th>
+                <th>Candidat</th>
+                <th>Score Total</th>
+            </tr>
         </thead>
         <tbody id="podium-body"></tbody>
     </table>
 
     <div class="reset-zone">
-        <h2>Zone de Danger</h2>
-        <button onclick="confirmResetAllData()" class="action-button" style="background:#dc3545; color:white;">RÉINITIALISER TOUS LES SCORES</button>
+        <h2>Zone de Réinitialisation</h2>
+        <p>Cette action supprimera tous les scores et forcera les jurys à redonner leur nom au prochain rafraîchissement de leur page.</p>
+        <button onclick="confirmResetAllData()" class="action-button reset-button">RÉINITIALISER TOUT</button>
     </div>
 
-    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <script type="module">
         import { db } from './firebase-init.js';
-        import { collection, getDocs, deleteDoc, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
+        import { collection, getDocs, deleteDoc, doc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
 
-        let CANDIDATES = [];
-        let aggregatedData = {};
-
-        // --- GESTION CANDIDATS ---
-        window.saveCandidateList = async () => {
-            const names = document.getElementById('candidate-names').value.split('\n').map(n => n.trim()).filter(n => n !== "");
-            const list = names.map((n, i) => ({ id: `C${i+1}`, name: n }));
-            await setDoc(doc(db, "candidats", "liste_actuelle"), { candidates: list });
-            alert("Liste mise à jour !");
-            location.reload();
-        };
-
-        const loadList = async () => {
-            const snap = await getDoc(doc(db, "candidats", "liste_actuelle"));
-            if (snap.exists()) {
-                CANDIDATES = snap.data().candidates;
-                document.getElementById('candidate-names').value = CANDIDATES.map(c => c.name).join('\n');
-            }
-        };
-        loadList();
-
-        // --- CALCUL DES SCORES ---
-        window.loadAllScores = async () => {
-            const querySnapshot = await getDocs(collection(db, "scores"));
-            aggregatedData = {};
-            const juries = new Set();
-
-            CANDIDATES.forEach(c => {
-                aggregatedData[c.id] = { name: c.name, total: 0, juryScores: {}, elimCount: 0, hasScores: false };
-            });
-
-            querySnapshot.forEach(doc => {
-                const data = doc.data();
-                if (aggregatedData[data.candidateId]) {
-                    juries.add(data.juryName);
-                    aggregatedData[data.candidateId].hasScores = true;
-                    aggregatedData[data.candidateId].juryScores[data.juryName] = data;
-                    
-                    if (data.score1 === "Elimine") {
-                        aggregatedData[data.candidateId].elimCount++;
-                    } else {
-                        aggregatedData[data.candidateId].total += data.totalWeightedScore;
-                    }
-                }
-            });
-
-            renderMatrix(Array.from(juries).sort());
-            renderPodium();
-        };
-
-        function renderMatrix(sortedJuries) {
-            const thead = document.querySelector("#scores-matrix thead tr");
-            const tbody = document.querySelector("#scores-matrix tbody");
-            thead.innerHTML = "<th>Candidat</th>" + sortedJuries.map(j => `<th>${j}</th>`).join('') + "<th>Total</th>";
-            tbody.innerHTML = "";
-
-            CANDIDATES.forEach(c => {
-                const data = aggregatedData[c.id];
-                const row = tbody.insertRow();
-                row.insertCell().innerHTML = `<b>${c.name}</b>`;
-                
-                sortedJuries.forEach(j => {
-                    const scoreObj = data.juryScores[j];
-                    const cell = row.insertCell();
-                    if (scoreObj) {
-                        if (scoreObj.score1 === "Elimine") {
-                            cell.className = "eliminado";
-                            cell.textContent = "ÉLIMINÉ";
-                        } else {
-                            cell.innerHTML = `<span class="detail-note">${scoreObj.score1} | ${scoreObj.score2}</span><span class="weighted-total">${scoreObj.totalWeightedScore}</span>`;
-                        }
-                    } else { cell.textContent = "-"; }
-                });
-                const totalCell = row.insertCell();
-                totalCell.className = "total-score";
-                totalCell.textContent = data.total;
-            });
-        }
-
-        function renderPodium() {
-            const body = document.getElementById('podium-body');
-            body.innerHTML = "";
-            let list = Object.values(aggregatedData).filter(c => c.hasScores).sort((a,b) => b.total - a.total);
+        // --- CHARGEMENT DES SCORES ---
+        window.loadAllScores = async function() {
+            const scoresRef = collection(db, "scores");
+            const snapshot = await getDocs(scoresRef);
             
-            list.forEach((c, i) => {
-                const row = body.insertRow();
-                if (c.elimCount >= 3) row.className = "eliminated-row";
-                else if (i === 0) row.className = "rank-1";
-                else if (i === 1) row.className = "rank-2";
-                else if (i === 2) row.className = "rank-3";
+            const juryList = new Set();
+            const results = {}; // { candId: { name, juryScores: { juryName: "Fond/Forme" }, total } }
 
-                row.insertCell().textContent = c.elimCount >= 3 ? "—" : i + 1;
-                row.insertCell().textContent = c.name;
-                row.insertCell().textContent = c.total;
-                row.insertCell().textContent = c.elimCount >= 3 ? `ÉLIMINÉ (${c.elimCount} jurys)` : "Qualifié";
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                juryList.add(data.juryName);
+                
+                if (!results[data.candidateId]) {
+                    results[data.candidateId] = { juryScores: {}, total: 0 };
+                }
+                
+                results[data.candidateId].juryScores[data.juryName] = `${data.score1}/${data.score2}`;
+                results[data.candidateId].total += data.totalWeightedScore;
+            });
+
+            buildTable(Array.from(juryList).sort(), results);
+        };
+
+        function buildTable(juries, results) {
+            // Header
+            const header = document.getElementById('matrix-header');
+            header.innerHTML = '<th>Candidat</th>' + juries.map(j => `<th>${j}</th>`).join('') + '<th>Total</th>';
+
+            // Body
+            const body = document.getElementById('matrix-body');
+            body.innerHTML = '';
+            
+            for (const id in results) {
+                const row = document.createElement('tr');
+                let html = `<td class="candidate-name">${id}</td>`;
+                juries.forEach(j => {
+                    html += `<td>${results[id].juryScores[j] || '-'}</td>`;
+                });
+                html += `<td class="total-score">${results[id].total}</td>`;
+                row.innerHTML = html;
+                body.appendChild(row);
+            }
+
+            buildPodium(results);
+        }
+
+        function buildPodium(results) {
+            const sorted = Object.entries(results)
+                .map(([id, data]) => ({ id, total: data.total }))
+                .sort((a, b) => b.total - a.total);
+
+            const body = document.getElementById('podium-body');
+            body.innerHTML = '';
+            
+            sorted.forEach((cand, i) => {
+                const row = document.createElement('tr');
+                if(i === 0) row.className = 'rank-1';
+                if(i === 1) row.className = 'rank-2';
+                if(i === 2) row.className = 'rank-3';
+                
+                row.innerHTML = `<td>${i+1}</td><td>${cand.id}</td><td>${cand.total}</td>`;
+                body.appendChild(row);
             });
         }
 
-        window.confirmResetAllData = async () => {
-            if(confirm("Supprimer TOUS les scores ?")){
-                const snap = await getDocs(collection(db, "scores"));
-                for (const d of snap.docs) { await deleteDoc(doc(db, "scores", d.id)); }
+        // --- RÉINITIALISATION ---
+        window.confirmResetAllData = async function() {
+            if (!confirm("Voulez-vous vraiment TOUT supprimer ? Les jurys devront se reconnecter s'ils rechargent leur page.")) return;
+
+            try {
+                // 1. Supprimer les scores
+                const snapshot = await getDocs(collection(db, "scores"));
+                for (const d of snapshot.docs) {
+                    await deleteDoc(doc(db, "scores", d.id));
+                }
+
+                // 2. Changer l'ID de session pour déconnecter les jurys
+                const newId = Date.now().toString();
+                await updateDoc(doc(db, "config", "session"), {
+                    current_id: newId
+                });
+
+                alert("Réinitialisation terminée.");
                 location.reload();
+            } catch (e) {
+                console.error(e);
+                alert("Erreur. Vérifiez que la collection 'config/session' existe dans Firebase.");
             }
         };
     </script>
