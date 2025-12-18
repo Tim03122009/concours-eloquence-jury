@@ -3,82 +3,127 @@ import {
     collection, addDoc, query, where, getDocs, getDoc, doc 
 } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
 
-// --- VARIABLES GLOBALES ---
-let currentJuryName = '';
+// --- VARIABLES GLOBALES (Ajout de localStorage) ---
+let currentJuryName = localStorage.getItem('currentJuryName') || '';
+let storedSessionId = localStorage.getItem('sessionId') || '';
 let selectedCandidateId = null;
-let selectedScore1 = null; // Note Fond
-let selectedScore2 = null; // Note Forme
+let selectedScore1 = null; 
+let selectedScore2 = null;
 let CANDIDATES = [];
 
+// --- INITIALISATION (Vérifie si le jury est déjà connecté ou si reset admin) ---
+async function checkSessionAndStart() {
+    try {
+        const snap = await getDoc(doc(db, "config", "session"));
+        const firebaseSessionId = snap.exists() ? snap.data().current_id : '1';
+
+        if (storedSessionId !== firebaseSessionId && storedSessionId !== '') {
+            logout(); // Reset forcé par l'admin
+            return;
+        }
+
+        if (currentJuryName) {
+            startScoring();
+        } else {
+            document.getElementById('identification-page').classList.add('active');
+        }
+    } catch (e) {
+        document.getElementById('identification-page').classList.add('active');
+    }
+}
+
+function logout() {
+    localStorage.clear();
+    location.reload();
+}
+document.getElementById('logout-button').onclick = logout;
+
 // --------------------------------------------------------------------------------
-// INITIALISATION DES GRILLES DE BOUTONS
+// GRILLES DE BOUTONS (Limitées à 5/10/15/20/Elim)
 // --------------------------------------------------------------------------------
 function createGrids() {
     const gridFond = document.getElementById('grid-fond');
     const gridForme = document.getElementById('grid-forme');
+    const values = [5, 10, 15, 20];
     
-    // Création des boutons 1 à 20 pour les deux grilles
-    for (let i = 1; i <= 20; i++) {
-        // Grille Fond
+    gridFond.innerHTML = ''; gridForme.innerHTML = '';
+
+    values.forEach(val => {
         const btn1 = document.createElement('button');
         btn1.className = 'score-btn score-btn-1';
-        btn1.textContent = i;
-        btn1.onclick = () => selectScore(1, i, btn1);
+        btn1.textContent = val;
+        btn1.onclick = () => selectScore(1, val, btn1);
         gridFond.appendChild(btn1);
 
-        // Grille Forme
         const btn2 = document.createElement('button');
         btn2.className = 'score-btn score-btn-2';
-        btn2.textContent = i;
-        btn2.onclick = () => selectScore(2, i, btn2);
+        btn2.textContent = val;
+        btn2.onclick = () => selectScore(2, val, btn2);
         gridForme.appendChild(btn2);
-    }
+    });
 
-    // Ajout bouton élimination sur la note de fond
-    const btnElim = document.createElement('button');
-    btnElim.className = 'score-btn score-btn-1 eliminated';
-    btnElim.textContent = 'ÉLIMINATION DIRECTE';
-    btnElim.onclick = () => selectScore(1, 'Elimine', btnElim);
-    gridFond.appendChild(btnElim);
+    // Ajout bouton Elimine
+    const elim1 = document.createElement('button');
+    elim1.className = 'score-btn score-btn-1 eliminated'; // Ajoute .eliminated dans ton CSS pour le rouge
+    elim1.textContent = 'Eliminé';
+    elim1.onclick = () => selectScore(1, 'Elimine', elim1);
+    gridFond.appendChild(elim1);
+
+    const elim2 = document.createElement('button');
+    elim2.className = 'score-btn score-btn-2 eliminated';
+    elim2.textContent = 'Eliminé';
+    elim2.onclick = () => selectScore(2, 'Elimine', elim2);
+    gridForme.appendChild(elim2);
 }
 
 function selectScore(type, value, element) {
     if (type === 1) {
         selectedScore1 = value;
         document.querySelectorAll('.score-btn-1').forEach(b => b.classList.remove('selected'));
-        document.getElementById('display-score-1').textContent = `Note Fond : ${value}`;
     } else {
         selectedScore2 = value;
         document.querySelectorAll('.score-btn-2').forEach(b => b.classList.remove('selected'));
-        document.getElementById('display-score-2').textContent = `Note Forme : ${value}`;
     }
     element.classList.add('selected');
+    document.getElementById(`display-score-${type}`).textContent = `Note : ${value}`;
     checkValidation();
 }
 
-createGrids();
-
 // --------------------------------------------------------------------------------
-// LOGIQUE FIREBASE & INTERFACE
+// LOGIQUE DE NAVIGATION
 // --------------------------------------------------------------------------------
+document.getElementById('start-scoring-button').onclick = async () => {
+    const name = document.getElementById('jury-name-input').value.trim();
+    if (name.length < 2) return;
 
-async function loadCandidatesFromFirebase() {
-    const docRef = doc(db, "candidats", "liste_actuelle");
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-        CANDIDATES = docSnap.data().candidates;
-    }
+    const snap = await getDoc(doc(db, "config", "session"));
+    const firebaseSessionId = snap.exists() ? snap.data().current_id : '1';
+
+    currentJuryName = name;
+    storedSessionId = firebaseSessionId;
+    localStorage.setItem('currentJuryName', name);
+    localStorage.setItem('sessionId', firebaseSessionId);
+    startScoring();
+};
+
+function startScoring() {
+    document.getElementById('current-jury-display').textContent = currentJuryName;
+    document.getElementById('identification-page').classList.remove('active');
+    document.getElementById('scoring-page').classList.add('active');
+    createGrids();
+    updateCandidateSelect();
 }
 
 async function updateCandidateSelect() {
-    await loadCandidatesFromFirebase();
-    const select = document.getElementById('candidate-select');
-    select.innerHTML = '<option value="" disabled selected>-- Choisir un candidat --</option>';
+    const docSnap = await getDoc(doc(db, "candidats", "liste_actuelle"));
+    if (docSnap.exists()) CANDIDATES = docSnap.data().candidates;
 
-    // Récupérer les candidats déjà notés pour les griser
     const q = query(collection(db, "scores"), where("juryName", "==", currentJuryName));
     const snap = await getDocs(q);
     const scoredIds = snap.docs.map(d => d.data().candidateId);
+
+    const select = document.getElementById('candidate-select');
+    select.innerHTML = '<option value="" disabled selected>-- Choisir un candidat --</option>';
 
     CANDIDATES.forEach(c => {
         const opt = document.createElement('option');
@@ -89,40 +134,27 @@ async function updateCandidateSelect() {
     });
 }
 
-document.getElementById('start-scoring-button').addEventListener('click', () => {
-    currentJuryName = document.getElementById('jury-name-input').value.trim();
-    if (currentJuryName.length < 3) return;
-
-    localStorage.setItem('currentJuryName', currentJuryName);
-    document.getElementById('current-jury-display').textContent = currentJuryName;
-    document.getElementById('identification-page').classList.remove('active');
-    document.getElementById('scoring-page').classList.add('active');
-    updateCandidateSelect();
-});
-
-document.getElementById('candidate-select').addEventListener('change', (e) => {
+document.getElementById('candidate-select').onchange = (e) => {
     selectedCandidateId = e.target.value;
-    const name = CANDIDATES.find(c => c.id === selectedCandidateId).name;
-    document.getElementById('selected-candidate-display').textContent = `Candidat : ${name}`;
+    const c = CANDIDATES.find(x => x.id === selectedCandidateId);
+    document.getElementById('selected-candidate-display').textContent = `Candidat : ${c.name}`;
     checkValidation();
-});
+};
 
 function checkValidation() {
-    const btn = document.getElementById('validate-button');
-    btn.disabled = !(selectedCandidateId && selectedScore1 && selectedScore2);
+    document.getElementById('validate-button').disabled = !(selectedCandidateId && selectedScore1 && selectedScore2);
 }
 
 // --------------------------------------------------------------------------------
-// ENVOI DES DONNÉES
+// GESTION MODALE ET ENVOI
 // --------------------------------------------------------------------------------
-
-document.getElementById('validate-button').addEventListener('click', () => {
-    const name = CANDIDATES.find(c => c.id === selectedCandidateId).name;
-    document.getElementById('modal-candidate').textContent = name;
+document.getElementById('validate-button').onclick = () => {
+    const c = CANDIDATES.find(x => x.id === selectedCandidateId);
+    document.getElementById('modal-candidate').textContent = c.name;
     document.getElementById('modal-s1').textContent = selectedScore1;
     document.getElementById('modal-s2').textContent = selectedScore2;
     document.getElementById('confirmation-modal').style.display = 'flex';
-});
+};
 
 document.getElementById('cancel-send-button').onclick = () => {
     document.getElementById('confirmation-modal').style.display = 'none';
@@ -130,28 +162,20 @@ document.getElementById('cancel-send-button').onclick = () => {
 
 document.getElementById('confirm-send-button').onclick = async () => {
     document.getElementById('confirmation-modal').style.display = 'none';
+    let pts = (selectedScore1 === 'Elimine' || selectedScore2 === 'Elimine') ? 0 : (parseInt(selectedScore1) * 3) + parseInt(selectedScore2);
     
-    // Calcul de la pondération
-    let totalWeighted = 0;
-    if (selectedScore1 === 'Elimine') {
-        totalWeighted = 0; // Ou une valeur spécifique pour gérer l'élimination
-    } else {
-        totalWeighted = (parseInt(selectedScore1) * 3) + parseInt(selectedScore2);
-    }
-
     try {
         await addDoc(collection(db, "scores"), {
             juryName: currentJuryName,
             candidateId: selectedCandidateId,
             score1: selectedScore1,
             score2: selectedScore2,
-            totalWeightedScore: totalWeighted,
+            totalWeightedScore: pts,
             timestamp: new Date()
         });
-
-        alert("Notes enregistrées !");
-        location.reload(); // Recharge pour vider les sélections
-    } catch (e) {
-        alert("Erreur lors de l'envoi.");
-    }
+        alert("Envoyé !");
+        location.reload(); 
+    } catch (e) { alert("Erreur d'envoi"); }
 };
+
+checkSessionAndStart();
