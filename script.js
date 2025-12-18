@@ -1,65 +1,50 @@
 import { db } from './firebase-init.js';
-import { 
-    collection, addDoc, query, where, getDocs, getDoc, doc 
-} from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
+import { collection, addDoc, query, where, getDocs, getDoc, doc } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
 
-let currentJuryName = '';
+let currentJuryName = localStorage.getItem('currentJuryName') || '';
 let selectedCandidateId = null;
 let selectedScore1 = null;
 let selectedScore2 = null;
 let CANDIDATES = [];
 
-// --- NOUVEAU : VERIFICATION DE SESSION AU CHARGEMENT ---
-const storedJuryName = localStorage.getItem('currentJuryName');
-if (storedJuryName) {
-    currentJuryName = storedJuryName;
-    // On attend que le DOM soit prêt pour basculer de page
+// PERSISTANCE : Charger directement si le nom existe
+if (currentJuryName) {
     document.addEventListener('DOMContentLoaded', () => {
-        showScoringPage(currentJuryName);
+        showScoringPage();
     });
 }
 
-// Fonction pour basculer vers l'interface de notation
-function showScoringPage(name) {
-    document.getElementById('current-jury-name').textContent = name;
+function showScoringPage() {
+    document.getElementById('current-jury-name').textContent = currentJuryName;
     document.getElementById('identification-page').classList.remove('active');
     document.getElementById('scoring-page').classList.add('active');
     loadCandidateList();
 }
 
-// A. IDENTIFICATION (Premier passage)
 document.getElementById('start-scoring-button').addEventListener('click', () => {
-    const input = document.getElementById('jury-name-input');
-    currentJuryName = input.value.trim();
-    if (currentJuryName.length < 3) return;
-
-    localStorage.setItem('currentJuryName', currentJuryName);
-    showScoringPage(currentJuryName);
+    const name = document.getElementById('jury-name-input').value.trim();
+    if (name.length < 3) return;
+    currentJuryName = name;
+    localStorage.setItem('currentJuryName', name);
+    showScoringPage();
 });
 
-// B. CHARGEMENT CANDIDATS
 async function loadCandidateList() {
     const docSnap = await getDoc(doc(db, "candidats", "liste_actuelle"));
-    if (docSnap.exists()) {
-        CANDIDATES = docSnap.data().candidates;
-    }
+    if (docSnap.exists()) { CANDIDATES = docSnap.data().candidates; }
 
     const q = query(collection(db, "scores"), where("juryName", "==", currentJuryName));
     const snap = await getDocs(q);
     const scoredIds = snap.docs.map(d => d.data().candidateId);
 
-    const selectElement = document.getElementById('candidate-select');
-    selectElement.innerHTML = ''; 
-
-    CANDIDATES.forEach(candidate => {
-        const option = document.createElement('option');
-        option.value = candidate.id;
-        option.textContent = `${candidate.id} - ${candidate.name}`;
-        if (scoredIds.includes(candidate.id)) {
-            option.classList.add('scored');
-            option.disabled = true;
-        }
-        selectElement.appendChild(option);
+    const select = document.getElementById('candidate-select');
+    select.innerHTML = '';
+    CANDIDATES.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = `${c.id} - ${c.name}`;
+        if (scoredIds.includes(c.id)) { opt.classList.add('scored'); opt.disabled = true; }
+        select.appendChild(opt);
     });
 }
 
@@ -67,12 +52,11 @@ document.getElementById('candidate-select').addEventListener('change', (e) => {
     selectedCandidateId = e.target.value;
     const name = CANDIDATES.find(c => c.id === selectedCandidateId).name;
     document.getElementById('selected-candidate-display').textContent = `Candidat : ${name}`;
-    checkValidationStatus();
+    checkValidation();
 });
 
-// C. SELECTION DES NOTES
-document.querySelectorAll('.score-btn').forEach(button => {
-    button.addEventListener('click', (e) => {
+document.querySelectorAll('.score-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
         const val = e.target.dataset.score;
         if (e.target.classList.contains('s1')) {
             selectedScore1 = val;
@@ -83,15 +67,14 @@ document.querySelectorAll('.score-btn').forEach(button => {
         }
         e.target.classList.add('selected');
         document.getElementById('selected-score-display').textContent = `Sélection : Fond [${selectedScore1 || '-'}] | Forme [${selectedScore2 || '-'}]`;
-        checkValidationStatus();
+        checkValidation();
     });
 });
 
-function checkValidationStatus() {
+function checkValidation() {
     document.getElementById('validate-button').disabled = !(selectedCandidateId && selectedScore1 && selectedScore2);
 }
 
-// D. ENVOI DES DONNÉES (SANS RELOAD)
 document.getElementById('validate-button').addEventListener('click', () => {
     const name = CANDIDATES.find(c => c.id === selectedCandidateId).name;
     document.getElementById('modal-jury-name').textContent = currentJuryName;
@@ -114,25 +97,14 @@ document.getElementById('confirm-send-button').addEventListener('click', async (
             totalWeightedScore: total,
             timestamp: new Date()
         });
-
-        alert("Score enregistré !");
-
-        // RESET INTERFACE SANS RECHARGER NI REDEMANDER LE NOM
-        selectedScore1 = null;
-        selectedScore2 = null;
-        selectedCandidateId = null;
+        alert("Enregistré !");
+        // Reset sans reload pour garder le nom du jury
+        selectedScore1 = null; selectedScore2 = null; selectedCandidateId = null;
         document.querySelectorAll('.score-btn').forEach(b => b.classList.remove('selected'));
-        document.getElementById('selected-score-display').textContent = `Sélection : Fond [-] | Forme [-]`;
+        document.getElementById('selected-score-display').textContent = "Sélection : Fond [-] | Forme [-]";
         document.getElementById('selected-candidate-display').textContent = "Candidat : Aucun";
-        document.getElementById('validate-button').disabled = true;
-        
-        loadCandidateList(); 
-
-    } catch (e) {
-        alert("Erreur d'envoi.");
-    }
+        loadCandidateList();
+    } catch (e) { alert("Erreur d'envoi."); }
 });
 
-document.getElementById('cancel-send-button').addEventListener('click', () => {
-    document.getElementById('confirmation-modal').style.display = 'none';
-});
+document.getElementById('cancel-send-button').onclick = () => { document.getElementById('confirmation-modal').style.display = 'none'; };
