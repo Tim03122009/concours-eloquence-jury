@@ -5,105 +5,101 @@ import {
 
 let currentJuryName = '';
 let selectedCandidateId = null;
-let selectedScore1 = null; 
-let selectedScore2 = null; 
+let selectedScore1 = null;
+let selectedScore2 = null;
 let CANDIDATES = [];
 
-function createGrids() {
-    const gridFond = document.getElementById('grid-fond');
-    const gridForme = document.getElementById('grid-forme');
-    
-    for (let i = 1; i <= 20; i++) {
-        // Grille Fond
-        const btn1 = document.createElement('button');
-        btn1.className = 'score-btn score-btn-1';
-        btn1.textContent = i;
-        btn1.onclick = () => selectScore(1, i, btn1);
-        gridFond.appendChild(btn1);
-
-        // Grille Forme
-        const btn2 = document.createElement('button');
-        btn2.className = 'score-btn score-btn-2';
-        btn2.textContent = i;
-        btn2.onclick = () => selectScore(2, i, btn2);
-        gridForme.appendChild(btn2);
-    }
-
-    const btnElim = document.createElement('button');
-    btnElim.className = 'score-btn score-btn-1 eliminated';
-    btnElim.textContent = 'ÉLIMINER LE CANDIDAT';
-    btnElim.onclick = () => selectScore(1, 'Elimine', btnElim);
-    gridFond.appendChild(btnElim);
-}
-
-function selectScore(type, value, element) {
-    if (type === 1) {
-        selectedScore1 = value;
-        document.querySelectorAll('.score-btn-1').forEach(b => b.classList.remove('selected'));
-        document.getElementById('display-score-1').textContent = value;
-    } else {
-        selectedScore2 = value;
-        document.querySelectorAll('.score-btn-2').forEach(b => b.classList.remove('selected'));
-        document.getElementById('display-score-2').textContent = value;
-    }
-    element.classList.add('selected');
-    checkValidation();
-}
-
-async function loadCandidatesFromFirebase() {
-    const docRef = doc(db, "candidats", "liste_actuelle");
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) { CANDIDATES = docSnap.data().candidates; }
-}
-
-async function updateCandidateSelect() {
-    await loadCandidatesFromFirebase();
-    const select = document.getElementById('candidate-select');
-    select.innerHTML = '<option value="" disabled selected>Candidat...</option>';
-    const q = query(collection(db, "scores"), where("juryName", "==", currentJuryName));
-    const snap = await getDocs(q);
-    const scoredIds = snap.docs.map(d => d.data().candidateId);
-    CANDIDATES.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c.id;
-        opt.textContent = `${c.id} - ${c.name}`;
-        if (scoredIds.includes(c.id)) opt.disabled = true;
-        select.appendChild(opt);
-    });
-}
-
+// A. IDENTIFICATION
 document.getElementById('start-scoring-button').addEventListener('click', () => {
-    currentJuryName = document.getElementById('jury-name-input').value.trim();
-    if (currentJuryName.length < 2) return;
+    const input = document.getElementById('jury-name-input');
+    currentJuryName = input.value.trim();
+    if (currentJuryName.length < 3) return;
+
     localStorage.setItem('currentJuryName', currentJuryName);
-    document.getElementById('current-jury-display').textContent = currentJuryName;
+    document.getElementById('current-jury-name').textContent = currentJuryName;
     document.getElementById('identification-page').classList.remove('active');
     document.getElementById('scoring-page').classList.add('active');
-    updateCandidateSelect();
+    loadCandidateList();
 });
+
+// B. CHARGEMENT CANDIDATS (Depuis Firestore)
+async function loadCandidateList() {
+    // On récupère la liste depuis le document de l'admin
+    const docSnap = await getDoc(doc(db, "candidats", "liste_actuelle"));
+    if (docSnap.exists()) {
+        CANDIDATES = docSnap.data().candidates;
+    }
+
+    const scoresRef = collection(db, "scores");
+    const q = query(scoresRef, where("juryName", "==", currentJuryName));
+    const querySnapshot = await getDocs(q);
+    const scoredIds = querySnapshot.docs.map(doc => doc.data().candidateId);
+
+    const selectElement = document.getElementById('candidate-select');
+    selectElement.innerHTML = ''; 
+
+    CANDIDATES.forEach(candidate => {
+        const option = document.createElement('option');
+        option.value = candidate.id;
+        option.textContent = `${candidate.id} - ${candidate.name}`;
+        if (scoredIds.includes(candidate.id)) {
+            option.classList.add('scored');
+            option.disabled = true;
+        }
+        selectElement.appendChild(option);
+    });
+}
 
 document.getElementById('candidate-select').addEventListener('change', (e) => {
     selectedCandidateId = e.target.value;
     const name = CANDIDATES.find(c => c.id === selectedCandidateId).name;
     document.getElementById('selected-candidate-display').textContent = `Candidat : ${name}`;
-    checkValidation();
+    checkValidationStatus();
 });
 
-function checkValidation() {
-    document.getElementById('validate-button').disabled = !(selectedCandidateId && selectedScore1 && selectedScore2);
+// C. GESTION DES SCORES (Deux groupes)
+document.querySelectorAll('.score-btn').forEach(button => {
+    button.addEventListener('click', (e) => {
+        const value = e.target.dataset.score;
+        
+        if (e.target.classList.contains('s1')) {
+            selectedScore1 = value;
+            document.querySelectorAll('.s1').forEach(btn => btn.classList.remove('selected'));
+        } else {
+            selectedScore2 = value;
+            document.querySelectorAll('.s2').forEach(btn => btn.classList.remove('selected'));
+        }
+        
+        e.target.classList.add('selected');
+        document.getElementById('selected-score-display').textContent = `Sélection : Fond [${selectedScore1 || '-'}] | Forme [${selectedScore2 || '-'}]`;
+        checkValidationStatus();
+    });
+});
+
+function checkValidationStatus() {
+    const btn = document.getElementById('validate-button');
+    btn.disabled = !(selectedCandidateId && selectedScore1 && selectedScore2);
 }
 
+// D. VALIDATION ET ENVOI
 document.getElementById('validate-button').addEventListener('click', () => {
     const name = CANDIDATES.find(c => c.id === selectedCandidateId).name;
-    document.getElementById('modal-summary').innerHTML = `<b>${name}</b><br>Note 1: ${selectedScore1}<br>Note 2: ${selectedScore2}`;
+    document.getElementById('modal-jury-name').textContent = currentJuryName;
+    document.getElementById('modal-candidate-name').textContent = name;
+    document.getElementById('modal-score1').textContent = selectedScore1;
+    document.getElementById('modal-score2').textContent = selectedScore2;
     document.getElementById('confirmation-modal').style.display = 'flex';
 });
 
-document.getElementById('cancel-send-button').onclick = () => { document.getElementById('confirmation-modal').style.display = 'none'; };
-
-document.getElementById('confirm-send-button').onclick = async () => {
+document.getElementById('confirm-send-button').addEventListener('click', async () => {
     document.getElementById('confirmation-modal').style.display = 'none';
-    let total = (selectedScore1 === 'Elimine') ? 0 : (parseInt(selectedScore1) * 3) + parseInt(selectedScore2);
+    
+    // Calcul score pondéré
+    let total = 0;
+    if (selectedScore1 !== "Elimine") {
+        total = (parseInt(selectedScore1) * 3) + parseInt(selectedScore2);
+    }
+
     try {
         await addDoc(collection(db, "scores"), {
             juryName: currentJuryName,
@@ -113,9 +109,13 @@ document.getElementById('confirm-send-button').onclick = async () => {
             totalWeightedScore: total,
             timestamp: new Date()
         });
-        alert("Enregistré");
-        location.reload();
-    } catch (e) { alert("Erreur"); }
-};
+        alert("Enregistré avec succès !");
+        location.reload(); // Reset complet pour le candidat suivant
+    } catch (e) {
+        alert("Erreur lors de l'envoi.");
+    }
+});
 
-createGrids();
+document.getElementById('cancel-send-button').addEventListener('click', () => {
+    document.getElementById('confirmation-modal').style.display = 'none';
+});

@@ -2,125 +2,70 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Notation Concours</title>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f8f9fa; padding: 10px; margin: 0; color: #333; }
-        .page { display: none; max-width: 800px; margin: auto; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 1px 5px rgba(0,0,0,0.1); }
-        .active { display: block; }
-        h2 { font-size: 1.2rem; margin: 0 0 10px 0; color: #007bff; text-align: center; }
-        
-        .control-group { margin-bottom: 12px; }
-        label { display: block; font-weight: bold; font-size: 0.9rem; margin-bottom: 5px; color: #555; }
-        
-        select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; }
-        
-        /* Grilles compactes pour Tablettes */
-        .score-grid { 
-            display: grid; 
-            grid-template-columns: repeat(10, 1fr); /* 10 boutons par ligne pour gagner de la place */
-            gap: 4px; 
-            margin-top: 5px; 
-        }
-        
-        .score-btn { 
-            padding: 12px 0; 
-            border: 1px solid #ddd; 
-            background: #fff; 
-            cursor: pointer; 
-            border-radius: 4px; 
-            font-weight: bold; 
-            font-size: 0.85rem; 
-        }
-        
-        .score-btn.selected { background-color: #007bff; color: white; border-color: #0056b3; }
-        
-        /* Bouton éliminé plus discret et intégré */
-        .eliminated { 
-            grid-column: span 10; 
-            margin-top: 2px;
-            background-color: #fff; 
-            color: #dc3545; 
-            border: 1px solid #dc3545;
-            padding: 8px;
-        }
-        .eliminated.selected { background-color: #dc3545; color: white; }
-
-        .selection-info { font-size: 0.8rem; color: #007bff; margin: 3px 0; font-weight: bold; }
-        
-        hr { border: 0; border-top: 1px solid #eee; margin: 10px 0; }
-
-        #validate-button { 
-            width: 100%; 
-            padding: 12px; 
-            background: #28a745; 
-            color: white; 
-            border: none; 
-            border-radius: 4px; 
-            font-size: 1rem; 
-            font-weight: bold;
-            cursor: pointer; 
-        }
-        #validate-button:disabled { background: #ccc; }
-
-        /* Modal simple */
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 100; }
-        .modal-content { background: white; padding: 20px; border-radius: 8px; width: 85%; max-width: 350px; text-align: center; }
-        .modal-btns { display: flex; gap: 10px; margin-top: 15px; }
-        .modal-btns button { flex: 1; padding: 10px; border: none; border-radius: 4px; font-weight: bold; }
-        
-        /* Correction pour petits écrans si nécessaire */
-        @media (max-width: 600px) {
-            .score-grid { grid-template-columns: repeat(5, 1fr); }
-            .eliminated { grid-column: span 5; }
-        }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Concours Éloquence - Espace Jury</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div id="identification-page" class="page active">
-        <h2>Identification</h2>
-        <div class="control-group">
-            <input type="text" id="jury-name-input" placeholder="Nom du Jury">
+    <div id="identification-page" class="page-container active">
+        <div class="identification-box">
+            <h1>Bienvenue, Jury !</h1>
+            <p>Veuillez entrer votre nom pour commencer la notation.</p>
+            <input type="text" id="jury-name-input" placeholder="Ex: Mme. Dupont / M. Martin" required>
+            <button id="start-scoring-button">Accéder à la Notation</button>
+            <div id="error-message" class="error-message"></div>
         </div>
-        <button id="start-scoring-button" style="width:100%; padding:12px; background:#007bff; color:white; border:none; border-radius:4px;">Entrer</button>
     </div>
 
-    <div id="scoring-page" class="page">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <h2 style="margin:0; font-size: 1rem;">Jury : <span id="current-jury-display"></span></h2>
-            <p id="selected-candidate-display" class="selection-info">Candidat : Aucun</p>
+    <div id="scoring-page" class="page-container">
+        <h2>Jury : <span id="current-jury-name"></span></h2>
+        
+        <div class="scoring-interface">
+            
+            <div class="score-selection">
+                <h3 style="margin-bottom:5px;">1. Fond (Coeff 3)</h3>
+                <div class="score-buttons grid-mini" id="group-1">
+                    <button class="score-btn s1" data-score="5">5</button>
+                    <button class="score-btn s1" data-score="10">10</button>
+                    <button class="score-btn s1" data-score="15">15</button>
+                    <button class="score-btn s1" data-score="20">20</button>
+                    <button class="score-btn s1 eliminated-btn" data-score="Elimine">ÉLIMINÉ</button>
+                </div>
+
+                <h3 style="margin: 15px 0 5px 0;">2. Forme (Coeff 1)</h3>
+                <div class="score-buttons grid-mini" id="group-2">
+                    <button class="score-btn s2" data-score="5">5</button>
+                    <button class="score-btn s2" data-score="10">10</button>
+                    <button class="score-btn s2" data-score="15">15</button>
+                    <button class="score-btn s2" data-score="20">20</button>
+                </div>
+                
+                <h4 id="selected-score-display" style="margin-top:10px;">Sélection : Note 1 [-] | Note 2 [-]</h4>
+                <button id="validate-button" disabled>Valider la Notation</button>
+            </div>
+
+            <div class="candidate-list">
+                <h3>Candidats</h3>
+                <select id="candidate-select" size="12">
+                    <option value="" disabled selected>Chargement...</option>
+                </select>
+                <div id="selected-candidate-display" style="font-weight:bold; color:#007bff; margin-top:5px;">Candidat : Aucun</div>
+            </div>
+            
         </div>
-
-        <div class="control-group">
-            <select id="candidate-select">
-                <option value="" disabled selected>Choisir un candidat</option>
-            </select>
-        </div>
-
-        <hr>
-
-        <div class="control-group">
-            <label>Note 1 : Fond (Coeff 3) <span id="display-score-1" style="float:right; color:#007bff;">-</span></label>
-            <div class="score-grid" id="grid-fond"></div>
-        </div>
-
-        <div class="control-group">
-            <label>Note 2 : Forme (Coeff 1) <span id="display-score-2" style="float:right; color:#007bff;">-</span></label>
-            <div class="score-grid" id="grid-forme"></div>
-        </div>
-
-        <button id="validate-button" disabled>Valider la note</button>
     </div>
 
     <div id="confirmation-modal" class="modal">
         <div class="modal-content">
-            <h3>Confirmer ?</h3>
-            <p id="modal-summary"></p>
-            <div class="modal-btns">
-                <button id="cancel-send-button" style="background:#eee;">Non</button>
-                <button id="confirm-send-button" style="background:#28a745; color:white;">Oui</button>
-            </div>
+            <h3>Confirmer l'enregistrement</h3>
+            <p>Jury : <strong id="modal-jury-name"></strong></p>
+            <p>Candidat : <strong id="modal-candidate-name"></strong></p>
+            <p>Fond (x3) : <strong id="modal-score1"></strong></p>
+            <p>Forme (x1) : <strong id="modal-score2"></strong></p>
+            
+            <button id="confirm-send-button">Confirmer et Envoyer</button>
+            <button id="cancel-send-button">Annuler</button>
         </div>
     </div>
 
