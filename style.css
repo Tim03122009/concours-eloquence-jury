@@ -52,8 +52,8 @@
     --text-color: #e0e0e0;
     --text-secondary: #b0b0b0;
     --border-color: #444;
-    --bg-gradient-start: #1a1a2e;
-    --bg-gradient-end: #16213e;
+    --bg-gradient-start: #334d65;
+    --bg-gradient-end: #1a252f;
     --card-bg: #2d2d3a;
     --input-bg: #3a3a4a;
     --info-bg-start: #1e3a5f;
@@ -114,7 +114,7 @@ body {
     position: absolute;
     top: var(--spacing-sm);
     right: var(--spacing-sm);
-    z-index: 1000;
+    z-index: 9999;
 }
 
 .burger-icon {
@@ -156,6 +156,7 @@ body {
     min-width: 200px;
     display: none;
     overflow: hidden;
+    z-index: 10000;
 }
 
 .burger-menu-content.active {

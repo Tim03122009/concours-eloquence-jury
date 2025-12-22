@@ -173,9 +173,10 @@ document.getElementById('confirm-send-button').onclick = async () => {
             totalWeightedScore: pts,
             timestamp: new Date()
         });
-        alert("Envoyé !");
         location.reload(); 
-    } catch (e) { alert("Erreur d'envoi"); }
+    } catch (e) { 
+        alert("Erreur d'envoi : " + e.message); 
+    }
 };
 
 checkSessionAndStart();
