@@ -2,63 +2,67 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Notation Concours Éloquence</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="description" content="Application de notation pour concours d'éloquence - Interface jury">
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>🎭 Notation Concours Éloquence</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <div id="identification-page" class="page">
-        <h2>Identification Jury</h2>
+        <h2>👤 Identification Jury</h2>
         <div class="control-group">
             <label for="jury-name-input">Votre Nom / Identifiant :</label>
-            <input type="text" id="jury-name-input" placeholder="Ex: Mme. Dupont">
+            <input type="text" id="jury-name-input" placeholder="Ex: Mme. Dupont" autocomplete="name" required>
         </div>
-        <button id="start-scoring-button" style="width:100%; padding:15px; background:#007bff; color:white; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">Commencer la notation</button>
+        <button id="start-scoring-button">✨ Commencer la notation</button>
     </div>
 
     <div id="scoring-page" class="page">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-            <h2 style="margin: 0; color: #007bff;">Jury : <span id="current-jury-display"></span></h2>
-            <button id="logout-button" style="background: #dc3545; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold;">Déconnexion</button>
+        <div>
+            <h2 style="margin: 0;">👤 Jury : <span id="current-jury-display"></span></h2>
+            <button id="logout-button">🚪 Déconnexion</button>
         </div>
 
         <div class="control-group">
-            <label>1. Candidat à noter :</label>
+            <label>1️⃣ Candidat à noter :</label>
             <select id="candidate-select">
                 <option value="" disabled selected>-- Charger la liste --</option>
             </select>
-            <p id="selected-candidate-display" class="selection-info">Aucun candidat sélectionné</p>
+            <p id="selected-candidate-display" class="selection-info">📋 Aucun candidat sélectionné</p>
         </div>
 
         <hr>
 
         <div class="control-group">
-            <label>2. Fond / Argumentation (Coeff 3)</label>
+            <label>2️⃣ Fond / Argumentation (Coefficient ×3)</label>
             <div class="score-grid" id="grid-fond"></div>
-            <p id="display-score-1" class="selection-info">Note Fond : -</p>
+            <p id="display-score-1" class="selection-info">📝 Note Fond : -</p>
         </div>
 
         <hr>
 
         <div class="control-group">
-            <label>3. Forme / Éloquence (Coeff 1)</label>
+            <label>3️⃣ Forme / Éloquence (Coefficient ×1)</label>
             <div class="score-grid" id="grid-forme"></div>
-            <p id="display-score-2" class="selection-info">Note Forme : -</p>
+            <p id="display-score-2" class="selection-info">🎤 Note Forme : -</p>
         </div>
 
-        <button id="validate-button" disabled>Valider la notation</button>
+        <button id="validate-button" disabled>✅ Valider la notation</button>
     </div>
 
     <div id="confirmation-modal" class="modal">
         <div class="modal-content">
-            <h3>Confirmer l'envoi ?</h3>
-            <p>Candidat : <strong id="modal-candidate"></strong></p>
-            <p>Fond : <strong id="modal-s1"></strong></p>
-            <p>Forme : <strong id="modal-s2"></strong></p>
-            <div style="margin-top: 20px;">
-                <button id="confirm-send-button" style="background: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">Confirmer</button>
-                <button id="cancel-send-button" style="background: #6c757d; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-left: 10px;">Annuler</button>
+            <h3>✅ Confirmer l'envoi ?</h3>
+            <p>👤 Candidat : <strong id="modal-candidate"></strong></p>
+            <p>📝 Fond : <strong id="modal-s1"></strong></p>
+            <p>🎤 Forme : <strong id="modal-s2"></strong></p>
+            <div>
+                <button id="confirm-send-button">✅ Confirmer</button>
+                <button id="cancel-send-button">❌ Annuler</button>
             </div>
         </div>
     </div>

@@ -2,74 +2,383 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Administration - Résultats Concours</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="description" content="Tableau de bord administrateur - Gestion des résultats du concours">
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>🏆 Administration - Résultats Concours</title>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f7f6; }
-        h1, h2 { color: #007bff; border-bottom: 2px solid #ccc; padding-bottom: 10px; }
-        
-        .action-button { padding: 10px 20px; font-size: 1.1em; border: none; border-radius: 5px; cursor: pointer; margin-bottom: 20px; margin-right: 10px; transition: 0.3s; }
-        .load-button { background-color: #28a745; color: white; }
-        .export-button { background-color: #ffc107; color: #343a40; font-weight: bold; }
-        .export-button.excel { background-color: #007bff; color: white; }
+        /* Modern Admin Dashboard Styles - Responsive */
+        :root {
+            --primary: #007bff;
+            --success: #28a745;
+            --warning: #ffc107;
+            --danger: #dc3545;
+            --neutral: #6c757d;
+            --light-bg: #f4f7f6;
+            --white: #ffffff;
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.1);
+            --shadow-md: 0 4px 8px rgba(0,0,0,0.12);
+            --shadow-lg: 0 8px 16px rgba(0,0,0,0.15);
+            --radius: 10px;
+            --spacing: 20px;
+        }
 
-        .candidate-zone { margin-top: 20px; padding: 15px; border: 1px solid #ccc; background-color: #fff; border-radius: 5px; }
-        .candidate-zone textarea { width: 98%; min-height: 100px; padding: 10px; margin-bottom: 10px; }
+        * {
+            box-sizing: border-box;
+        }
 
-        #scores-matrix { width: 100%; border-collapse: collapse; margin-bottom: 40px; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 0.9em; }
-        #scores-matrix th, #scores-matrix td { border: 1px solid #ddd; padding: 10px; text-align: center; }
-        #scores-matrix th { background-color: #f2f2f2; }
-        
-        .detail-note { font-size: 0.8em; color: #666; display: block; border-bottom: 1px solid #eee; margin-bottom: 3px; }
-        .weighted-total { font-weight: bold; color: #007bff; }
-        .total-score { background-color: #ffc107; font-weight: bold; font-size: 1.1em; }
-        .eliminado { background-color: #dc3545; color: white; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            padding: clamp(12px, 3vw, 20px);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
 
-        #podium-table { width: 100%; max-width: 650px; border-collapse: collapse; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        #podium-table th, #podium-table td { border: 1px solid #ddd; padding: 12px; text-align: center; }
-        .rank-1 { background-color: gold; font-weight: bold; }
-        .rank-2 { background-color: silver; font-weight: bold; }
-        .rank-3 { background-color: #cd7f32; color: white; font-weight: bold; }
-        .eliminated-row { background-color: #6c757d; color: white; }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: clamp(15px, 4vw, 40px);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+        }
 
-        .reset-zone { margin-top: 50px; padding: 15px; border: 2px solid #dc3545; background-color: #f8d7da; border-radius: 5px; }
+        h1 { 
+            color: var(--primary);
+            border-bottom: 3px solid var(--primary);
+            padding-bottom: 15px;
+            margin-top: 0;
+            font-size: clamp(1.5rem, 4vw, 2.5rem);
+            font-weight: 700;
+        }
+
+        h2 { 
+            color: var(--primary);
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 10px;
+            margin-top: var(--spacing);
+            font-size: clamp(1.2rem, 3vw, 1.8rem);
+            font-weight: 600;
+        }
+
+        /* Action Buttons */
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: var(--spacing);
+        }
+
+        .action-button { 
+            padding: clamp(10px, 2vw, 14px) clamp(16px, 3vw, 24px);
+            font-size: clamp(0.95rem, 2vw, 1.1rem);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-sm);
+            flex: 1 1 auto;
+            min-width: 140px;
+        }
+
+        .action-button:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .action-button:active {
+            transform: translateY(0);
+        }
+
+        .load-button { 
+            background: linear-gradient(135deg, var(--success) 0%, #1e7e34 100%);
+            color: white;
+        }
+
+        .export-button { 
+            background: linear-gradient(135deg, var(--warning) 0%, #e0a800 100%);
+            color: #212529;
+        }
+
+        .export-button.excel { 
+            background: linear-gradient(135deg, var(--primary) 0%, #0056b3 100%);
+            color: white;
+        }
+
+        /* Candidate Zone */
+        .candidate-zone { 
+            margin-top: var(--spacing);
+            padding: clamp(15px, 3vw, 25px);
+            border: 2px solid #e9ecef;
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .candidate-zone h2 {
+            margin-top: 0;
+        }
+
+        .candidate-zone textarea { 
+            width: 100%;
+            min-height: 120px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: clamp(0.95rem, 2vw, 1.05rem);
+            transition: all 0.3s ease;
+            resize: vertical;
+        }
+
+        .candidate-zone textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+        }
+
+        /* Tables */
+        .table-container {
+            overflow-x: auto;
+            margin: var(--spacing) 0;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-md);
+        }
+
+        #scores-matrix { 
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            font-size: clamp(0.8rem, 1.5vw, 0.95rem);
+        }
+
+        #scores-matrix th, #scores-matrix td { 
+            border: 1px solid #dee2e6;
+            padding: clamp(8px, 2vw, 12px);
+            text-align: center;
+        }
+
+        #scores-matrix th { 
+            background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .detail-note { 
+            font-size: 0.85em;
+            color: #6c757d;
+            display: block;
+            border-bottom: 1px solid #f1f3f5;
+            padding-bottom: 3px;
+            margin-bottom: 5px;
+        }
+
+        .weighted-total { 
+            font-weight: bold;
+            color: var(--primary);
+            font-size: 1.1em;
+        }
+
+        .total-score { 
+            background: linear-gradient(135deg, #ffc107 0%, #ffb300 100%);
+            font-weight: bold;
+            font-size: 1.15em;
+            color: #212529;
+        }
+
+        .eliminado { 
+            background: linear-gradient(135deg, var(--danger) 0%, #c82333 100%);
+            color: white;
+            font-weight: 600;
+        }
+
+        /* Podium Table */
+        #podium-table { 
+            width: 100%;
+            max-width: 800px;
+            border-collapse: collapse;
+            background: white;
+            box-shadow: var(--shadow-md);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        #podium-table th, #podium-table td { 
+            border: 1px solid #dee2e6;
+            padding: clamp(10px, 2.5vw, 15px);
+            text-align: center;
+        }
+
+        #podium-table th {
+            background: linear-gradient(135deg, #495057 0%, #343a40 100%);
+            color: white;
+            font-weight: 600;
+        }
+
+        .rank-1 { 
+            background: linear-gradient(135deg, gold 0%, #ffed4e 100%);
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .rank-2 { 
+            background: linear-gradient(135deg, silver 0%, #e0e0e0 100%);
+            font-weight: bold;
+            font-size: 1.05em;
+        }
+
+        .rank-3 { 
+            background: linear-gradient(135deg, #cd7f32 0%, #b87333 100%);
+            color: white;
+            font-weight: bold;
+        }
+
+        .eliminated-row { 
+            background: linear-gradient(135deg, var(--neutral) 0%, #5a6268 100%);
+            color: white;
+            opacity: 0.8;
+        }
+
+        /* Reset Zone */
+        .reset-zone { 
+            margin-top: 50px;
+            padding: clamp(15px, 3vw, 25px);
+            border: 3px solid var(--danger);
+            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .reset-zone h2 {
+            color: var(--danger);
+            margin-top: 0;
+        }
+
+        .reset-zone .action-button {
+            background: linear-gradient(135deg, var(--danger) 0%, #c82333 100%);
+            color: white;
+        }
+
+        hr {
+            border: none;
+            border-top: 2px solid #e9ecef;
+            margin: calc(var(--spacing) * 1.5) 0;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 767px) {
+            .button-group {
+                flex-direction: column;
+            }
+
+            .action-button {
+                width: 100%;
+                min-width: unset;
+            }
+
+            #scores-matrix {
+                font-size: 0.75rem;
+            }
+
+            #scores-matrix th,
+            #scores-matrix td {
+                padding: 6px;
+            }
+
+            #podium-table {
+                font-size: 0.85rem;
+            }
+        }
+
+        @media (min-width: 768px) and (max-width: 1023px) {
+            .button-group {
+                justify-content: flex-start;
+            }
+
+            .action-button {
+                flex: 0 1 calc(50% - 6px);
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .action-button {
+                flex: 0 1 auto;
+            }
+        }
+
+        /* Touch device optimizations */
+        @media (hover: none) and (pointer: coarse) {
+            .action-button {
+                min-height: 44px;
+            }
+        }
+
+        /* Print styles */
+        @media print {
+            body {
+                background: white;
+            }
+
+            .container {
+                box-shadow: none;
+            }
+
+            .candidate-zone,
+            .reset-zone,
+            .action-button {
+                display: none;
+            }
+        }
     </style>
 </head>
 <body>
+    <div class="container">
+        <h1>🏆 Tableau de bord Administrateur</h1>
+        
+        <div class="candidate-zone">
+            <h2>1. Liste des Candidats</h2>
+            <textarea id="candidate-names" placeholder="Un nom par ligne...&#10;Exemple:&#10;Alice Martin&#10;Bob Dupont&#10;Claire Bernard"></textarea>
+            <button onclick="saveCandidateList()" class="action-button" style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color:white;">💾 Sauvegarder la Liste</button>
+        </div>
 
-    <h1>Tableau de bord Administrateur</h1>
-    
-    <div class="candidate-zone">
-        <h2>1. Liste des Candidats</h2>
-        <textarea id="candidate-names" placeholder="Un nom par ligne..."></textarea>
-        <button onclick="saveCandidateList()" class="action-button" style="background:#007bff; color:white;">Sauvegarder la Liste</button>
-    </div>
+        <hr>
+        
+        <h2>2. Calcul des Résultats (Note1 ×3 + Note2 ×1)</h2>
+        <div class="button-group">
+            <button onclick="loadAllScores()" class="action-button load-button">📊 Charger et Calculer</button>
+            <button onclick="exportToExcel()" class="action-button export-button excel">📑 Excel (.csv)</button>
+            <button onclick="exportPodiumToImage()" class="action-button export-button">📸 Podium (Image)</button>
+        </div>
 
-    <hr>
-    
-    <h2>2. Calcul des Résultats (Note1 x3 + Note2 x1)</h2>
-    <div>
-        <button onclick="loadAllScores()" class="action-button load-button">Charger et Calculer</button>
-        <button onclick="exportToExcel()" class="action-button export-button excel">Excel (.csv)</button>
-        <button onclick="exportPodiumToImage()" class="action-button export-button">Podium (Image)</button>
-    </div>
+        <div class="table-container">
+            <table id="scores-matrix">
+                <thead><tr><th>Candidat</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
 
-    <table id="scores-matrix">
-        <thead><tr><th>Candidat</th></tr></thead>
-        <tbody></tbody>
-    </table>
+        <h2>🏅 Classement Officiel</h2>
+        <div class="table-container">
+            <table id="podium-table">
+                <thead>
+                    <tr><th>Rang</th><th>Candidat</th><th>Score Pondéré</th><th>Statut</th></tr>
+                </thead>
+                <tbody id="podium-body"></tbody>
+            </table>
+        </div>
 
-    <h2>Classement Officiel</h2>
-    <table id="podium-table">
-        <thead>
-            <tr><th>Rang</th><th>Candidat</th><th>Score Pondéré</th><th>Statut</th></tr>
-        </thead>
-        <tbody id="podium-body"></tbody>
-    </table>
-
-    <div class="reset-zone">
-        <h2>Zone de Danger</h2>
-        <button onclick="confirmResetAllData()" class="action-button" style="background:#dc3545; color:white;">RÉINITIALISER TOUS LES SCORES</button>
+        <div class="reset-zone">
+            <h2>⚠️ Zone de Danger</h2>
+            <button onclick="confirmResetAllData()" class="action-button">🗑️ RÉINITIALISER TOUS LES SCORES</button>
+        </div>
     </div>
 
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>

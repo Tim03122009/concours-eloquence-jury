@@ -2,7 +2,7 @@
 // -------------------------------------------------------------------------
 // Ces imports permettent de connecter ton site aux services Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-app.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
+import { getFirestore, connectFirestoreEmulator } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
 
 
 // 1. CONFIGURATION FIREBASE (TES CLES)
@@ -20,3 +20,23 @@ const app = initializeApp(firebaseConfig);
 
 // 3. Obtention de la base de données (que le code principal va utiliser)
 export const db = getFirestore(app);
+
+// -------------------------------------------------------------------------
+// 🔧 MODE DÉVELOPPEMENT - ÉMULATEUR FIREBASE
+// -------------------------------------------------------------------------
+// Décommenter les lignes ci-dessous pour utiliser l'émulateur local lors des tests:
+// 
+// const USE_EMULATOR = window.location.hostname === 'localhost' 
+//                   || window.location.hostname === '127.0.0.1';
+// 
+// if (USE_EMULATOR) {
+//   connectFirestoreEmulator(db, 'localhost', 8080);
+//   console.log('🔥 MODE ÉMULATEUR ACTIVÉ - Base de données locale');
+// } else {
+//   console.log('☁️ MODE PRODUCTION - Base de données cloud');
+// }
+//
+// ⚠️ IMPORTANT: Démarrer l'émulateur avant d'utiliser:
+//     firebase emulators:start
+//
+// ℹ️ Pour plus d'infos, voir TESTING.md
