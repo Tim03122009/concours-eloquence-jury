@@ -13,60 +13,161 @@
 <body>
 
     <div id="identification-page" class="page">
-        <h2>👤 Identification Jury</h2>
+        <div class="burger-menu">
+            <div class="burger-icon" onclick="toggleMenu()">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <div class="burger-menu-content" id="menu-content">
+                <div class="theme-toggle">
+                    <span>Mode sombre</span>
+                    <div class="toggle-switch" id="theme-toggle" onclick="toggleTheme()">
+                        <div class="toggle-slider"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <h2>Identification Jury</h2>
         <div class="control-group">
             <label for="jury-name-input">Votre Nom / Identifiant :</label>
             <input type="text" id="jury-name-input" placeholder="Ex: Mme. Dupont" autocomplete="name" required>
         </div>
-        <button id="start-scoring-button">✨ Commencer la notation</button>
+        <button id="start-scoring-button">Commencer la notation</button>
     </div>
 
     <div id="scoring-page" class="page">
+        <div class="burger-menu">
+            <div class="burger-icon" onclick="toggleMenu()">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <div class="burger-menu-content" id="menu-content-scoring">
+                <div class="theme-toggle">
+                    <span>Mode sombre</span>
+                    <div class="toggle-switch" id="theme-toggle-scoring" onclick="toggleTheme()">
+                        <div class="toggle-slider"></div>
+                    </div>
+                </div>
+                <div class="menu-item" id="logout-button">
+                    <span>Déconnexion</span>
+                </div>
+            </div>
+        </div>
+        
         <div>
-            <h2 style="margin: 0;">👤 Jury : <span id="current-jury-display"></span></h2>
-            <button id="logout-button">🚪 Déconnexion</button>
+            <h2 style="margin: 0;">Jury : <span id="current-jury-display"></span></h2>
         </div>
 
         <div class="control-group">
-            <label>1️⃣ Candidat à noter :</label>
+            <label>1. Candidat à noter :</label>
             <select id="candidate-select">
                 <option value="" disabled selected>-- Charger la liste --</option>
             </select>
-            <p id="selected-candidate-display" class="selection-info">📋 Aucun candidat sélectionné</p>
+            <p id="selected-candidate-display" class="selection-info">Aucun candidat sélectionné</p>
         </div>
 
         <hr>
 
         <div class="control-group">
-            <label>2️⃣ Fond / Argumentation (Coefficient ×3)</label>
+            <label>2. Fond / Argumentation (Coefficient ×3)</label>
             <div class="score-grid" id="grid-fond"></div>
-            <p id="display-score-1" class="selection-info">📝 Note Fond : -</p>
+            <p id="display-score-1" class="selection-info">Note Fond : -</p>
         </div>
 
         <hr>
 
         <div class="control-group">
-            <label>3️⃣ Forme / Éloquence (Coefficient ×1)</label>
+            <label>3. Forme / Éloquence (Coefficient ×1)</label>
             <div class="score-grid" id="grid-forme"></div>
-            <p id="display-score-2" class="selection-info">🎤 Note Forme : -</p>
+            <p id="display-score-2" class="selection-info">Note Forme : -</p>
         </div>
 
-        <button id="validate-button" disabled>✅ Valider la notation</button>
+        <button id="validate-button" disabled>Valider la notation</button>
     </div>
 
     <div id="confirmation-modal" class="modal">
         <div class="modal-content">
-            <h3>✅ Confirmer l'envoi ?</h3>
-            <p>👤 Candidat : <strong id="modal-candidate"></strong></p>
-            <p>📝 Fond : <strong id="modal-s1"></strong></p>
-            <p>🎤 Forme : <strong id="modal-s2"></strong></p>
+            <h3>Confirmer l'envoi ?</h3>
+            <p>Candidat : <strong id="modal-candidate"></strong></p>
+            <p>Fond : <strong id="modal-s1"></strong></p>
+            <p>Forme : <strong id="modal-s2"></strong></p>
             <div>
-                <button id="confirm-send-button">✅ Confirmer</button>
-                <button id="cancel-send-button">❌ Annuler</button>
+                <button id="confirm-send-button">Confirmer</button>
+                <button id="cancel-send-button">Annuler</button>
             </div>
         </div>
     </div>
 
+    <script>
+        // Theme Toggle Logic
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            
+            // Update all theme toggles on page
+            const toggles = ['theme-toggle', 'theme-toggle-scoring'];
+            toggles.forEach(id => {
+                const toggle = document.getElementById(id);
+                if (toggle) {
+                    if (savedTheme === 'dark') {
+                        toggle.classList.add('active');
+                    } else {
+                        toggle.classList.remove('active');
+                    }
+                }
+            });
+        }
+
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            
+            // Update all theme toggles on page
+            const toggles = ['theme-toggle', 'theme-toggle-scoring'];
+            toggles.forEach(id => {
+                const toggle = document.getElementById(id);
+                if (toggle) {
+                    if (newTheme === 'dark') {
+                        toggle.classList.add('active');
+                    } else {
+                        toggle.classList.remove('active');
+                    }
+                }
+            });
+        }
+
+        function toggleMenu() {
+            const menus = ['menu-content', 'menu-content-scoring'];
+            menus.forEach(id => {
+                const menu = document.getElementById(id);
+                if (menu) {
+                    menu.classList.toggle('active');
+                }
+            });
+        }
+
+        // Close menu when clicking outside
+        document.addEventListener('click', function(event) {
+            const menus = document.querySelectorAll('.burger-menu-content');
+            const burgerIcon = event.target.closest('.burger-icon');
+            
+            if (!burgerIcon) {
+                menus.forEach(menu => {
+                    if (!menu.contains(event.target)) {
+                        menu.classList.remove('active');
+                    }
+                });
+            }
+        });
+
+        // Initialize theme on page load
+        initTheme();
+    </script>
     <script type="module" src="script.js"></script>
 </body>
 </html>

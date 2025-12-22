@@ -64,14 +64,14 @@ function createGrids() {
 
     // Ajout bouton Elimine
     const elim1 = document.createElement('button');
-    elim1.className = 'score-btn score-btn-1 eliminated'; // Ajoute .eliminated dans ton CSS pour le rouge
-    elim1.textContent = '❌ Éliminé';
+    elim1.className = 'score-btn score-btn-1 eliminated';
+    elim1.textContent = 'Éliminé';
     elim1.onclick = () => selectScore(1, 'Elimine', elim1);
     gridFond.appendChild(elim1);
 
     const elim2 = document.createElement('button');
     elim2.className = 'score-btn score-btn-2 eliminated';
-    elim2.textContent = '❌ Éliminé';
+    elim2.textContent = 'Éliminé';
     elim2.onclick = () => selectScore(2, 'Elimine', elim2);
     gridForme.appendChild(elim2);
 }

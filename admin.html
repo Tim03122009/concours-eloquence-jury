@@ -11,18 +11,49 @@
     <style>
         /* Modern Admin Dashboard Styles - Responsive */
         :root {
+            /* Light Mode (Default) */
             --primary: #007bff;
             --success: #28a745;
             --warning: #ffc107;
             --danger: #dc3545;
+            --danger-color: #dc3545;
+            --danger-dark: #c82333;
             --neutral: #6c757d;
-            --light-bg: #f4f7f6;
-            --white: #ffffff;
+            --neutral-color: #6c757d;
+            --text-color: #333;
+            --text-secondary: #666;
+            --border-color: #ddd;
+            --bg-gradient-start: #667eea;
+            --bg-gradient-end: #764ba2;
+            --card-bg: #ffffff;
+            --input-bg: #ffffff;
             --shadow-sm: 0 2px 4px rgba(0,0,0,0.1);
             --shadow-md: 0 4px 8px rgba(0,0,0,0.12);
             --shadow-lg: 0 8px 16px rgba(0,0,0,0.15);
             --radius: 10px;
             --spacing: 20px;
+        }
+
+        /* Dark Mode */
+        [data-theme="dark"] {
+            --primary: #4da3ff;
+            --success: #4caf50;
+            --warning: #ffa726;
+            --danger: #f44336;
+            --danger-color: #f44336;
+            --danger-dark: #d32f2f;
+            --neutral: #9e9e9e;
+            --neutral-color: #9e9e9e;
+            --text-color: #e0e0e0;
+            --text-secondary: #b0b0b0;
+            --border-color: #444;
+            --bg-gradient-start: #1a1a2e;
+            --bg-gradient-end: #16213e;
+            --card-bg: #2d2d3a;
+            --input-bg: #3a3a4a;
+            --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.5);
         }
 
         * {
@@ -32,19 +63,21 @@
         body { 
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             padding: clamp(12px, 3vw, 20px);
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
             margin: 0;
             min-height: 100vh;
             line-height: 1.6;
+            transition: background 0.3s ease;
         }
 
         .container {
             max-width: 1400px;
             margin: 0 auto;
-            background: white;
+            background: var(--card-bg);
             padding: clamp(15px, 4vw, 40px);
             border-radius: var(--radius);
             box-shadow: var(--shadow-lg);
+            position: relative;
         }
 
         h1 { 
@@ -114,14 +147,15 @@
         .candidate-zone { 
             margin-top: var(--spacing);
             padding: clamp(15px, 3vw, 25px);
-            border: 2px solid #e9ecef;
-            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            border: 2px solid var(--border-color);
+            background: var(--input-bg);
             border-radius: var(--radius);
             box-shadow: var(--shadow-sm);
         }
 
         .candidate-zone h2 {
             margin-top: 0;
+            color: var(--primary);
         }
 
         .candidate-zone textarea { 
@@ -129,12 +163,14 @@
             min-height: 120px;
             padding: 15px;
             margin-bottom: 15px;
-            border: 2px solid #dee2e6;
+            border: 2px solid var(--border-color);
             border-radius: 8px;
             font-family: inherit;
             font-size: clamp(0.95rem, 2vw, 1.05rem);
             transition: all 0.3s ease;
             resize: vertical;
+            background: var(--card-bg);
+            color: var(--text-color);
         }
 
         .candidate-zone textarea:focus {
@@ -154,18 +190,19 @@
         #scores-matrix { 
             width: 100%;
             border-collapse: collapse;
-            background: white;
+            background: var(--card-bg);
             font-size: clamp(0.8rem, 1.5vw, 0.95rem);
         }
 
         #scores-matrix th, #scores-matrix td { 
-            border: 1px solid #dee2e6;
+            border: 1px solid var(--border-color);
             padding: clamp(8px, 2vw, 12px);
             text-align: center;
+            color: var(--text-color);
         }
 
         #scores-matrix th { 
-            background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+            background: var(--input-bg);
             font-weight: 600;
             position: sticky;
             top: 0;
@@ -174,9 +211,9 @@
 
         .detail-note { 
             font-size: 0.85em;
-            color: #6c757d;
+            color: var(--text-secondary);
             display: block;
-            border-bottom: 1px solid #f1f3f5;
+            border-bottom: 1px solid var(--border-color);
             padding-bottom: 3px;
             margin-bottom: 5px;
         }
@@ -205,20 +242,21 @@
             width: 100%;
             max-width: 800px;
             border-collapse: collapse;
-            background: white;
+            background: var(--card-bg);
             box-shadow: var(--shadow-md);
             border-radius: var(--radius);
             overflow: hidden;
         }
 
         #podium-table th, #podium-table td { 
-            border: 1px solid #dee2e6;
+            border: 1px solid var(--border-color);
             padding: clamp(10px, 2.5vw, 15px);
             text-align: center;
+            color: var(--text-color);
         }
 
         #podium-table th {
-            background: linear-gradient(135deg, #495057 0%, #343a40 100%);
+            background: var(--neutral-color);
             color: white;
             font-weight: 600;
         }
@@ -251,26 +289,124 @@
         .reset-zone { 
             margin-top: 50px;
             padding: clamp(15px, 3vw, 25px);
-            border: 3px solid var(--danger);
-            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+            border: 3px solid var(--danger-color);
+            background: rgba(220, 53, 69, 0.1);
             border-radius: var(--radius);
             box-shadow: var(--shadow-sm);
         }
 
         .reset-zone h2 {
-            color: var(--danger);
+            color: var(--danger-color);
             margin-top: 0;
         }
 
         .reset-zone .action-button {
-            background: linear-gradient(135deg, var(--danger) 0%, #c82333 100%);
+            background: linear-gradient(135deg, var(--danger-color) 0%, var(--danger-dark) 100%);
             color: white;
         }
 
         hr {
             border: none;
-            border-top: 2px solid #e9ecef;
+            border-top: 2px solid var(--border-color);
             margin: calc(var(--spacing) * 1.5) 0;
+        }
+
+        /* Burger Menu & Theme Toggle */
+        .burger-menu {
+            position: absolute;
+            top: var(--spacing);
+            right: var(--spacing);
+            z-index: 1000;
+        }
+
+        .burger-icon {
+            width: 36px;
+            height: 36px;
+            background: var(--card-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 5px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .burger-icon:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .burger-icon span {
+            width: 20px;
+            height: 2px;
+            background: var(--text-color);
+            transition: all 0.3s ease;
+        }
+
+        .burger-menu-content {
+            position: absolute;
+            top: 45px;
+            right: 0;
+            background: var(--card-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 5px;
+            box-shadow: var(--shadow-lg);
+            padding: 0;
+            min-width: 200px;
+            display: none;
+            overflow: hidden;
+        }
+
+        .burger-menu-content.active {
+            display: block;
+        }
+
+        .burger-menu-content > * {
+            padding: 12px;
+        }
+
+        .burger-menu-content > *:not(:last-child) {
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .theme-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: var(--text-color);
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+            background: var(--neutral-color);
+            border-radius: 13px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-switch.active {
+            background: var(--primary);
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .toggle-switch.active .toggle-slider {
+            transform: translateX(24px);
         }
 
         /* Responsive Design */
@@ -341,21 +477,37 @@
 </head>
 <body>
     <div class="container">
-        <h1>🏆 Tableau de bord Administrateur</h1>
+        <div class="burger-menu">
+            <div class="burger-icon" onclick="toggleMenu()">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <div class="burger-menu-content" id="menu-content">
+                <div class="theme-toggle">
+                    <span>Mode sombre</span>
+                    <div class="toggle-switch" id="theme-toggle" onclick="toggleTheme()">
+                        <div class="toggle-slider"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <h1>Tableau de bord Administrateur</h1>
         
         <div class="candidate-zone">
             <h2>1. Liste des Candidats</h2>
             <textarea id="candidate-names" placeholder="Un nom par ligne...&#10;Exemple:&#10;Alice Martin&#10;Bob Dupont&#10;Claire Bernard"></textarea>
-            <button onclick="saveCandidateList()" class="action-button" style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color:white;">💾 Sauvegarder la Liste</button>
+            <button onclick="saveCandidateList()" class="action-button" style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color:white;">Sauvegarder la Liste</button>
         </div>
 
         <hr>
         
         <h2>2. Calcul des Résultats (Note1 ×3 + Note2 ×1)</h2>
         <div class="button-group">
-            <button onclick="loadAllScores()" class="action-button load-button">📊 Charger et Calculer</button>
-            <button onclick="exportToExcel()" class="action-button export-button excel">📑 Excel (.csv)</button>
-            <button onclick="exportPodiumToImage()" class="action-button export-button">📸 Podium (Image)</button>
+            <button onclick="loadAllScores()" class="action-button load-button">Charger et Calculer</button>
+            <button onclick="exportToExcel()" class="action-button export-button excel">Excel (.csv)</button>
+            <button onclick="exportPodiumToImage()" class="action-button export-button">Podium (Image)</button>
         </div>
 
         <div class="table-container">
@@ -365,7 +517,7 @@
             </table>
         </div>
 
-        <h2>🏅 Classement Officiel</h2>
+        <h2>Classement Officiel</h2>
         <div class="table-container">
             <table id="podium-table">
                 <thead>
@@ -376,8 +528,8 @@
         </div>
 
         <div class="reset-zone">
-            <h2>⚠️ Zone de Danger</h2>
-            <button onclick="confirmResetAllData()" class="action-button">🗑️ RÉINITIALISER TOUS LES SCORES</button>
+            <h2>Zone de Danger</h2>
+            <button onclick="confirmResetAllData()" class="action-button">RÉINITIALISER TOUS LES SCORES</button>
         </div>
     </div>
 
@@ -491,6 +643,49 @@
                 location.reload();
             }
         };
+
+        // Theme Toggle Logic
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            const toggle = document.getElementById('theme-toggle');
+            if (toggle) {
+                if (savedTheme === 'dark') {
+                    toggle.classList.add('active');
+                }
+            }
+        }
+
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            
+            const toggle = document.getElementById('theme-toggle');
+            if (newTheme === 'dark') {
+                toggle.classList.add('active');
+            } else {
+                toggle.classList.remove('active');
+            }
+        }
+
+        function toggleMenu() {
+            const menu = document.getElementById('menu-content');
+            menu.classList.toggle('active');
+        }
+
+        // Close menu when clicking outside
+        document.addEventListener('click', function(event) {
+            const menu = document.getElementById('menu-content');
+            const burgerIcon = document.querySelector('.burger-icon');
+            if (menu && !menu.contains(event.target) && !burgerIcon.contains(event.target)) {
+                menu.classList.remove('active');
+            }
+        });
+
+        // Initialize theme on page load
+        initTheme();
     </script>
 </body>
 </html>
