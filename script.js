@@ -62,18 +62,12 @@ function createGrids() {
         gridForme.appendChild(btn2);
     });
 
-    // Ajout bouton Elimine
+    // Ajout bouton Elimine seulement pour Fond/Argumentation
     const elim1 = document.createElement('button');
     elim1.className = 'score-btn score-btn-1 eliminated';
     elim1.textContent = 'Éliminé';
     elim1.onclick = () => selectScore(1, 'Elimine', elim1);
     gridFond.appendChild(elim1);
-
-    const elim2 = document.createElement('button');
-    elim2.className = 'score-btn score-btn-2 eliminated';
-    elim2.textContent = 'Éliminé';
-    elim2.onclick = () => selectScore(2, 'Elimine', elim2);
-    gridForme.appendChild(elim2);
 }
 
 function selectScore(type, value, element) {
@@ -92,10 +86,48 @@ function selectScore(type, value, element) {
 // --------------------------------------------------------------------------------
 // LOGIQUE DE NAVIGATION
 // --------------------------------------------------------------------------------
+// Détection du mode admin
+document.getElementById('jury-name-input').addEventListener('input', (e) => {
+    const name = e.target.value.trim().toLowerCase();
+    const passwordGroup = document.getElementById('password-group');
+    if (name === 'admin') {
+        passwordGroup.style.display = 'block';
+    } else {
+        passwordGroup.style.display = 'none';
+    }
+});
+
 document.getElementById('start-scoring-button').onclick = async () => {
     const name = document.getElementById('jury-name-input').value.trim();
     if (name.length < 2) return;
 
+    // Vérification mode admin
+    if (name.toLowerCase() === 'admin') {
+        const password = document.getElementById('admin-password-input').value;
+        if (!password) {
+            alert('Veuillez entrer le mot de passe administrateur');
+            return;
+        }
+
+        try {
+            // Récupération du mot de passe admin depuis Firebase
+            const adminDoc = await getDoc(doc(db, "config", "admin"));
+            const storedPassword = adminDoc.exists() ? adminDoc.data().password : 'admin';
+
+            if (password === storedPassword) {
+                // Redirection vers admin.html
+                window.location.href = 'admin.html';
+            } else {
+                alert('Mot de passe incorrect');
+            }
+        } catch (e) {
+            console.error('Erreur de connexion admin:', e);
+            alert('Erreur de connexion');
+        }
+        return;
+    }
+
+    // Connexion jury normale
     const snap = await getDoc(doc(db, "config", "session"));
     const firebaseSessionId = snap.exists() ? snap.data().current_id : '1';
 
