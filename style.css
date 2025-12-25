@@ -82,6 +82,11 @@ body {
     transition: background 0.3s ease, color 0.3s ease;
 }
 
+/* Keep identification page centered vertically on all devices */
+body:has(#identification-page.active) {
+    align-items: center !important;
+}
+
 .page-container, .page {
     width: 100%;
     max-width: 1200px;
@@ -576,6 +581,12 @@ hr {
         padding-top: var(--spacing-sm);
     }
     
+    /* Keep login page centered on mobile */
+    body:has(#identification-page.active) {
+        align-items: center !important;
+        padding-top: var(--spacing-xs);
+    }
+    
     .page, .page-container {
         padding: var(--spacing-sm);
         border-radius: var(--radius-sm);
@@ -621,6 +632,12 @@ hr {
     body {
         align-items: flex-start;
         padding-top: var(--spacing-md);
+    }
+    
+    /* Keep login page centered in landscape */
+    body:has(#identification-page.active) {
+        align-items: center !important;
+        padding-top: var(--spacing-xs);
     }
     
     .page, .page-container {

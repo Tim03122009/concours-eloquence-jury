@@ -148,6 +148,11 @@
             background: linear-gradient(135deg, var(--primary) 0%, #0056b3 100%);
             color: white;
         }
+        
+        .import-button {
+            background: linear-gradient(135deg, #ff8c00 0%, #ff6b00 100%) !important;
+            color: white !important;
+        }
 
         /* Candidate Zone */
         .candidate-zone { 
@@ -214,6 +219,22 @@
             top: 0;
             z-index: 10;
             color: var(--text-color);
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        #scores-matrix th:hover {
+            background: var(--border-color);
+        }
+        
+        #scores-matrix th.sorted-asc::after {
+            content: ' ▲';
+            font-size: 0.7em;
+        }
+        
+        #scores-matrix th.sorted-desc::after {
+            content: ' ▼';
+            font-size: 0.7em;
         }
 
         .detail-note { 
@@ -274,19 +295,21 @@
 
         .rank-1 { 
             background: linear-gradient(135deg, gold 0%, #ffed4e 100%);
+            color: #212529 !important;
             font-weight: bold;
             font-size: 1.1em;
         }
 
         .rank-2 { 
             background: linear-gradient(135deg, silver 0%, #e0e0e0 100%);
+            color: #212529 !important;
             font-weight: bold;
             font-size: 1.05em;
         }
 
         .rank-3 { 
             background: linear-gradient(135deg, #cd7f32 0%, #b87333 100%);
-            color: white;
+            color: white !important;
             font-weight: bold;
         }
 
@@ -309,6 +332,10 @@
         .reset-zone h2 {
             color: var(--danger-color);
             margin-top: 0;
+        }
+        
+        .reset-zone p {
+            color: var(--text-color);
         }
 
         .reset-zone .action-button {
@@ -720,12 +747,12 @@
             <h2>Gestion des Candidats</h2>
             
             <div class="candidate-zone">
-                <h3>Import rapide (copier-coller)</h3>
+                <h3 style="color: var(--text-color);">Import rapide (copier-coller)</h3>
                 <textarea id="candidate-names" placeholder="Un nom par ligne...&#10;Exemple:&#10;Alice Martin&#10;Bob Dupont&#10;Claire Bernard"></textarea>
                 <button onclick="importCandidates()" class="action-button" style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color:white;">Importer la liste</button>
             </div>
 
-            <h3>Liste des candidats</h3>
+            <h3 style="color: var(--text-color);">Liste des candidats</h3>
             <button onclick="addCandidate()" class="action-button" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color:white;">+ Ajouter un candidat</button>
             
             <table class="candidate-table" id="candidate-table">
@@ -749,6 +776,12 @@
                 Modifiez les notes directement dans le tableau. Les modifications sont sauvegardées automatiquement.
             </p>
             
+            <div class="button-group" style="margin-bottom: 20px;">
+                <button onclick="exportNotesToCSV()" class="action-button export-button excel">📥 Exporter en CSV</button>
+                <input type="file" id="csv-import-file" accept=".csv" style="display: none;" onchange="importNotesFromCSV(event)">
+                <button onclick="document.getElementById('csv-import-file').click()" class="action-button import-button">📤 Importer depuis CSV</button>
+            </div>
+            
             <div class="table-container">
                 <table class="notes-table" id="notes-table">
                     <thead>
@@ -769,11 +802,6 @@
         <div id="tab-resultats" class="tab-content">
             <h2>Résultats du Concours (Note1 ×3 + Note2 ×1)</h2>
 
-            <div class="button-group" style="margin-bottom: 20px;">
-                <button onclick="exportToExcel()" class="action-button export-button excel">Exporter en CSV</button>
-            </div>
-
-            <h3>Matrice complète</h3>
             <div class="table-container">
                 <table id="scores-matrix">
                     <thead><tr><th>Candidat</th></tr></thead>
@@ -787,8 +815,8 @@
             <h2>Classement Officiel</h2>
             
             <div style="margin-bottom: 20px;">
-                <label for="result-limit" style="font-weight: 600; margin-right: 10px;">Nombre de candidats à afficher:</label>
-                <input type="number" id="result-limit" value="18" min="1" onchange="renderPodium()" style="width: 80px; padding: 8px; border: 2px solid var(--border-color); border-radius: 5px; background: var(--card-bg); color: var(--text-color);">
+                <label for="result-limit" style="font-weight: 600; margin-right: 10px; color: var(--text-color);">Nombre de candidats à afficher:</label>
+                <input type="number" id="result-limit" value="3" min="1" oninput="renderPodium()" style="width: 80px; padding: 8px; border: 2px solid var(--border-color); border-radius: 5px; background: var(--card-bg); color: var(--text-color);">
                 <button onclick="exportPodiumToImage()" class="action-button export-button" style="margin-left: 10px;">Exporter en image</button>
             </div>
 
@@ -818,8 +846,18 @@
                 <button onclick="removeDuplicateScores()" class="action-button" style="background: var(--warning-color); color: #212529;">Supprimer les doublons</button>
             </div>
 
+            <div class="reset-zone" style="background: var(--success-color); background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border: 2px solid var(--success-color);">
+                <h3 style="color: var(--success-color);">💾 Sauvegarde & Restauration</h3>
+                <p>Télécharger toutes les données (candidats, scores, verrous, configuration) en format JSON.</p>
+                <button onclick="downloadDatabase()" class="action-button" style="background: var(--success-color);">📥 Télécharger la base de données</button>
+                
+                <p style="margin-top: 15px;">Restaurer les données depuis un fichier JSON de sauvegarde.</p>
+                <input type="file" id="db-upload-file" accept=".json" style="display: none;" onchange="uploadDatabase(event)">
+                <button onclick="document.getElementById('db-upload-file').click()" class="action-button" style="background: var(--success-color);">📤 Restaurer depuis un fichier</button>
+            </div>
+
             <div class="reset-zone">
-                <h3>Supprimer un jury spécifique</h3>
+                <h3 style="color: var(--text-color);">Supprimer un jury spécifique</h3>
                 <p>Supprime toutes les notations d'un jury spécifique.</p>
                 <div style="margin-bottom: 15px;">
                     <select id="jury-to-delete" style="padding: 10px; border: 2px solid var(--border-color); border-radius: 5px; background: var(--card-bg); color: var(--text-color); font-family: inherit; min-width: 200px;">
@@ -830,19 +868,19 @@
             </div>
 
             <div class="reset-zone" style="margin-top: 30px;">
-                <h3>Supprimer TOUS les jurys</h3>
+                <h3 style="color: var(--text-color);">Supprimer TOUS les jurys</h3>
                 <p>Supprime toutes les notations de tous les jurys (mais conserve la liste des candidats).</p>
                 <button onclick="confirmDeleteAllJuries()" class="action-button" style="background: var(--warning-color); color: #212529;">Supprimer tous les jurys</button>
             </div>
 
             <div class="reset-zone" style="margin-top: 30px;">
-                <h3>Réinitialiser les scores</h3>
+                <h3 style="color: var(--text-color);">Réinitialiser les scores</h3>
                 <p>Remet toutes les notations à "-" mais conserve la structure (jurys et candidats).</p>
                 <button onclick="confirmResetScores()" class="action-button">Réinitialiser les scores uniquement</button>
             </div>
 
             <div class="reset-zone" style="margin-top: 30px;">
-                <h3>Réinitialisation complète</h3>
+                <h3 style="color: var(--text-color);">Réinitialisation complète</h3>
                 <p>Supprime TOUS les candidats ET toutes les notations. Remet l'application à zéro.</p>
                 <button onclick="confirmResetAll()" class="action-button">RÉINITIALISER TOUT (Candidats + Scores)</button>
             </div>
@@ -1320,14 +1358,83 @@
             renderPodium();
         };
 
+        let currentSortColumn = -1;
+        let currentSortDirection = 'desc'; // Start with descending for Total column
+        let cachedSortedJuries = [];
+        
         function renderMatrix(sortedJuries) {
+            cachedSortedJuries = sortedJuries; // Cache for sorting
+            
             const thead = document.querySelector("#scores-matrix thead tr");
             const tbody = document.querySelector("#scores-matrix tbody");
-            thead.innerHTML = "<th>Candidat</th>" + sortedJuries.map(j => `<th>${j}</th>`).join('') + "<th>Total</th>";
-            tbody.innerHTML = "";
-
-            CANDIDATES.forEach(c => {
+            
+            // Build header with click handlers
+            thead.innerHTML = "<th data-col='0' title='Cliquer pour trier'>Candidat</th>" + 
+                sortedJuries.map((j, idx) => `<th data-col='${idx + 1}' title='Cliquer pour trier'>${j}</th>`).join('') + 
+                "<th data-col='total' title='Cliquer pour trier'>Total</th>";
+            
+            // Add click handlers to headers
+            thead.querySelectorAll('th').forEach((th, colIndex) => {
+                th.addEventListener('click', () => sortTable(colIndex));
+            });
+            
+            // Store data for sorting
+            const candidateRows = CANDIDATES.map(c => {
                 const data = aggregatedData[c.id];
+                return { candidate: c, data: data };
+            });
+            
+            // Sort if needed
+            if (currentSortColumn >= 0) {
+                candidateRows.sort((a, b) => {
+                    let valA, valB;
+                    
+                    if (currentSortColumn === 0) {
+                        // Sort by candidate name
+                        valA = a.candidate.name.toLowerCase();
+                        valB = b.candidate.name.toLowerCase();
+                        return currentSortDirection === 'asc' ? 
+                            valA.localeCompare(valB) : valB.localeCompare(valA);
+                    } else if (currentSortColumn === sortedJuries.length + 1) {
+                        // Sort by total
+                        valA = a.data.total || 0;
+                        valB = b.data.total || 0;
+                        return currentSortDirection === 'asc' ? valA - valB : valB - valA;
+                    } else {
+                        // Sort by jury score
+                        const juryName = sortedJuries[currentSortColumn - 1];
+                        const scoreA = a.data.juryScores[juryName];
+                        const scoreB = b.data.juryScores[juryName];
+                        
+                        // Calculate weighted scores
+                        valA = 0;
+                        valB = 0;
+                        
+                        if (scoreA && scoreA.score1 !== '-' && scoreA.score2 !== '-' && 
+                            scoreA.score1 !== 'Elimine' && scoreA.score2 !== 'Elimine') {
+                            valA = (parseInt(scoreA.score1) * 3) + parseInt(scoreA.score2);
+                        }
+                        if (scoreB && scoreB.score1 !== '-' && scoreB.score2 !== '-' && 
+                            scoreB.score1 !== 'Elimine' && scoreB.score2 !== 'Elimine') {
+                            valB = (parseInt(scoreB.score1) * 3) + parseInt(scoreB.score2);
+                        }
+                        
+                        return currentSortDirection === 'asc' ? valA - valB : valB - valA;
+                    }
+                });
+                
+                // Update sort indicator
+                thead.querySelectorAll('th').forEach(th => {
+                    th.classList.remove('sorted-asc', 'sorted-desc');
+                });
+                thead.querySelectorAll('th')[currentSortColumn].classList.add(
+                    currentSortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc'
+                );
+            }
+            
+            // Render rows
+            tbody.innerHTML = "";
+            candidateRows.forEach(({ candidate: c, data }) => {
                 const row = tbody.insertRow();
                 row.insertCell().innerHTML = `<b>${c.name}</b>`;
                 
@@ -1355,15 +1462,53 @@
                 totalCell.textContent = data.total;
             });
         }
+        
+        function sortTable(colIndex) {
+            if (currentSortColumn === colIndex) {
+                // Toggle direction
+                currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                // New column - default to descending for numbers, ascending for names
+                currentSortColumn = colIndex;
+                currentSortDirection = colIndex === 0 ? 'asc' : 'desc';
+            }
+            renderMatrix(cachedSortedJuries);
+        }
 
-        function renderPodium() {
+        window.renderPodium = function() {
             const body = document.getElementById('podium-body');
+            if (!body) return;
+            
             body.innerHTML = "";
+            
+            // Vérifier que les données sont chargées
+            if (!aggregatedData || Object.keys(aggregatedData).length === 0) {
+                const row = body.insertRow();
+                const cell = row.insertCell();
+                cell.colSpan = 4;
+                cell.textContent = "Aucune donnée. Les résultats se calculent automatiquement en ouvrant cet onglet.";
+                cell.style.textAlign = "center";
+                cell.style.padding = "20px";
+                cell.style.color = "var(--text-secondary)";
+                return;
+            }
+            
             let list = Object.values(aggregatedData).filter(c => c.hasScores).sort((a,b) => b.total - a.total);
             
             // Limiter le nombre de résultats affichés
-            const limit = parseInt(document.getElementById('result-limit')?.value || 18);
+            const limitInput = document.getElementById('result-limit');
+            const limit = limitInput ? parseInt(limitInput.value || 3) : 3;
             list = list.slice(0, limit);
+            
+            if (list.length === 0) {
+                const row = body.insertRow();
+                const cell = row.insertCell();
+                cell.colSpan = 4;
+                cell.textContent = "Aucun résultat disponible.";
+                cell.style.textAlign = "center";
+                cell.style.padding = "20px";
+                return;
+            }
             
             list.forEach((c, i) => {
                 const row = body.insertRow();
@@ -1377,7 +1522,7 @@
                 row.insertCell().textContent = c.total;
                 row.insertCell().textContent = c.elimCount >= 3 ? `ÉLIMINÉ (${c.elimCount} jurys)` : "Qualifié";
             });
-        }
+        };
 
         // Supprimer les doublons de scores
         window.removeDuplicateScores = async () => {
@@ -1438,6 +1583,134 @@
         };
 
         // Nettoyer les valeurs calculées obsolètes de la base de données
+        // Télécharger toute la base de données en JSON
+        window.downloadDatabase = async () => {
+            try {
+                const backup = {
+                    exportDate: new Date().toISOString(),
+                    version: "1.0",
+                    data: {}
+                };
+                
+                // Exporter les candidats
+                const candidatsSnap = await getDoc(doc(db, "candidats", "liste_actuelle"));
+                if (candidatsSnap.exists()) {
+                    backup.data.candidats = candidatsSnap.data();
+                }
+                
+                // Exporter tous les scores
+                const scoresSnap = await getDocs(collection(db, "scores"));
+                backup.data.scores = [];
+                scoresSnap.forEach(d => {
+                    backup.data.scores.push({ id: d.id, ...d.data() });
+                });
+                
+                // Exporter la configuration (verrous, session, mot de passe admin)
+                const locksSnap = await getDoc(doc(db, "config", "locks"));
+                if (locksSnap.exists()) {
+                    backup.data.locks = locksSnap.data();
+                }
+                
+                const sessionSnap = await getDoc(doc(db, "config", "session"));
+                if (sessionSnap.exists()) {
+                    backup.data.session = sessionSnap.data();
+                }
+                
+                const passwordSnap = await getDoc(doc(db, "config", "admin_password"));
+                if (passwordSnap.exists()) {
+                    backup.data.adminPassword = passwordSnap.data();
+                }
+                
+                // Créer le fichier JSON
+                const json = JSON.stringify(backup, null, 2);
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                
+                // Télécharger
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `concours-eloquence-backup-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                alert(`✓ Sauvegarde créée avec succès !\n\n${backup.data.scores.length} score(s)\n${backup.data.candidats?.candidates?.length || 0} candidat(s)`);
+            } catch (e) {
+                console.error('Erreur:', e);
+                alert('Erreur lors de la sauvegarde: ' + e.message);
+            }
+        };
+        
+        // Restaurer la base de données depuis un fichier JSON
+        window.uploadDatabase = async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            if (!confirm(`⚠️ ATTENTION ⚠️\n\nRestaurer la base de données va REMPLACER toutes les données actuelles !\n\nVoulez-vous continuer ?`)) {
+                event.target.value = ''; // Reset file input
+                return;
+            }
+            
+            try {
+                const text = await file.text();
+                const backup = JSON.parse(text);
+                
+                if (!backup.data || !backup.version) {
+                    throw new Error('Format de fichier invalide');
+                }
+                
+                let restored = 0;
+                
+                // Restaurer les candidats
+                if (backup.data.candidats) {
+                    await setDoc(doc(db, "candidats", "liste_actuelle"), backup.data.candidats);
+                    CANDIDATES = backup.data.candidats.candidates || [];
+                    restored++;
+                }
+                
+                // Restaurer les scores (supprimer les anciens d'abord)
+                const oldScores = await getDocs(collection(db, "scores"));
+                for (const d of oldScores.docs) {
+                    await deleteDoc(doc(db, "scores", d.id));
+                }
+                
+                if (backup.data.scores) {
+                    for (const score of backup.data.scores) {
+                        const { id, ...scoreData } = score;
+                        await addDoc(collection(db, "scores"), scoreData);
+                        restored++;
+                    }
+                }
+                
+                // Restaurer la configuration
+                if (backup.data.locks) {
+                    await setDoc(doc(db, "config", "locks"), backup.data.locks);
+                    candidateLocks = backup.data.locks.locks || {};
+                    restored++;
+                }
+                
+                if (backup.data.session) {
+                    await setDoc(doc(db, "config", "session"), backup.data.session);
+                    restored++;
+                }
+                
+                if (backup.data.adminPassword) {
+                    await setDoc(doc(db, "config", "admin_password"), backup.data.adminPassword);
+                    restored++;
+                }
+                
+                alert(`✓ Restauration réussie !\n\n${restored} élément(s) restauré(s)\nDate de sauvegarde: ${new Date(backup.exportDate).toLocaleString()}`);
+                
+                // Recharger la page pour rafraîchir toutes les données
+                location.reload();
+            } catch (e) {
+                console.error('Erreur:', e);
+                alert('Erreur lors de la restauration: ' + e.message);
+                event.target.value = ''; // Reset file input
+            }
+        };
+
         window.recalculateAllScores = async () => {
             if (!confirm('Nettoyer les valeurs calculées obsolètes en base de données ?\n\nLes scores pondérés seront désormais toujours calculés à la volée.')) {
                 return;
@@ -1609,6 +1882,186 @@
         };
 
         // Export vers CSV
+        // Export des notes en CSV (format éditable)
+        window.exportNotesToCSV = async () => {
+            try {
+                // Récupérer tous les scores
+                const scoresSnap = await getDocs(collection(db, "scores"));
+                const juries = new Set();
+                const scoresByCandidate = {};
+                
+                scoresSnap.forEach(d => {
+                    const data = d.data();
+                    juries.add(data.juryName);
+                    
+                    if (!scoresByCandidate[data.candidateId]) {
+                        scoresByCandidate[data.candidateId] = {};
+                    }
+                    scoresByCandidate[data.candidateId][data.juryName] = data;
+                });
+                
+                const sortedJuries = Array.from(juries).sort();
+                
+                // Créer l'en-tête CSV
+                let csv = 'CandidatID,CandidatNom';
+                sortedJuries.forEach(jury => {
+                    csv += `,${jury}_Note1,${jury}_Note2`;
+                });
+                csv += '\n';
+                
+                // Ajouter les données
+                CANDIDATES.forEach(c => {
+                    let row = `${c.id},"${c.name}"`;
+                    
+                    sortedJuries.forEach(jury => {
+                        const scores = scoresByCandidate[c.id]?.[jury];
+                        const note1 = scores?.score1 || '-';
+                        const note2 = scores?.score2 || '-';
+                        row += `,${note1},${note2}`;
+                    });
+                    
+                    csv += row + '\n';
+                });
+                
+                // Télécharger
+                const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                const date = new Date().toISOString().split('T')[0];
+                link.setAttribute('href', url);
+                link.setAttribute('download', `notes_${date}.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                
+                alert('✓ Export CSV réussi !');
+            } catch (e) {
+                console.error('Erreur:', e);
+                alert('Erreur lors de l\'export: ' + e.message);
+            }
+        };
+        
+        // Import des notes depuis CSV
+        window.importNotesFromCSV = async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            if (!confirm(`⚠️ ATTENTION ⚠️\n\nImporter depuis CSV va :\n- Vérifier le format du fichier\n- Mettre à jour les notes existantes\n- Créer de nouvelles notes si nécessaire\n\nLes notes actuelles seront modifiées !\n\nContinuer ?`)) {
+                event.target.value = '';
+                return;
+            }
+            
+            try {
+                const text = await file.text();
+                const lines = text.split('\n').filter(l => l.trim());
+                
+                if (lines.length < 2) {
+                    throw new Error('Fichier CSV vide ou invalide');
+                }
+                
+                // Parser l'en-tête
+                const header = lines[0].split(',').map(h => h.trim());
+                
+                // Vérifier le format
+                if (header[0] !== 'CandidatID' || header[1] !== 'CandidatNom') {
+                    throw new Error('Format CSV invalide. L\'en-tête doit commencer par: CandidatID,CandidatNom');
+                }
+                
+                // Extraire les jurys de l'en-tête
+                const juries = [];
+                for (let i = 2; i < header.length; i += 2) {
+                    const juryName = header[i].replace('_Note1', '');
+                    juries.push(juryName);
+                }
+                
+                if (juries.length === 0) {
+                    throw new Error('Aucun jury trouvé dans le fichier CSV');
+                }
+                
+                let imported = 0;
+                let errors = [];
+                
+                // Parser chaque ligne
+                for (let i = 1; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue;
+                    
+                    const values = line.match(/(".*?"|[^,]+)/g).map(v => v.replace(/^"|"$/g, '').trim());
+                    
+                    const candidatId = values[0];
+                    
+                    // Vérifier que le candidat existe
+                    const candidate = CANDIDATES.find(c => c.id === candidatId);
+                    if (!candidate) {
+                        errors.push(`Ligne ${i + 1}: Candidat "${candidatId}" non trouvé`);
+                        continue;
+                    }
+                    
+                    // Importer les notes pour chaque jury
+                    for (let j = 0; j < juries.length; j++) {
+                        const juryName = juries[j];
+                        const note1 = values[2 + j * 2];
+                        const note2 = values[3 + j * 2];
+                        
+                        // Valider les notes
+                        const validValues = ['-', '5', '10', '15', '20', 'Elimine'];
+                        if (!validValues.includes(note1) || !validValues.includes(note2)) {
+                            errors.push(`Ligne ${i + 1}, ${juryName}: Notes invalides (${note1}, ${note2})`);
+                            continue;
+                        }
+                        
+                        // Chercher si un score existe déjà
+                        const q = query(
+                            collection(db, "scores"),
+                            where("candidateId", "==", candidatId),
+                            where("juryName", "==", juryName)
+                        );
+                        const existingScores = await getDocs(q);
+                        
+                        const scoreData = {
+                            candidateId: candidatId,
+                            juryName: juryName,
+                            score1: note1,
+                            score2: note2,
+                            timestamp: new Date()
+                        };
+                        
+                        if (!existingScores.empty) {
+                            // Mettre à jour
+                            await setDoc(doc(db, "scores", existingScores.docs[0].id), scoreData);
+                        } else {
+                            // Créer
+                            await addDoc(collection(db, "scores"), scoreData);
+                        }
+                        
+                        imported++;
+                    }
+                }
+                
+                event.target.value = '';
+                
+                let message = `✓ Import terminé !\n\n${imported} note(s) importée(s)`;
+                if (errors.length > 0) {
+                    message += `\n\n⚠️ ${errors.length} erreur(s) :\n${errors.slice(0, 5).join('\n')}`;
+                    if (errors.length > 5) {
+                        message += `\n... et ${errors.length - 5} autre(s)`;
+                    }
+                }
+                
+                alert(message);
+                
+                // Rafraîchir l'affichage
+                renderNotesTable();
+                await loadResults();
+            } catch (e) {
+                console.error('Erreur:', e);
+                alert('Erreur lors de l\'import: ' + e.message);
+                event.target.value = '';
+            }
+        };
+
         window.exportToExcel = () => {
             if (!CANDIDATES.length || !Object.keys(aggregatedData).length) {
                 alert('Veuillez d\'abord charger les résultats (bouton "Charger et Calculer")');
