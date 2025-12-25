@@ -20,6 +20,7 @@
             --danger-dark: #c82333;
             --neutral: #6c757d;
             --neutral-color: #6c757d;
+            --white: #ffffff;
             --text-color: #333;
             --text-secondary: #666;
             --border-color: #ddd;
@@ -46,6 +47,7 @@
             --danger-dark: #d32f2f;
             --neutral: #9e9e9e;
             --neutral-color: #9e9e9e;
+            --white: #ffffff;
             --text-color: #e0e0e0;
             --text-secondary: #b0b0b0;
             --border-color: #444;
@@ -211,6 +213,7 @@
             position: sticky;
             top: 0;
             z-index: 10;
+            color: var(--text-color);
         }
 
         .detail-note { 
@@ -261,8 +264,12 @@
 
         #podium-table th {
             background: var(--neutral-color);
-            color: white;
+            color: var(--white);
             font-weight: 600;
+        }
+
+        #podium-table td {
+            color: var(--text-color);
         }
 
         .rank-1 { 
@@ -313,6 +320,175 @@
             border: none;
             border-top: 2px solid var(--border-color);
             margin: calc(var(--spacing) * 1.5) 0;
+        }
+
+        /* Tab Navigation */
+        .tab-navigation {
+            display: flex;
+            gap: 5px;
+            border-bottom: 2px solid var(--border-color);
+            margin-bottom: var(--spacing);
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        .tab-btn:hover {
+            color: var(--primary);
+            background: rgba(0, 123, 255, 0.05);
+        }
+
+        .tab-btn.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Candidate Table */
+        .candidate-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: var(--spacing) 0;
+        }
+
+        .candidate-table th,
+        .candidate-table td {
+            border: 1px solid var(--border-color);
+            padding: 12px;
+            text-align: left;
+            color: var(--text-color);
+        }
+
+        .candidate-table th {
+            background: var(--input-bg);
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        .candidate-table input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            background: var(--card-bg);
+            color: var(--text-color);
+            font-family: inherit;
+        }
+
+        .candidate-table .actions {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2em;
+            padding: 4px 8px;
+            transition: all 0.3s ease;
+        }
+
+        .icon-btn:hover {
+            transform: scale(1.2);
+        }
+
+        .icon-btn.delete {
+            color: var(--danger-color);
+        }
+
+        .icon-btn.reset {
+            color: var(--warning);
+        }
+
+        .icon-btn.lock {
+            color: var(--neutral-color);
+        }
+
+        .icon-btn.lock.locked {
+            color: var(--danger-color);
+        }
+
+        /* Notes Table */
+        .notes-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+            table-layout: fixed;
+        }
+
+        .notes-table th,
+        .notes-table td {
+            border: 1px solid var(--border-color);
+            padding: 8px;
+            text-align: center;
+            overflow: hidden;
+            color: var(--text-color);
+        }
+
+        .notes-table th {
+            background: var(--input-bg);
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            color: var(--text-color);
+        }
+
+        .notes-table select {
+            width: 100%;
+            max-width: 90px;
+            padding: 4px;
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            background: var(--card-bg);
+            color: var(--text-color);
+            text-align: center;
+            font-size: 0.9em;
+            font-family: inherit;
+        }
+
+        .notes-table .candidate-name {
+            text-align: left;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .notes-table .locked-cell {
+            background: rgba(220, 53, 69, 0.1);
+        }
+
+        .notes-table .col-actions {
+            width: 100px;
+        }
+
+        .notes-table .col-candidate {
+            width: 150px;
+        }
+
+        .notes-table .col-score {
+            width: 100px;
         }
 
         /* Burger Menu & Theme Toggle */
@@ -530,72 +706,572 @@
         
         <h1>Tableau de bord Administrateur</h1>
         
-        <div class="candidate-zone">
-            <h2>1. Liste des Candidats</h2>
-            <textarea id="candidate-names" placeholder="Un nom par ligne...&#10;Exemple:&#10;Alice Martin&#10;Bob Dupont&#10;Claire Bernard"></textarea>
-            <button onclick="saveCandidateList()" class="action-button" style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color:white;">Sauvegarder la Liste</button>
+        <!-- Tab Navigation -->
+        <div class="tab-navigation">
+            <button class="tab-btn active" onclick="switchTab('candidats')">Candidats</button>
+            <button class="tab-btn" onclick="switchTab('notes')">Notes</button>
+            <button class="tab-btn" onclick="switchTab('resultats')">Résultats</button>
+            <button class="tab-btn" onclick="switchTab('podium')">Podium</button>
+            <button class="tab-btn" onclick="switchTab('reinitialiser')">Réinitialiser</button>
         </div>
 
-        <hr>
-        
-        <h2>2. Calcul des Résultats (Note1 ×3 + Note2 ×1)</h2>
-        <div class="button-group">
-            <button onclick="loadAllScores()" class="action-button load-button">Charger et Calculer</button>
-            <button onclick="exportToExcel()" class="action-button export-button excel">Excel (.csv)</button>
-            <button onclick="exportPodiumToImage()" class="action-button export-button">Podium (Image)</button>
-        </div>
+        <!-- TAB 1: CANDIDATS -->
+        <div id="tab-candidats" class="tab-content active">
+            <h2>Gestion des Candidats</h2>
+            
+            <div class="candidate-zone">
+                <h3>Import rapide (copier-coller)</h3>
+                <textarea id="candidate-names" placeholder="Un nom par ligne...&#10;Exemple:&#10;Alice Martin&#10;Bob Dupont&#10;Claire Bernard"></textarea>
+                <button onclick="importCandidates()" class="action-button" style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color:white;">Importer la liste</button>
+            </div>
 
-        <div class="table-container">
-            <table id="scores-matrix">
-                <thead><tr><th>Candidat</th></tr></thead>
-                <tbody></tbody>
-            </table>
-        </div>
-
-        <h2>Classement Officiel</h2>
-        <div class="table-container">
-            <table id="podium-table">
+            <h3>Liste des candidats</h3>
+            <button onclick="addCandidate()" class="action-button" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color:white;">+ Ajouter un candidat</button>
+            
+            <table class="candidate-table" id="candidate-table">
                 <thead>
-                    <tr><th>Rang</th><th>Candidat</th><th>Score Pondéré</th><th>Statut</th></tr>
+                    <tr>
+                        <th style="width: 80px;">ID</th>
+                        <th>Nom du candidat</th>
+                        <th style="width: 100px;">Actions</th>
+                    </tr>
                 </thead>
-                <tbody id="podium-body"></tbody>
+                <tbody id="candidate-table-body">
+                    <!-- Rempli dynamiquement -->
+                </tbody>
             </table>
         </div>
 
-        <div class="reset-zone">
+        <!-- TAB 2: NOTES -->
+        <div id="tab-notes" class="tab-content">
+            <h2>Gestion des Notes</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 20px;">
+                Modifiez les notes directement dans le tableau. Les modifications sont sauvegardées automatiquement.
+            </p>
+            
+            <div class="table-container">
+                <table class="notes-table" id="notes-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 60px;">Actions</th>
+                            <th style="width: 150px;">Candidat</th>
+                            <!-- Colonnes jurys ajoutées dynamiquement -->
+                        </tr>
+                    </thead>
+                    <tbody id="notes-table-body">
+                        <!-- Rempli dynamiquement -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB 3: RESULTATS -->
+        <div id="tab-resultats" class="tab-content">
+            <h2>Résultats du Concours (Note1 ×3 + Note2 ×1)</h2>
+
+            <div class="button-group" style="margin-bottom: 20px;">
+                <button onclick="exportToExcel()" class="action-button export-button excel">Exporter en CSV</button>
+            </div>
+
+            <h3>Matrice complète</h3>
+            <div class="table-container">
+                <table id="scores-matrix">
+                    <thead><tr><th>Candidat</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB 4: PODIUM -->
+        <div id="tab-podium" class="tab-content">
+            <h2>Classement Officiel</h2>
+            
+            <div style="margin-bottom: 20px;">
+                <label for="result-limit" style="font-weight: 600; margin-right: 10px;">Nombre de candidats à afficher:</label>
+                <input type="number" id="result-limit" value="18" min="1" onchange="renderPodium()" style="width: 80px; padding: 8px; border: 2px solid var(--border-color); border-radius: 5px; background: var(--card-bg); color: var(--text-color);">
+                <button onclick="exportPodiumToImage()" class="action-button export-button" style="margin-left: 10px;">Exporter en image</button>
+            </div>
+
+            <div class="table-container">
+                <table id="podium-table">
+                    <thead>
+                        <tr><th>Rang</th><th>Candidat</th><th>Score Pondéré</th><th>Statut</th></tr>
+                    </thead>
+                    <tbody id="podium-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB 5: REINITIALISER -->
+        <div id="tab-reinitialiser" class="tab-content">
             <h2>Zone de Danger</h2>
-            <button onclick="confirmResetAllData()" class="action-button">RÉINITIALISER TOUS LES SCORES</button>
+            <p style="color: var(--danger-color); font-weight: 600; margin-bottom: 20px;">
+                ⚠️ Attention: Ces actions sont irréversibles !
+            </p>
+
+            <div class="reset-zone" style="background: var(--info-bg-start); border: 2px solid var(--primary);">
+                <h3 style="color: var(--primary);">🔧 Utilitaires</h3>
+                <p>Nettoyer les anciennes valeurs calculées stockées en base (utile si les totaux sont incorrects). Les scores pondérés sont maintenant toujours calculés à la volée.</p>
+                <button onclick="recalculateAllScores()" class="action-button" style="background: var(--primary);">Nettoyer la base de données</button>
+                
+                <p style="margin-top: 15px;">Supprimer les doublons de scores (un même jury ayant noté plusieurs fois le même candidat).</p>
+                <button onclick="removeDuplicateScores()" class="action-button" style="background: var(--warning-color); color: #212529;">Supprimer les doublons</button>
+            </div>
+
+            <div class="reset-zone">
+                <h3>Supprimer un jury spécifique</h3>
+                <p>Supprime toutes les notations d'un jury spécifique.</p>
+                <div style="margin-bottom: 15px;">
+                    <select id="jury-to-delete" style="padding: 10px; border: 2px solid var(--border-color); border-radius: 5px; background: var(--card-bg); color: var(--text-color); font-family: inherit; min-width: 200px;">
+                        <option value="">-- Sélectionner un jury --</option>
+                    </select>
+                </div>
+                <button onclick="confirmDeleteJury()" class="action-button">Supprimer ce jury</button>
+            </div>
+
+            <div class="reset-zone" style="margin-top: 30px;">
+                <h3>Supprimer TOUS les jurys</h3>
+                <p>Supprime toutes les notations de tous les jurys (mais conserve la liste des candidats).</p>
+                <button onclick="confirmDeleteAllJuries()" class="action-button" style="background: var(--warning-color); color: #212529;">Supprimer tous les jurys</button>
+            </div>
+
+            <div class="reset-zone" style="margin-top: 30px;">
+                <h3>Réinitialiser les scores</h3>
+                <p>Remet toutes les notations à "-" mais conserve la structure (jurys et candidats).</p>
+                <button onclick="confirmResetScores()" class="action-button">Réinitialiser les scores uniquement</button>
+            </div>
+
+            <div class="reset-zone" style="margin-top: 30px;">
+                <h3>Réinitialisation complète</h3>
+                <p>Supprime TOUS les candidats ET toutes les notations. Remet l'application à zéro.</p>
+                <button onclick="confirmResetAll()" class="action-button">RÉINITIALISER TOUT (Candidats + Scores)</button>
+            </div>
         </div>
     </div>
 
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <script type="module">
         import { db } from './firebase-init.js';
-        import { collection, getDocs, deleteDoc, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
+        import { collection, getDocs, deleteDoc, doc, setDoc, getDoc, addDoc, query, where } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
 
         let CANDIDATES = [];
         let aggregatedData = {};
+        let candidateLocks = {}; // {candidateId: {juryName: boolean}}
 
-        // --- GESTION CANDIDATS ---
-        window.saveCandidateList = async () => {
-            const names = document.getElementById('candidate-names').value.split('\n').map(n => n.trim()).filter(n => n !== "");
-            const list = names.map((n, i) => ({ id: `C${i+1}`, name: n }));
-            await setDoc(doc(db, "candidats", "liste_actuelle"), { candidates: list });
-            alert("Liste mise à jour !");
-            location.reload();
+        // --- TAB SWITCHING ---
+        window.switchTab = function(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            event.target.classList.add('active');
+            
+            // Load tab-specific data
+            if (tabName === 'candidats') {
+                renderCandidateTable();
+            } else if (tabName === 'notes') {
+                renderNotesTable();
+            } else if (tabName === 'resultats') {
+                loadResults();
+            } else if (tabName === 'podium') {
+                loadResults();
+            } else if (tabName === 'reinitialiser') {
+                populateJuryDropdown();
+            }
         };
 
+        // --- GESTION CANDIDATS ---
         const loadList = async () => {
             const snap = await getDoc(doc(db, "candidats", "liste_actuelle"));
             if (snap.exists()) {
-                CANDIDATES = snap.data().candidates;
+                CANDIDATES = snap.data().candidates || [];
                 document.getElementById('candidate-names').value = CANDIDATES.map(c => c.name).join('\n');
+                renderCandidateTable();
+            }
+            
+            // Charger les verrous
+            const lockSnap = await getDoc(doc(db, "config", "locks"));
+            if (lockSnap.exists()) {
+                candidateLocks = lockSnap.data().locks || {};
             }
         };
+
+        window.importCandidates = async () => {
+            const names = document.getElementById('candidate-names').value.split('\n').map(n => n.trim()).filter(n => n !== "");
+            if (names.length === 0) {
+                alert("Veuillez entrer au moins un candidat");
+                return;
+            }
+            
+            const list = names.map((n, i) => ({ id: `C${i+1}`, name: n }));
+            await setDoc(doc(db, "candidats", "liste_actuelle"), { candidates: list });
+            alert(`${names.length} candidat(s) importé(s) !`);
+            CANDIDATES = list;
+            renderCandidateTable();
+        };
+
+        window.addCandidate = () => {
+            const name = prompt("Nom du nouveau candidat:");
+            if (!name || !name.trim()) return;
+            
+            const newId = `C${CANDIDATES.length + 1}`;
+            CANDIDATES.push({ id: newId, name: name.trim() });
+            saveCandidates();
+        };
+
+        window.deleteCandidate = async (candidateId) => {
+            if (!confirm(`Supprimer ce candidat et toutes ses notes ?`)) return;
+            
+            CANDIDATES = CANDIDATES.filter(c => c.id !== candidateId);
+            
+            // Supprimer aussi les scores de ce candidat
+            const scoresQuery = query(collection(db, "scores"), where("candidateId", "==", candidateId));
+            const scoresSnap = await getDocs(scoresQuery);
+            for (const scoreDoc of scoresSnap.docs) {
+                await deleteDoc(doc(db, "scores", scoreDoc.id));
+            }
+            
+            saveCandidates();
+        };
+
+        window.updateCandidateName = (candidateId, newName) => {
+            const candidate = CANDIDATES.find(c => c.id === candidateId);
+            if (candidate) {
+                candidate.name = newName;
+                saveCandidates();
+            }
+        };
+
+        async function saveCandidates() {
+            await setDoc(doc(db, "candidats", "liste_actuelle"), { candidates: CANDIDATES });
+            renderCandidateTable();
+        }
+
+        function renderCandidateTable() {
+            const tbody = document.getElementById('candidate-table-body');
+            tbody.innerHTML = '';
+            
+            CANDIDATES.forEach(candidate => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${candidate.id}</td>
+                    <td><input type="text" value="${candidate.name}" onchange="updateCandidateName('${candidate.id}', this.value)"></td>
+                    <td class="actions">
+                        <button class="icon-btn delete" onclick="deleteCandidate('${candidate.id}')" title="Supprimer">🗑️</button>
+                    </td>
+                `;
+            });
+        }
+
         loadList();
 
+        // --- GESTION NOTES ---
+        async function renderNotesTable() {
+            const tbody = document.getElementById('notes-table-body');
+            const thead = document.querySelector('#notes-table thead tr');
+            tbody.innerHTML = '';
+            
+            // Charger tous les scores
+            const querySnapshot = await getDocs(collection(db, "scores"));
+            const scoresByCandidate = {};
+            const juries = new Set();
+            
+            querySnapshot.forEach(docSnap => {
+                const data = docSnap.data();
+                juries.add(data.juryName);
+                if (!scoresByCandidate[data.candidateId]) {
+                    scoresByCandidate[data.candidateId] = {};
+                }
+                scoresByCandidate[data.candidateId][data.juryName] = {
+                    id: docSnap.id,
+                    score1: data.score1,
+                    score2: data.score2
+                };
+            });
+            
+            const sortedJuries = Array.from(juries).sort();
+            
+            // Construire l'en-tête avec bouton lock/unlock all
+            thead.innerHTML = `
+                <th class="col-actions">
+                    Actions<br>
+                    <button class="icon-btn" onclick="toggleAllLocks()" title="Verrouiller/Déverrouiller tout" style="font-size: 0.9em; margin-top: 5px;">🔒 Tout</button>
+                </th>
+                <th class="col-candidate">Candidat</th>
+                ${sortedJuries.map(j => `<th colspan="2" class="col-score">${j}<br><small>(Fond | Forme)</small></th>`).join('')}
+            `;
+            
+            // Construire les lignes
+            CANDIDATES.forEach(candidate => {
+                const row = tbody.insertRow();
+                const isLocked = candidateLocks[candidate.id] || {};
+                
+                // Actions
+                const actionsCell = row.insertCell();
+                actionsCell.className = 'col-actions';
+                actionsCell.innerHTML = `
+                    <button class="icon-btn reset" onclick="resetCandidateScores('${candidate.id}')" title="Réinitialiser à '-'">🔄</button>
+                    <button class="icon-btn lock ${Object.keys(isLocked).length > 0 ? 'locked' : ''}" onclick="toggleCandidateLock('${candidate.id}')" title="Verrouiller/Déverrouiller">🔒</button>
+                `;
+                
+                // Nom du candidat
+                const nameCell = row.insertCell();
+                nameCell.className = 'candidate-name col-candidate';
+                nameCell.textContent = candidate.name;
+                
+                // Notes par jury
+                sortedJuries.forEach(jury => {
+                    const scores = scoresByCandidate[candidate.id]?.[jury];
+                    const locked = isLocked[jury] || false;
+                    
+                    const cell1 = row.insertCell();
+                    const cell2 = row.insertCell();
+                    cell1.className = 'col-score';
+                    cell2.className = 'col-score';
+                    
+                    // Si verrouillé ET qu'il n'y a pas de scores, afficher le cadenas
+                    // Sinon, afficher les scores (existants ou dropdowns vides)
+                    if (locked && !scores) {
+                        cell1.className += ' locked-cell';
+                        cell2.className += ' locked-cell';
+                        cell1.textContent = '🔒';
+                        cell2.textContent = '🔒';
+                    } else if (scores) {
+                        cell1.innerHTML = createScoreDropdown(scores.id, 'score1', scores.score1, candidate.id, jury);
+                        cell2.innerHTML = createScoreDropdown(scores.id, 'score2', scores.score2, candidate.id, jury);
+                    } else {
+                        cell1.innerHTML = createScoreDropdown(null, 'score1', '-', candidate.id, jury);
+                        cell2.innerHTML = createScoreDropdown(null, 'score2', '-', candidate.id, jury);
+                    }
+                });
+            });
+        }
+
+        function createScoreDropdown(scoreId, field, currentValue, candidateId, juryName) {
+            const options = ['-', '5', '10', '15', '20', 'Elimine'];
+            const selectId = `score-${candidateId}-${juryName}-${field}`;
+            
+            let html = `<select id="${selectId}" onchange="handleScoreChange('${scoreId}', '${field}', this.value, '${candidateId}', '${juryName}')">`;
+            options.forEach(opt => {
+                const selected = opt === String(currentValue) ? 'selected' : '';
+                html += `<option value="${opt}" ${selected}>${opt}</option>`;
+            });
+            html += '</select>';
+            return html;
+        }
+
+        window.handleScoreChange = async function(scoreId, field, value, candidateId, juryName) {
+            if (value === '-') {
+                // Supprimer le score s'il existe
+                if (scoreId && scoreId !== 'null') {
+                    await deleteDoc(doc(db, "scores", scoreId));
+                }
+            } else {
+                // Créer ou mettre à jour le score
+                if (scoreId && scoreId !== 'null') {
+                    await updateScore(scoreId, field, value);
+                } else {
+                    await createScore(candidateId, juryName, field, value);
+                }
+            }
+            // Rafraîchir les deux onglets
+            renderNotesTable();
+            await loadResults();
+        };
+
+        async function createScore(candidateId, juryName, field, value) {
+            // Vérifier si un score existe déjà
+            const q = query(collection(db, "scores"), 
+                where("candidateId", "==", candidateId),
+                where("juryName", "==", juryName));
+            const snap = await getDocs(q);
+            
+            if (snap.empty) {
+                // Créer nouveau score (sans totalWeightedScore - calculé à la volée)
+                const data = {
+                    candidateId: candidateId,
+                    juryName: juryName,
+                    score1: field === 'score1' ? value : '-',
+                    score2: field === 'score2' ? value : '-',
+                    timestamp: new Date()
+                };
+                
+                await addDoc(collection(db, "scores"), data);
+            } else {
+                // Si des doublons existent, les nettoyer
+                if (snap.docs.length > 1) {
+                    console.warn(`⚠️ ${snap.docs.length} doublons trouvés pour ${candidateId}/${juryName}, nettoyage...`);
+                    // Garder le plus récent, supprimer les autres
+                    const sorted = snap.docs.sort((a, b) => {
+                        const timeA = a.data().timestamp?.toDate?.() || new Date(0);
+                        const timeB = b.data().timestamp?.toDate?.() || new Date(0);
+                        return timeB - timeA;
+                    });
+                    
+                    // Supprimer tous sauf le premier (le plus récent)
+                    for (let i = 1; i < sorted.length; i++) {
+                        await deleteDoc(doc(db, "scores", sorted[i].id));
+                    }
+                }
+                
+                // Mettre à jour le score existant (ou le seul restant après nettoyage)
+                const scoreDoc = snap.docs[0];
+                await updateScore(scoreDoc.id, field, value);
+            }
+        }
+
+        window.updateScore = async (scoreId, field, value) => {
+            try {
+                const scoreRef = doc(db, "scores", scoreId);
+                const scoreSnap = await getDoc(scoreRef);
+                
+                if (!scoreSnap.exists()) return;
+                
+                const data = scoreSnap.data();
+                data[field] = value;
+                
+                // Ne pas stocker totalWeightedScore - il sera calculé à la volée
+                delete data.totalWeightedScore;
+                
+                await setDoc(scoreRef, data);
+            } catch (e) {
+                console.error('Erreur:', e);
+                alert('Erreur lors de la mise à jour: ' + e.message);
+            }
+        };
+
+        window.resetCandidateScores = async (candidateId) => {
+            if (!confirm('Réinitialiser toutes les notes de ce candidat à "-" ?')) return;
+            
+            const scoresQuery = query(collection(db, "scores"), where("candidateId", "==", candidateId));
+            const scoresSnap = await getDocs(scoresQuery);
+            
+            for (const scoreDoc of scoresSnap.docs) {
+                const data = scoreDoc.data();
+                data.score1 = '-';
+                data.score2 = '-';
+                // Ne pas stocker totalWeightedScore - calculé à la volée
+                delete data.totalWeightedScore;
+                await setDoc(doc(db, "scores", scoreDoc.id), data);
+            }
+            
+            // Déverrouiller automatiquement ce candidat après réinitialisation
+            if (candidateLocks[candidateId]) {
+                delete candidateLocks[candidateId];
+                await setDoc(doc(db, "config", "locks"), { locks: candidateLocks });
+            }
+            
+            alert('Notes réinitialisées à "-"\nLe candidat a été déverrouillé automatiquement.');
+            renderNotesTable();
+            await loadResults();
+        };
+
+        window.toggleAllLocks = async () => {
+            // Compter combien de candidats ont des scores non-set (-)
+            const querySnapshot = await getDocs(collection(db, "scores"));
+            const scoresByCandidate = {};
+            const juries = new Set();
+            
+            querySnapshot.forEach(docSnap => {
+                const data = docSnap.data();
+                juries.add(data.juryName);
+                if (!scoresByCandidate[data.candidateId]) {
+                    scoresByCandidate[data.candidateId] = {};
+                }
+                scoresByCandidate[data.candidateId][data.juryName] = {
+                    score1: data.score1,
+                    score2: data.score2
+                };
+            });
+            
+            const sortedJuries = Array.from(juries).sort();
+            let hasUnlockedNonSet = false;
+            
+            // Vérifier s'il y a des scores "-" non verrouillés
+            CANDIDATES.forEach(candidate => {
+                const isLocked = candidateLocks[candidate.id] || {};
+                sortedJuries.forEach(jury => {
+                    const scores = scoresByCandidate[candidate.id]?.[jury];
+                    const locked = isLocked[jury] || false;
+                    
+                    if (!locked && (!scores || scores.score1 === '-' || scores.score2 === '-')) {
+                        hasUnlockedNonSet = true;
+                    }
+                });
+            });
+            
+            // Toggle: si des non-set sont déverrouillés -> verrouiller tout
+            // sinon -> déverrouiller tout
+            if (hasUnlockedNonSet) {
+                // Verrouiller tous les "-"
+                CANDIDATES.forEach(candidate => {
+                    if (!candidateLocks[candidate.id]) {
+                        candidateLocks[candidate.id] = {};
+                    }
+                    sortedJuries.forEach(jury => {
+                        const scores = scoresByCandidate[candidate.id]?.[jury];
+                        if (!scores || scores.score1 === '-' || scores.score2 === '-') {
+                            candidateLocks[candidate.id][jury] = true;
+                        }
+                    });
+                });
+            } else {
+                // Déverrouiller tout
+                candidateLocks = {};
+            }
+            
+            await setDoc(doc(db, "config", "locks"), { locks: candidateLocks });
+            renderNotesTable();
+        };
+
+        window.toggleCandidateLock = async (candidateId) => {
+            const allJuriesLocked = candidateLocks[candidateId] && Object.keys(candidateLocks[candidateId]).length > 0;
+            
+            if (allJuriesLocked) {
+                // Déverrouiller tous les jurys pour ce candidat
+                delete candidateLocks[candidateId];
+            } else {
+                // Verrouiller uniquement les jurys qui n'ont pas encore de notes pour ce candidat
+                const querySnapshot = await getDocs(collection(db, "scores"));
+                const juries = new Set();
+                const existingScores = new Set(); // Pour stocker les combinaisons candidat-jury qui ont déjà des scores
+                
+                querySnapshot.forEach(d => {
+                    const data = d.data();
+                    juries.add(data.juryName);
+                    
+                    // Si ce jury a déjà noté ce candidat avec des vraies notes (pas juste "-"), on le marque
+                    if (data.candidateId === candidateId) {
+                        const hasRealScores = (data.score1 && data.score1 !== '-') || 
+                                             (data.score2 && data.score2 !== '-');
+                        if (hasRealScores) {
+                            existingScores.add(data.juryName);
+                        }
+                    }
+                });
+                
+                candidateLocks[candidateId] = {};
+                
+                // Ne verrouiller que les jurys qui n'ont pas encore de scores réels
+                Array.from(juries).forEach(jury => {
+                    if (!existingScores.has(jury)) {
+                        candidateLocks[candidateId][jury] = true;
+                    }
+                });
+            }
+            
+            await setDoc(doc(db, "config", "locks"), { locks: candidateLocks });
+            renderNotesTable();
+        };
+
         // --- CALCUL DES SCORES ---
-        window.loadAllScores = async () => {
+        window.loadResults = async () => {
             const querySnapshot = await getDocs(collection(db, "scores"));
             aggregatedData = {};
             const juries = new Set();
@@ -604,8 +1280,20 @@
                 aggregatedData[c.id] = { name: c.name, total: 0, juryScores: {}, elimCount: 0, hasScores: false };
             });
 
+            // Utiliser un Set pour détecter et éviter les doublons
+            const processedKeys = new Set();
+
             querySnapshot.forEach(doc => {
                 const data = doc.data();
+                const key = `${data.candidateId}_${data.juryName}`;
+                
+                // Ignorer les doublons (garder seulement le premier rencontré)
+                if (processedKeys.has(key)) {
+                    console.warn(`⚠️ Doublon ignoré: ${key}`);
+                    return;
+                }
+                processedKeys.add(key);
+                
                 if (aggregatedData[data.candidateId]) {
                     juries.add(data.juryName);
                     aggregatedData[data.candidateId].hasScores = true;
@@ -614,7 +1302,16 @@
                     if (data.score1 === "Elimine") {
                         aggregatedData[data.candidateId].elimCount++;
                     } else {
-                        aggregatedData[data.candidateId].total += data.totalWeightedScore;
+                        // TOUJOURS calculer le score pondéré à partir des scores bruts
+                        // IGNORER complètement toute valeur totalWeightedScore stockée
+                        let weightedScore = 0;
+                        if (data.score1 && data.score1 !== '-' && 
+                            data.score2 && data.score2 !== '-' &&
+                            data.score1 !== 'Elimine' && data.score2 !== 'Elimine') {
+                            weightedScore = (parseInt(data.score1) * 3) + parseInt(data.score2);
+                            console.log(`Candidat ${data.candidateId}, Jury ${data.juryName}: ${data.score1}×3 + ${data.score2} = ${weightedScore} (DB avait: ${data.totalWeightedScore})`);
+                        }
+                        aggregatedData[data.candidateId].total += weightedScore;
                     }
                 }
             });
@@ -642,7 +1339,14 @@
                             cell.className = "eliminado";
                             cell.textContent = "ÉLIMINÉ";
                         } else {
-                            cell.innerHTML = `<span class="detail-note">${scoreObj.score1} | ${scoreObj.score2}</span><span class="weighted-total">${scoreObj.totalWeightedScore}</span>`;
+                            // Recalculer le weighted score pour l'affichage
+                            let displayWeightedScore = 0;
+                            if (scoreObj.score1 && scoreObj.score1 !== '-' && 
+                                scoreObj.score2 && scoreObj.score2 !== '-' &&
+                                scoreObj.score1 !== 'Elimine' && scoreObj.score2 !== 'Elimine') {
+                                displayWeightedScore = (parseInt(scoreObj.score1) * 3) + parseInt(scoreObj.score2);
+                            }
+                            cell.innerHTML = `<span class="detail-note">${scoreObj.score1} | ${scoreObj.score2}</span><span class="weighted-total">${displayWeightedScore}</span>`;
                         }
                     } else { cell.textContent = "-"; }
                 });
@@ -656,6 +1360,10 @@
             const body = document.getElementById('podium-body');
             body.innerHTML = "";
             let list = Object.values(aggregatedData).filter(c => c.hasScores).sort((a,b) => b.total - a.total);
+            
+            // Limiter le nombre de résultats affichés
+            const limit = parseInt(document.getElementById('result-limit')?.value || 18);
+            list = list.slice(0, limit);
             
             list.forEach((c, i) => {
                 const row = body.insertRow();
@@ -671,11 +1379,364 @@
             });
         }
 
-        window.confirmResetAllData = async () => {
-            if(confirm("Supprimer TOUS les scores ?")){
-                const snap = await getDocs(collection(db, "scores"));
-                for (const d of snap.docs) { await deleteDoc(doc(db, "scores", d.id)); }
+        // Supprimer les doublons de scores
+        window.removeDuplicateScores = async () => {
+            if (!confirm('Rechercher et supprimer les doublons de scores ?\n\nPour chaque combinaison candidat+jury, seule la note la plus récente sera conservée.')) {
+                return;
+            }
+            
+            try {
+                const querySnapshot = await getDocs(collection(db, "scores"));
+                
+                // Grouper par candidat+jury
+                const scoresByKey = {};
+                querySnapshot.forEach(doc => {
+                    const data = doc.data();
+                    const key = `${data.candidateId}_${data.juryName}`;
+                    
+                    if (!scoresByKey[key]) {
+                        scoresByKey[key] = [];
+                    }
+                    scoresByKey[key].push({ id: doc.id, data: data, timestamp: data.timestamp });
+                });
+                
+                // Trouver et supprimer les doublons
+                let duplicatesFound = 0;
+                let duplicatesRemoved = 0;
+                
+                for (const key in scoresByKey) {
+                    const scores = scoresByKey[key];
+                    if (scores.length > 1) {
+                        duplicatesFound += scores.length - 1;
+                        console.log(`Doublon trouvé pour ${key}: ${scores.length} entrées`);
+                        
+                        // Trier par timestamp (le plus récent en premier)
+                        scores.sort((a, b) => {
+                            const timeA = a.timestamp?.toDate?.() || new Date(0);
+                            const timeB = b.timestamp?.toDate?.() || new Date(0);
+                            return timeB - timeA;
+                        });
+                        
+                        // Garder le premier (le plus récent), supprimer les autres
+                        for (let i = 1; i < scores.length; i++) {
+                            console.log(`Suppression de l'ancien score: ${scores[i].id}`, scores[i].data);
+                            await deleteDoc(doc(db, "scores", scores[i].id));
+                            duplicatesRemoved++;
+                        }
+                    }
+                }
+                
+                alert(`✓ Nettoyage des doublons terminé !\n${duplicatesFound} doublon(s) trouvé(s)\n${duplicatesRemoved} doublon(s) supprimé(s)`);
+                
+                // Rafraîchir l'affichage
+                renderNotesTable();
+                await loadResults();
+            } catch (e) {
+                console.error('Erreur:', e);
+                alert('Erreur lors du nettoyage des doublons: ' + e.message);
+            }
+        };
+
+        // Nettoyer les valeurs calculées obsolètes de la base de données
+        window.recalculateAllScores = async () => {
+            if (!confirm('Nettoyer les valeurs calculées obsolètes en base de données ?\n\nLes scores pondérés seront désormais toujours calculés à la volée.')) {
+                return;
+            }
+            
+            try {
+                const querySnapshot = await getDocs(collection(db, "scores"));
+                let cleaned = 0;
+                
+                for (const scoreDoc of querySnapshot.docs) {
+                    const data = scoreDoc.data();
+                    
+                    // Supprimer totalWeightedScore s'il existe
+                    if ('totalWeightedScore' in data) {
+                        delete data.totalWeightedScore;
+                        await setDoc(doc(db, "scores", scoreDoc.id), data);
+                        cleaned++;
+                    }
+                }
+                
+                alert(`✓ Nettoyage terminé !\n${cleaned} enregistrement(s) nettoyé(s).\n\nLes totaux sont maintenant calculés correctement.`);
+                
+                // Rafraîchir l'affichage
+                renderNotesTable();
+                await loadResults();
+            } catch (e) {
+                console.error('Erreur:', e);
+                alert('Erreur lors du nettoyage: ' + e.message);
+            }
+        };
+
+        window.confirmDeleteJury = async () => {
+            const jurySelect = document.getElementById('jury-to-delete');
+            const juryName = jurySelect.value;
+            
+            if (!juryName) {
+                alert('Veuillez sélectionner un jury');
+                return;
+            }
+            
+            if (!confirm(`Supprimer TOUTES les notes du jury "${juryName}" ?\n\nCette action est irréversible.`)) {
+                return;
+            }
+            
+            try {
+                const q = query(collection(db, "scores"), where("juryName", "==", juryName));
+                const snap = await getDocs(q);
+                
+                for (const d of snap.docs) {
+                    await deleteDoc(doc(db, "scores", d.id));
+                }
+                
+                // Supprimer aussi les verrous pour ce jury
+                Object.keys(candidateLocks).forEach(candidateId => {
+                    if (candidateLocks[candidateId][juryName]) {
+                        delete candidateLocks[candidateId][juryName];
+                        if (Object.keys(candidateLocks[candidateId]).length === 0) {
+                            delete candidateLocks[candidateId];
+                        }
+                    }
+                });
+                await setDoc(doc(db, "config", "locks"), { locks: candidateLocks });
+                
+                alert(`Jury "${juryName}" supprimé avec succès`);
                 location.reload();
+            } catch (e) {
+                console.error('Erreur:', e);
+                alert('Erreur lors de la suppression: ' + e.message);
+            }
+        };
+
+        window.confirmDeleteAllJuries = async () => {
+            if (!confirm(`⚠️ ATTENTION ⚠️\n\nSupprimer TOUTES les notations de TOUS les jurys ?\n\nLa liste des candidats sera conservée.\n\nCette action est IRRÉVERSIBLE !`)) {
+                return;
+            }
+            
+            // Double confirmation
+            if (!confirm(`Êtes-vous VRAIMENT sûr ?\n\nToutes les notes de tous les jurys seront supprimées définitivement.`)) {
+                return;
+            }
+            
+            try {
+                const querySnapshot = await getDocs(collection(db, "scores"));
+                let deletedCount = 0;
+                
+                for (const d of querySnapshot.docs) {
+                    await deleteDoc(doc(db, "scores", d.id));
+                    deletedCount++;
+                }
+                
+                // Supprimer tous les verrous
+                candidateLocks = {};
+                await setDoc(doc(db, "config", "locks"), { locks: {} });
+                
+                alert(`✓ Tous les jurys supprimés avec succès\n${deletedCount} notation(s) supprimée(s)`);
+                location.reload();
+            } catch (e) {
+                console.error('Erreur:', e);
+                alert('Erreur lors de la suppression: ' + e.message);
+            }
+        };
+
+        async function populateJuryDropdown() {
+            const querySnapshot = await getDocs(collection(db, "scores"));
+            const juries = new Set();
+            
+            querySnapshot.forEach(doc => {
+                juries.add(doc.data().juryName);
+            });
+            
+            const select = document.getElementById('jury-to-delete');
+            select.innerHTML = '<option value="">-- Sélectionner un jury --</option>';
+            
+            Array.from(juries).sort().forEach(jury => {
+                const option = document.createElement('option');
+                option.value = jury;
+                option.textContent = jury;
+                select.appendChild(option);
+            });
+        }
+
+        window.confirmResetScores = async () => {
+            if(!confirm("Supprimer TOUTES les notes (les candidats seront conservés) ?")) return;
+            
+            try {
+                const snap = await getDocs(collection(db, "scores"));
+                for (const d of snap.docs) { 
+                    await deleteDoc(doc(db, "scores", d.id)); 
+                }
+                
+                // Réinitialiser les verrous
+                await setDoc(doc(db, "config", "locks"), { locks: {} });
+                candidateLocks = {};
+                
+                alert('Toutes les notes ont été supprimées');
+                location.reload();
+            } catch (e) {
+                console.error('Erreur:', e);
+                alert('Erreur lors de la réinitialisation: ' + e.message);
+            }
+        };
+
+        window.confirmResetAll = async () => {
+            const confirmation = prompt('Pour confirmer la réinitialisation TOTALE, tapez "RESET":');
+            if (confirmation !== 'RESET') {
+                alert('Réinitialisation annulée');
+                return;
+            }
+            
+            try {
+                // Supprimer les scores
+                const scoresSnap = await getDocs(collection(db, "scores"));
+                for (const d of scoresSnap.docs) { 
+                    await deleteDoc(doc(db, "scores", d.id)); 
+                }
+                
+                // Supprimer les candidats
+                await setDoc(doc(db, "candidats", "liste_actuelle"), { candidates: [] });
+                
+                // Réinitialiser les verrous
+                await setDoc(doc(db, "config", "locks"), { locks: {} });
+                
+                alert('Réinitialisation complète effectuée');
+                location.reload();
+            } catch (e) {
+                console.error('Erreur:', e);
+                alert('Erreur lors de la réinitialisation: ' + e.message);
+            }
+        };
+
+        // Export vers CSV
+        window.exportToExcel = () => {
+            if (!CANDIDATES.length || !Object.keys(aggregatedData).length) {
+                alert('Veuillez d\'abord charger les résultats (bouton "Charger et Calculer")');
+                return;
+            }
+
+            // Récupérer les jurys
+            const juries = new Set();
+            Object.values(aggregatedData).forEach(candidate => {
+                Object.keys(candidate.juryScores).forEach(jury => juries.add(jury));
+            });
+            const sortedJuries = Array.from(juries).sort();
+
+            // Créer l'en-tête CSV
+            let csv = 'Candidat,' + sortedJuries.join(',') + ',Total,Statut\n';
+
+            // Ajouter les données des candidats
+            CANDIDATES.forEach(c => {
+                const data = aggregatedData[c.id];
+                if (!data.hasScores) return;
+
+                let row = `"${c.name}",`;
+                
+                // Scores par jury
+                sortedJuries.forEach((jury, index) => {
+                    const scoreObj = data.juryScores[jury];
+                    if (scoreObj) {
+                        if (scoreObj.score1 === "Elimine") {
+                            row += 'ÉLIMINÉ';
+                        } else {
+                            // Recalculer le score pondéré pour l'export
+                            let weightedScore = 0;
+                            if (scoreObj.score1 && scoreObj.score1 !== '-' && 
+                                scoreObj.score2 && scoreObj.score2 !== '-' &&
+                                scoreObj.score1 !== 'Elimine' && scoreObj.score2 !== 'Elimine') {
+                                weightedScore = (parseInt(scoreObj.score1) * 3) + parseInt(scoreObj.score2);
+                            }
+                            row += `"${scoreObj.score1}|${scoreObj.score2} (${weightedScore})"`;
+                        }
+                    } else {
+                        row += '-';
+                    }
+                    if (index < sortedJuries.length - 1) row += ',';
+                });
+
+                // Total et statut
+                row += `,${data.total}`;
+                row += data.elimCount >= 3 ? ',ÉLIMINÉ' : ',Qualifié';
+                csv += row + '\n';
+            });
+
+            // Télécharger le fichier
+            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            const date = new Date().toISOString().split('T')[0];
+            link.setAttribute('href', url);
+            link.setAttribute('download', `resultats_concours_${date}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+
+        // Export du podium en image
+        window.exportPodiumToImage = async () => {
+            const podiumTable = document.getElementById('podium-table');
+            
+            if (!podiumTable || !podiumTable.querySelector('tbody').children.length) {
+                alert('Veuillez d\'abord charger les résultats (bouton "Charger et Calculer")');
+                return;
+            }
+
+            try {
+                // Vérifier si html2canvas est chargé
+                if (typeof html2canvas === 'undefined') {
+                    alert('Erreur: html2canvas n\'est pas chargé');
+                    return;
+                }
+
+                // Créer un conteneur temporaire avec le titre
+                const container = document.createElement('div');
+                container.style.padding = '30px';
+                container.style.background = 'white';
+                container.style.width = 'fit-content';
+                
+                const title = document.createElement('h1');
+                title.textContent = 'Classement Officiel - Concours d\'Éloquence';
+                title.style.color = '#007bff';
+                title.style.textAlign = 'center';
+                title.style.marginBottom = '20px';
+                title.style.fontSize = '24px';
+                
+                const tableClone = podiumTable.cloneNode(true);
+                tableClone.style.fontSize = '16px';
+                
+                container.appendChild(title);
+                container.appendChild(tableClone);
+                
+                // Ajouter temporairement au document
+                container.style.position = 'absolute';
+                container.style.left = '-9999px';
+                document.body.appendChild(container);
+
+                // Capturer avec html2canvas
+                const canvas = await html2canvas(container, {
+                    backgroundColor: '#ffffff',
+                    scale: 2, // Haute résolution
+                    logging: false
+                });
+
+                // Supprimer le conteneur temporaire
+                document.body.removeChild(container);
+
+                // Télécharger l'image
+                const date = new Date().toISOString().split('T')[0];
+                canvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `podium_concours_${date}.png`;
+                    link.click();
+                    URL.revokeObjectURL(url);
+                });
+
+            } catch (e) {
+                console.error('Erreur lors de l\'export:', e);
+                alert('Erreur lors de la génération de l\'image: ' + e.message);
             }
         };
 

@@ -1,6 +1,6 @@
 import { db } from './firebase-init.js';
 import { 
-    collection, addDoc, query, where, getDocs, getDoc, doc 
+    collection, addDoc, query, where, getDocs, getDoc, doc, setDoc, deleteDoc 
 } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
 
 // --- VARIABLES GLOBALES (Ajout de localStorage) ---
@@ -36,6 +36,18 @@ function logout() {
     localStorage.clear();
     location.reload();
 }
+
+// Rafraîchir manuellement la liste des candidats
+window.refreshCandidateList = async function() {
+    console.log('🔄 Rafraîchissement de la liste des candidats...');
+    await updateCandidateSelect(selectedCandidateId);
+    
+    // Fermer le menu burger après le rafraîchissement
+    const menuContent = document.getElementById('menu-content-scoring');
+    if (menuContent) {
+        menuContent.classList.remove('show');
+    }
+};
 document.getElementById('logout-button').onclick = logout;
 
 // --------------------------------------------------------------------------------
@@ -146,31 +158,126 @@ function startScoring() {
     updateCandidateSelect();
 }
 
-async function updateCandidateSelect() {
+async function updateCandidateSelect(preserveSelection = null) {
     const docSnap = await getDoc(doc(db, "candidats", "liste_actuelle"));
-    if (docSnap.exists()) CANDIDATES = docSnap.data().candidates;
+    if (docSnap.exists()) CANDIDATES = docSnap.data().candidates || [];
 
     const q = query(collection(db, "scores"), where("juryName", "==", currentJuryName));
     const snap = await getDocs(q);
-    const scoredIds = snap.docs.map(d => d.data().candidateId);
+    
+    // Créer un map des candidats avec leurs scores complets
+    const scoresByCandidate = {};
+    snap.docs.forEach(d => {
+        const data = d.data();
+        scoresByCandidate[data.candidateId] = data;
+    });
+
+    // Charger les verrous
+    const lockSnap = await getDoc(doc(db, "config", "locks"));
+    const locks = lockSnap.exists() ? lockSnap.data().locks || {} : {};
 
     const select = document.getElementById('candidate-select');
+    const currentSelection = preserveSelection || selectedCandidateId;
     select.innerHTML = '<option value="" disabled selected>-- Choisir un candidat --</option>';
 
     CANDIDATES.forEach(c => {
         const opt = document.createElement('option');
         opt.value = c.id;
-        opt.textContent = `${c.id} - ${c.name}`;
-        if (scoredIds.includes(c.id)) opt.disabled = true;
+        
+        // Vérifier si le candidat est verrouillé pour ce jury
+        const isLocked = locks[c.id]?.[currentJuryName] || false;
+        
+        // Vérifier si les deux notations sont complètes
+        const scores = scoresByCandidate[c.id];
+        const bothScoresSet = scores && 
+                              scores.score1 && scores.score1 !== '-' && 
+                              scores.score2 && scores.score2 !== '-';
+        
+        if (isLocked) {
+            opt.textContent = `${c.id} - ${c.name} 🔒`;
+            opt.disabled = true;
+            opt.style.color = '#999';
+        } else if (bothScoresSet) {
+            opt.textContent = `${c.id} - ${c.name} ✓`;
+            opt.disabled = true;
+            opt.style.color = '#999';
+        } else {
+            opt.textContent = `${c.id} - ${c.name}`;
+        }
+        
+        // Restaurer la sélection si demandé
+        if (currentSelection && c.id === currentSelection) {
+            opt.selected = true;
+        }
+        
         select.appendChild(opt);
     });
 }
 
-document.getElementById('candidate-select').onchange = (e) => {
+// Rafraîchir la liste quand on clique sur le dropdown (pour voir les dernières mises à jour)
+document.getElementById('candidate-select').onfocus = async () => {
+    console.log('🔄 Rafraîchissement de la liste (clic sur dropdown)...');
+    await updateCandidateSelect(selectedCandidateId);
+};
+
+document.getElementById('candidate-select').onchange = async (e) => {
     selectedCandidateId = e.target.value;
     const c = CANDIDATES.find(x => x.id === selectedCandidateId);
+    
+    // Sanity check: Re-vérifier le statut du candidat en temps réel
+    const q = query(
+        collection(db, "scores"), 
+        where("candidateId", "==", selectedCandidateId),
+        where("juryName", "==", currentJuryName)
+    );
+    const snap = await getDocs(q);
+    
+    // Charger les verrous
+    const lockSnap = await getDoc(doc(db, "config", "locks"));
+    const locks = lockSnap.exists() ? lockSnap.data().locks || {} : {};
+    const isLocked = locks[selectedCandidateId]?.[currentJuryName] || false;
+    
+    // Vérifier si les deux notations sont complètes
+    const scores = snap.docs.length > 0 ? snap.docs[0].data() : null;
+    const bothScoresSet = scores && 
+                          scores.score1 && scores.score1 !== '-' && 
+                          scores.score2 && scores.score2 !== '-';
+    
+    if (isLocked) {
+        alert(`⚠️ Ce candidat est verrouillé pour votre jury.\nVous ne pouvez pas le noter.`);
+        selectedCandidateId = null;
+        document.getElementById('candidate-select').value = '';
+        document.getElementById('selected-candidate-display').textContent = '';
+        checkValidation();
+        // Rafraîchir la liste des candidats pour refléter les changements
+        await updateCandidateSelect();
+        return;
+    }
+    
+    if (bothScoresSet) {
+        const confirmOverwrite = confirm(
+            `⚠️ Attention !\n\nVous avez déjà noté ce candidat:\n` +
+            `- Argumentation: ${scores.score1}\n` +
+            `- Réponse aux questions: ${scores.score2}\n\n` +
+            `Voulez-vous modifier ces notes ?`
+        );
+        if (!confirmOverwrite) {
+            selectedCandidateId = null;
+            document.getElementById('candidate-select').value = '';
+            document.getElementById('selected-candidate-display').textContent = '';
+            checkValidation();
+            // Rafraîchir la liste des candidats pour refléter les changements
+            await updateCandidateSelect();
+            return;
+        }
+    }
+    
     document.getElementById('selected-candidate-display').textContent = `Candidat : ${c.name}`;
     checkValidation();
+    
+    // Rafraîchir la liste après sélection pour montrer l'état à jour des autres candidats
+    // (en préservant la sélection actuelle)
+    await updateCandidateSelect(selectedCandidateId);
 };
 
 function checkValidation() {
@@ -180,7 +287,18 @@ function checkValidation() {
 // --------------------------------------------------------------------------------
 // GESTION MODALE ET ENVOI
 // --------------------------------------------------------------------------------
-document.getElementById('validate-button').onclick = () => {
+document.getElementById('validate-button').onclick = async () => {
+    // Sanity check: Re-vérifier le statut avant d'ouvrir la modale
+    const lockSnap = await getDoc(doc(db, "config", "locks"));
+    const locks = lockSnap.exists() ? lockSnap.data().locks || {} : {};
+    const isLocked = locks[selectedCandidateId]?.[currentJuryName] || false;
+    
+    if (isLocked) {
+        alert(`❌ Ce candidat est maintenant verrouillé.\nVous ne pouvez plus modifier cette notation.`);
+        location.reload();
+        return;
+    }
+    
     const c = CANDIDATES.find(x => x.id === selectedCandidateId);
     document.getElementById('modal-candidate').textContent = c.name;
     document.getElementById('modal-s1').textContent = selectedScore1;
@@ -194,21 +312,82 @@ document.getElementById('cancel-send-button').onclick = () => {
 
 document.getElementById('confirm-send-button').onclick = async () => {
     document.getElementById('confirmation-modal').style.display = 'none';
-    let pts = (selectedScore1 === 'Elimine' || selectedScore2 === 'Elimine') ? 0 : (parseInt(selectedScore1) * 3) + parseInt(selectedScore2);
     
     try {
-        await addDoc(collection(db, "scores"), {
+        // Sanity check: Re-vérifier si le candidat est verrouillé ou déjà noté
+        const lockSnap = await getDoc(doc(db, "config", "locks"));
+        const locks = lockSnap.exists() ? lockSnap.data().locks || {} : {};
+        const isLocked = locks[selectedCandidateId]?.[currentJuryName] || false;
+        
+        if (isLocked) {
+            alert(`❌ Ce candidat est maintenant verrouillé.\nImpossible d'enregistrer la notation.`);
+            location.reload();
+            return;
+        }
+        
+        // Vérifier si un score existe déjà pour ce candidat et ce jury
+        const q = query(
+            collection(db, "scores"), 
+            where("candidateId", "==", selectedCandidateId),
+            where("juryName", "==", currentJuryName)
+        );
+        const existingScores = await getDocs(q);
+        
+        const scoreData = {
             juryName: currentJuryName,
             candidateId: selectedCandidateId,
             score1: selectedScore1,
             score2: selectedScore2,
-            totalWeightedScore: pts,
             timestamp: new Date()
-        });
-        location.reload(); 
+        };
+        
+        if (!existingScores.empty) {
+            // Sanity check: Nettoyer les doublons s'ils existent
+            if (existingScores.docs.length > 1) {
+                console.warn(`⚠️ ${existingScores.docs.length} doublons détectés, nettoyage...`);
+                // Supprimer tous les doublons
+                for (let i = 1; i < existingScores.docs.length; i++) {
+                    await deleteDoc(doc(db, "scores", existingScores.docs[i].id));
+                }
+            }
+            
+            // Mettre à jour le score existant (évite les doublons)
+            const existingDoc = existingScores.docs[0];
+            console.log(`✏️ Mise à jour du score existant pour ${selectedCandidateId}`);
+            await setDoc(doc(db, "scores", existingDoc.id), scoreData);
+        } else {
+            // Créer un nouveau score
+            console.log(`✨ Création d'un nouveau score pour ${selectedCandidateId}`);
+            await addDoc(collection(db, "scores"), scoreData);
+        }
+        
+        // Réinitialiser le formulaire et rafraîchir la liste sans recharger la page
+        selectedCandidateId = null;
+        selectedScore1 = null;
+        selectedScore2 = null;
+        document.getElementById('selected-candidate-display').textContent = '';
+        document.querySelectorAll('.score-btn').forEach(btn => btn.classList.remove('selected'));
+        document.querySelectorAll('.elim-btn').forEach(btn => btn.classList.remove('eliminated'));
+        checkValidation();
+        
+        // Rafraîchir la liste des candidats pour montrer l'état à jour
+        await updateCandidateSelect();
+        
+        alert("✓ Notation enregistrée avec succès !");
     } catch (e) { 
         alert("Erreur d'envoi : " + e.message); 
     }
 };
 
 checkSessionAndStart();
+
+// Rafraîchir automatiquement la liste des candidats toutes les 30 secondes
+// pour détecter les modifications faites dans l'interface admin
+setInterval(async () => {
+    // Ne rafraîchir que si on est sur la page de notation
+    const scoringPage = document.getElementById('scoring-page');
+    if (scoringPage && scoringPage.classList.contains('active')) {
+        console.log('🔄 Auto-rafraîchissement de la liste des candidats...');
+        await updateCandidateSelect(selectedCandidateId);
+    }
+}, 30000); // 30 secondes
