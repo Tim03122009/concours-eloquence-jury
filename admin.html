@@ -984,6 +984,12 @@
                 <p>Remet toutes les notations à "-" mais conserve la structure (jurys et candidats).</p>
                 <button onclick="confirmResetScores()" class="action-button">Réinitialiser les scores uniquement</button>
             </div>
+            
+            <div class="reset-zone" style="margin-top: 30px;">
+                <h3 style="color: var(--text-color);">Réinitialiser le tour en cours</h3>
+                <p>Supprime toutes les notes des candidats du tour actif et remet leur statut à "Actif".</p>
+                <button onclick="confirmResetActiveRound()" class="action-button" style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); color: white;">🔄 Réinitialiser les notes du tour actif</button>
+            </div>
 
             <div class="reset-zone" style="margin-top: 30px;">
                 <h3 style="color: var(--text-color);">Réinitialisation complète</h3>
@@ -3409,10 +3415,19 @@
                 
                 console.log(`🔄 Auto-remplissage pour le tour: ${roundName} (${activeRoundId})`);
                 
+                // Désactiver temporairement le listener pour éviter les rafraîchissements multiples
+                console.log('⏸️ Désactivation temporaire du listener...');
+                const wasListenerActive = !!scoresListener;
+                if (scoresListener) {
+                    scoresListener(); // Unsubscribe
+                    scoresListener = null;
+                }
+                
                 // Charger les candidats
                 const candidatesDoc = await getDoc(doc(db, "candidats", "liste_actuelle"));
                 if (!candidatesDoc.exists()) {
                     await customAlert("Aucun candidat trouvé");
+                    if (wasListenerActive) setupScoresListener();
                     return;
                 }
                 const allCandidates = candidatesDoc.data().candidates || [];
@@ -3426,6 +3441,7 @@
                 
                 if (activeCandidatesInRound.length === 0) {
                     await customAlert(`Aucun candidat actif trouvé pour le tour "${roundName}".\n\nVérifiez que:\n- Des candidats existent\n- Ils sont assignés au tour "${roundName}"\n- Leur statut est "Actif" ou "Reset"`);
+                    if (wasListenerActive) setupScoresListener();
                     return;
                 }
                 
@@ -3435,79 +3451,88 @@
                 
                 if (JURIES.length === 0) {
                     await customAlert("Aucun jury trouvé. Veuillez d'abord ajouter des jurys dans l'onglet 'Jury'.");
+                    if (wasListenerActive) setupScoresListener();
                     return;
                 }
                 
-                // Pour chaque candidat actif, créer des scores "-" pour chaque jury
+                // Charger tous les scores existants pour ce tour en UNE SEULE requête
+                const existingScoresQuery = query(
+                    collection(db, "scores"),
+                    where("roundId", "==", activeRoundId)
+                );
+                const existingScoresSnap = await getDocs(existingScoresQuery);
+                const existingScoresSet = new Set();
+                existingScoresSnap.forEach(docSnap => {
+                    const data = docSnap.data();
+                    existingScoresSet.add(`${data.candidateId}_${data.juryId}`);
+                });
+                console.log(`📊 Scores existants dans ce tour: ${existingScoresSet.size}`);
+                
+                // Préparer les scores à créer en batch
+                const scoresCollectionRef = collection(db, "scores");
+                const batch = writeBatch(db);
                 let scoresCreated = 0;
                 let scoresSkipped = 0;
-                let scoreErrors = 0;
                 const qualifiedCandidates = [];
                 
                 for (const candidate of activeCandidatesInRound) {
-                    let candidateScoresCreated = 0;
-                    let candidateHasError = false;
+                    let candidateFullyScored = true;
                     
                     for (const jury of JURIES) {
-                        try {
-                            // Vérifier si un score existe déjà
-                            const q = query(
-                                collection(db, "scores"),
-                                where("candidateId", "==", candidate.id),
-                                where("juryId", "==", jury.id),
-                                where("roundId", "==", activeRoundId)
-                            );
-                            const existingScores = await getDocs(q);
-                            
-                            // Ne créer un score que s'il n'existe pas déjà
-                            if (existingScores.empty) {
-                                const scoreData = {
-                                    juryId: jury.id,
-                                    juryName: jury.name,
-                                    candidateId: candidate.id,
-                                    roundId: activeRoundId,
-                                    score1: '-',
-                                    score2: '-',
-                                    timestamp: new Date()
-                                };
-                                await addDoc(collection(db, "scores"), scoreData);
-                                scoresCreated++;
-                                candidateScoresCreated++;
-                                console.log(`✨ Score créé: ${candidate.name} (${candidate.id}) - ${jury.name} (${jury.id})`);
-                            } else {
-                                scoresSkipped++;
-                                console.log(`⏭️ Score déjà existant: ${candidate.name} - ${jury.name}`);
-                            }
-                        } catch (error) {
-                            console.error(`❌ Erreur création score pour ${candidate.name} - ${jury.name}:`, error);
-                            scoreErrors++;
-                            candidateHasError = true;
+                        const key = `${candidate.id}_${jury.id}`;
+                        
+                        // Vérifier si le score existe déjà
+                        if (existingScoresSet.has(key)) {
+                            scoresSkipped++;
+                        } else {
+                            // Ajouter au batch
+                            const newScoreRef = doc(scoresCollectionRef);
+                            batch.set(newScoreRef, {
+                                juryId: jury.id,
+                                juryName: jury.name,
+                                candidateId: candidate.id,
+                                roundId: activeRoundId,
+                                score1: '-',
+                                score2: '-',
+                                timestamp: new Date()
+                            });
+                            scoresCreated++;
+                            candidateFullyScored = true;
                         }
                     }
                     
-                    // Passer le candidat en "Qualifié" seulement si tous ses scores ont été créés/existaient
-                    if (!candidateHasError) {
+                    // Passer le candidat en "Qualifié"
+                    if (candidateFullyScored) {
                         qualifiedCandidates.push(candidate.id);
                         const candidateIndex = allCandidates.findIndex(c => c.id === candidate.id);
                         if (candidateIndex >= 0) {
                             allCandidates[candidateIndex].status = 'Qualifie';
-                            console.log(`✅ ${candidate.name} marqué comme Qualifié (${candidateScoresCreated} scores créés)`);
                         }
-                    } else {
-                        console.warn(`⚠️ ${candidate.name} non qualifié à cause d'erreurs de création de scores`);
                     }
+                }
+                
+                // Exécuter le batch en UNE SEULE opération
+                console.log(`💾 Création de ${scoresCreated} scores en batch...`);
+                if (scoresCreated > 0) {
+                    await batch.commit();
+                    console.log(`✅ Batch exécuté avec succès`);
                 }
                 
                 // Sauvegarder les candidats mis à jour
                 await setDoc(doc(db, "candidats", "liste_actuelle"), { candidates: allCandidates });
                 console.log(`💾 ${qualifiedCandidates.length} candidat(s) mis à jour dans la base`);
                 
-                let message = `✓ ${scoresCreated} score(s) créé(s)\n✓ ${qualifiedCandidates.length} candidat(s) qualifié(s)`;
-                if (scoresSkipped > 0) {
-                    message += `\n⚠️ ${scoresSkipped} score(s) déjà existant(s) ignoré(s)`;
+                // Réactiver le listener
+                if (wasListenerActive) {
+                    console.log('▶️ Réactivation du listener...');
+                    setupScoresListener();
                 }
-                if (scoreErrors > 0) {
-                    message += `\n❌ ${scoreErrors} erreur(s) lors de la création de scores (voir console)`;
+                
+                let message = `✓ Auto-remplissage terminé !\n\n`;
+                message += `📊 ${scoresCreated} score(s) créé(s)\n`;
+                message += `✅ ${qualifiedCandidates.length} candidat(s) qualifié(s)`;
+                if (scoresSkipped > 0) {
+                    message += `\n⚠️ ${scoresSkipped} score(s) déjà existant(s)`;
                 }
                 
                 // Afficher un résumé détaillé dans la console
@@ -3517,19 +3542,23 @@
    - Jurys disponibles: ${JURIES.length}
    - Scores créés: ${scoresCreated}
    - Scores ignorés (existants): ${scoresSkipped}
-   - Erreurs: ${scoreErrors}
    - Candidats qualifiés: ${qualifiedCandidates.length}
+   - Opération en batch: OUI ✅
                 `);
                 
                 await customAlert(message);
                 
-                // Rafraîchir l'affichage
-                CANDIDATES = allCandidates; // Mettre à jour la variable globale
+                // Rafraîchir l'affichage UNE SEULE FOIS
+                CANDIDATES = allCandidates;
                 await loadList();
                 await renderNotesTable();
             } catch (e) {
-                console.error('Erreur:', e);
-                await customAlert('Erreur lors de l\'auto-remplissage: ' + e.message);
+                console.error('❌ Erreur:', e);
+                // Réactiver le listener en cas d'erreur
+                if (!scoresListener) {
+                    setupScoresListener();
+                }
+                await customAlert('❌ Erreur lors de l\'auto-remplissage:\n' + e.message);
             }
         };
 
@@ -3551,6 +3580,94 @@
             } catch (e) {
                 console.error('Erreur:', e);
                 await customAlert('❌ Erreur lors de la réinitialisation:\n' + e.message);
+            }
+        };
+        
+        window.confirmResetActiveRound = async () => {
+            try {
+                // Vérifier qu'il y a un tour actif
+                if (!activeRoundId) {
+                    await customAlert("Aucun tour actif défini. Veuillez sélectionner un tour actif dans l'onglet 'Tours'.");
+                    return;
+                }
+                
+                // Trouver le nom du tour actif
+                const activeRound = ROUNDS.find(r => r.id === activeRoundId);
+                const roundName = activeRound ? activeRound.name : activeRoundId;
+                
+                if (!await customConfirm(`Réinitialiser le tour "${roundName}" ?\n\n⚠️ Ceci va :\n- Supprimer toutes les notes des candidats de ce tour\n- Remettre leur statut à "Actif"\n\nCette action est IRRÉVERSIBLE !`)) {
+                    return;
+                }
+                
+                console.log(`🔄 Réinitialisation du tour: ${roundName} (${activeRoundId})`);
+                
+                // Charger les candidats
+                const candidatesDoc = await getDoc(doc(db, "candidats", "liste_actuelle"));
+                if (!candidatesDoc.exists()) {
+                    await customAlert("Aucun candidat trouvé");
+                    return;
+                }
+                
+                const allCandidates = candidatesDoc.data().candidates || [];
+                
+                // Filtrer les candidats du tour en cours
+                const candidatesInRound = allCandidates.filter(c => c.tour === activeRoundId);
+                console.log(`📋 Candidats du tour "${roundName}": ${candidatesInRound.length}`);
+                
+                if (candidatesInRound.length === 0) {
+                    await customAlert(`Aucun candidat trouvé pour le tour "${roundName}".`);
+                    return;
+                }
+                
+                // Récupérer tous les scores de ce tour
+                const scoresQuery = query(
+                    collection(db, "scores"),
+                    where("roundId", "==", activeRoundId)
+                );
+                const scoresSnap = await getDocs(scoresQuery);
+                console.log(`📊 Scores à supprimer: ${scoresSnap.size}`);
+                
+                // Supprimer les scores en batch
+                const batch = writeBatch(db);
+                scoresSnap.docs.forEach(docSnap => {
+                    batch.delete(docSnap.ref);
+                });
+                
+                // Mettre à jour les statuts des candidats à "Actif"
+                let candidatesReset = 0;
+                for (const candidate of candidatesInRound) {
+                    const candidateIndex = allCandidates.findIndex(c => c.id === candidate.id);
+                    if (candidateIndex >= 0) {
+                        allCandidates[candidateIndex].status = 'Actif';
+                        candidatesReset++;
+                    }
+                }
+                
+                // Exécuter le batch
+                await batch.commit();
+                console.log(`✅ ${scoresSnap.size} score(s) supprimé(s)`);
+                
+                // Sauvegarder les candidats mis à jour
+                await setDoc(doc(db, "candidats", "liste_actuelle"), { candidates: allCandidates });
+                console.log(`✅ ${candidatesReset} candidat(s) remis à "Actif"`);
+                
+                // Supprimer les verrous pour ce tour
+                if (candidateLocks) {
+                    for (const candidateId of candidatesInRound.map(c => c.id)) {
+                        delete candidateLocks[candidateId];
+                    }
+                    await setDoc(doc(db, "config", "locks"), { locks: candidateLocks });
+                }
+                
+                await customAlert(`✓ Tour "${roundName}" réinitialisé !\n\n📊 ${scoresSnap.size} note(s) supprimée(s)\n✅ ${candidatesReset} candidat(s) remis à "Actif"`);
+                
+                // Rafraîchir l'affichage
+                CANDIDATES = allCandidates;
+                await loadList();
+                await renderNotesTable();
+            } catch (e) {
+                console.error('❌ Erreur:', e);
+                await customAlert('❌ Erreur lors de la réinitialisation du tour:\n' + e.message);
             }
         };
 
