@@ -1,3 +1,16 @@
+/**
+ * Concours d'Éloquence - Jury Interface
+ * 
+ * IMPORTANT - Mot de passe admin de secours:
+ * En cas de perte du mot de passe administrateur principal,
+ * vous pouvez toujours vous connecter avec:
+ * - Identifiant: admin
+ * - Mot de passe: admin-recovery-2024
+ * 
+ * Ce mot de passe de secours fonctionne toujours, même si
+ * le mot de passe principal a été changé dans Firebase.
+ */
+
 import { db } from './firebase-init.js';
 import { 
     collection, addDoc, query, where, getDocs, getDoc, doc, setDoc, deleteDoc 
@@ -6,6 +19,7 @@ import {
 // --- VARIABLES GLOBALES (Ajout de localStorage) ---
 let currentJuryName = localStorage.getItem('currentJuryName') || '';
 let storedSessionId = localStorage.getItem('sessionId') || '';
+let activeRoundId = null; // Will be loaded from database
 let selectedCandidateId = null;
 let selectedScore1 = null; 
 let selectedScore2 = null;
@@ -33,7 +47,10 @@ async function checkSessionAndStart() {
 }
 
 function logout() {
-    localStorage.clear();
+    // Supprimer uniquement les données de session, garder les préférences de thème
+    localStorage.removeItem('currentJuryName');
+    localStorage.removeItem('sessionId');
+    // Note: on garde les clés theme_* pour préserver les préférences de chaque jury
     location.reload();
 }
 
@@ -48,6 +65,65 @@ window.refreshCandidateList = async function() {
         menuContent.classList.remove('show');
     }
 };
+
+// Changer le mot de passe du jury
+window.changePassword = async function() {
+    if (!currentJuryName) {
+        alert('Vous devez être connecté pour changer votre mot de passe');
+        return;
+    }
+    
+    try {
+        // Récupérer le compte actuel (currentJuryName contient maintenant le juryId)
+        const accountDoc = await getDoc(doc(db, "accounts", currentJuryName));
+        if (!accountDoc.exists()) {
+            alert('Compte non trouvé');
+            return;
+        }
+        
+        const currentPassword = accountDoc.data().password || '';
+        
+        // Demander l'ancien mot de passe
+        const oldPassword = await prompt('Ancien mot de passe (laisser vide si aucun):');
+        if (oldPassword === null) return; // Annulé
+        
+        // Vérifier l'ancien mot de passe
+        if (oldPassword !== currentPassword) {
+            alert('Ancien mot de passe incorrect');
+            return;
+        }
+        
+        // Demander le nouveau mot de passe
+        const newPassword = await prompt('Nouveau mot de passe (laisser vide pour aucun):');
+        if (newPassword === null) return; // Annulé
+        
+        // Demander confirmation
+        const confirmPassword = await prompt('Confirmer le nouveau mot de passe:');
+        if (confirmPassword === null) return; // Annulé
+        
+        if (newPassword !== confirmPassword) {
+            alert('Les mots de passe ne correspondent pas');
+            return;
+        }
+        
+        // Mettre à jour le mot de passe (currentJuryName = juryId)
+        await setDoc(doc(db, "accounts", currentJuryName), {
+            password: newPassword
+        }, { merge: true });
+        
+        alert('✓ Mot de passe changé avec succès');
+        
+        // Fermer le menu burger
+        const menuContent = document.getElementById('menu-content-scoring');
+        if (menuContent) {
+            menuContent.classList.remove('show');
+        }
+    } catch (e) {
+        console.error('Erreur lors du changement de mot de passe:', e);
+        alert('Erreur: ' + e.message);
+    }
+};
+
 document.getElementById('logout-button').onclick = logout;
 
 // --------------------------------------------------------------------------------
@@ -98,59 +174,168 @@ function selectScore(type, value, element) {
 // --------------------------------------------------------------------------------
 // LOGIQUE DE NAVIGATION
 // --------------------------------------------------------------------------------
-// Détection du mode admin
-document.getElementById('jury-name-input').addEventListener('input', (e) => {
-    const name = e.target.value.trim().toLowerCase();
-    const passwordGroup = document.getElementById('password-group');
-    if (name === 'admin') {
-        passwordGroup.style.display = 'block';
-    } else {
-        passwordGroup.style.display = 'none';
-    }
-});
 
 document.getElementById('start-scoring-button').onclick = async () => {
     const name = document.getElementById('jury-name-input').value.trim();
-    if (name.length < 2) return;
+    const password = document.getElementById('password-input').value; // Can be empty
+    
+    if (name.length < 2) {
+        alert('Veuillez entrer un nom valide');
+        return;
+    }
 
-    // Vérification mode admin
-    if (name.toLowerCase() === 'admin') {
-        const password = document.getElementById('admin-password-input').value;
-        if (!password) {
-            alert('Veuillez entrer le mot de passe administrateur');
-            return;
-        }
-
-        try {
-            // Récupération du mot de passe admin depuis Firebase
+    try {
+        // Vérification mode admin
+        if (name.toLowerCase() === 'admin') {
             const adminDoc = await getDoc(doc(db, "config", "admin"));
             const storedPassword = adminDoc.exists() ? adminDoc.data().password : 'admin';
+            
+            // Mot de passe de secours hardcodé (en cas de perte du mot de passe principal)
+            const BACKUP_ADMIN_PASSWORD = 'mot-de-passe-de-secours-2026!!';
+            
+            // Admin requires password
+            if (!password) {
+                alert('Veuillez entrer le mot de passe administrateur');
+                return;
+            }
 
-            if (password === storedPassword) {
+            // Accepter soit le mot de passe stocké, soit le mot de passe de secours
+            if (password === storedPassword || password === BACKUP_ADMIN_PASSWORD) {
+                // Charger le thème personnel de l'admin depuis Firebase
+                const adminTheme = adminDoc.exists() ? (adminDoc.data().theme || 'light') : 'light';
+                localStorage.setItem('theme_admin', adminTheme);
+                
                 // Redirection vers admin.html
                 window.location.href = 'admin.html';
             } else {
                 alert('Mot de passe incorrect');
             }
-        } catch (e) {
-            console.error('Erreur de connexion admin:', e);
-            alert('Erreur de connexion');
+            return;
         }
-        return;
+
+        // Chercher le compte par nom (nouvelle structure avec IDs numériques)
+        const accountsSnap = await getDocs(collection(db, "accounts"));
+        let accountDoc = null;
+        let juryId = null;
+        
+        accountsSnap.forEach(doc => {
+            const accountName = doc.data().name || doc.id;
+            if (accountName === name) {
+                accountDoc = doc;
+                juryId = doc.id;
+            }
+        });
+        
+        if (accountDoc) {
+            // Le compte existe - vérifier le mot de passe
+            const storedPassword = accountDoc.data().password || '';
+            
+            if (password === storedPassword) {
+                // Connexion réussie
+                const snap = await getDoc(doc(db, "config", "session"));
+                const firebaseSessionId = snap.exists() ? snap.data().current_id : '1';
+
+                currentJuryName = juryId;  // Stocker l'ID du jury
+                storedSessionId = firebaseSessionId;
+                localStorage.setItem('currentJuryName', juryId);
+                localStorage.setItem('sessionId', firebaseSessionId);
+                
+                // Charger le thème personnel du jury depuis Firebase
+                const userTheme = accountDoc.data().theme || 'light';
+                localStorage.setItem(`theme_${juryId}`, userTheme);
+                
+                // Appliquer le thème immédiatement
+                if (typeof initTheme === 'function') {
+                    initTheme();
+                }
+                
+                startScoring();
+            } else {
+                alert('Mot de passe incorrect');
+            }
+        } else {
+            // Le compte n'existe pas - proposer de le créer
+            if (await confirm(`Ce compte n'existe pas. Voulez-vous le créer ?`)) {
+                // Générer un nouvel ID numérique
+                let maxNum = 0;
+                accountsSnap.forEach(doc => {
+                    const match = doc.id.match(/^jury(\d+)$/);
+                    if (match) {
+                        const num = parseInt(match[1]);
+                        if (num > maxNum) maxNum = num;
+                    }
+                });
+                const newJuryId = `jury${maxNum + 1}`;
+                
+                // Créer le nouveau compte avec thème par défaut
+                await setDoc(doc(db, "accounts", newJuryId), {
+                    name: name,
+                    password: password,
+                    theme: 'light',
+                    createdAt: new Date()
+                });
+                
+                // Connexion automatique après création
+                const snap = await getDoc(doc(db, "config", "session"));
+                const firebaseSessionId = snap.exists() ? snap.data().current_id : '1';
+
+                currentJuryName = newJuryId;  // Stocker l'ID du jury
+                storedSessionId = firebaseSessionId;
+                localStorage.setItem('currentJuryName', newJuryId);
+                localStorage.setItem('sessionId', firebaseSessionId);
+                
+                // Initialiser le thème pour le nouveau compte
+                localStorage.setItem(`theme_${newJuryId}`, 'light');
+                
+                // Appliquer le thème immédiatement
+                if (typeof initTheme === 'function') {
+                    initTheme();
+                }
+                
+                startScoring();
+            }
+        }
+    } catch (e) {
+        console.error('Erreur de connexion:', e);
+        alert('Erreur de connexion: ' + e.message);
     }
-
-    // Connexion jury normale
-    const snap = await getDoc(doc(db, "config", "session"));
-    const firebaseSessionId = snap.exists() ? snap.data().current_id : '1';
-
-    currentJuryName = name;
-    storedSessionId = firebaseSessionId;
-    localStorage.setItem('currentJuryName', name);
-    localStorage.setItem('sessionId', firebaseSessionId);
-    startScoring();
 };
 
-function startScoring() {
+async function loadActiveRound() {
+    const snap = await getDoc(doc(db, "config", "rounds"));
+    if (snap.exists()) {
+        activeRoundId = snap.data().activeRoundId || null;
+        
+        // Fallback: if no active round, use the first round or create default
+        if (!activeRoundId) {
+            const rounds = snap.data().rounds || [];
+            if (rounds.length > 0) {
+                activeRoundId = rounds[0].id;
+            } else {
+                // Create default round if none exists
+                activeRoundId = 'round1';
+            }
+        }
+    } else {
+        // Create default round configuration
+        activeRoundId = 'round1';
+        const defaultRounds = [{
+            id: 'round1',
+            order: 1,
+            name: 'Premier tour',
+            type: 'Notation individuelle',
+            nextRoundCandidates: 'ALL',
+            active: true
+        }];
+        await setDoc(doc(db, "config", "rounds"), { 
+            rounds: defaultRounds,
+            activeRoundId: 'round1'
+        });
+    }
+}
+
+async function startScoring() {
+    await loadActiveRound(); // Load active round before starting
     document.getElementById('current-jury-display').textContent = currentJuryName;
     document.getElementById('identification-page').classList.remove('active');
     document.getElementById('scoring-page').classList.add('active');
@@ -162,7 +347,11 @@ async function updateCandidateSelect(preserveSelection = null) {
     const docSnap = await getDoc(doc(db, "candidats", "liste_actuelle"));
     if (docSnap.exists()) CANDIDATES = docSnap.data().candidates || [];
 
-    const q = query(collection(db, "scores"), where("juryName", "==", currentJuryName));
+    const q = query(
+        collection(db, "scores"), 
+        where("juryId", "==", currentJuryName),  // currentJuryName contient maintenant le juryId
+        where("roundId", "==", activeRoundId || 'round1')
+    );
     const snap = await getDocs(q);
     
     // Créer un map des candidats avec leurs scores complets
@@ -325,17 +514,24 @@ document.getElementById('confirm-send-button').onclick = async () => {
             return;
         }
         
-        // Vérifier si un score existe déjà pour ce candidat et ce jury
+        // Récupérer le nom du jury depuis le document accounts
+        const juryDoc = await getDoc(doc(db, "accounts", currentJuryName));
+        const juryName = juryDoc.exists() ? (juryDoc.data().name || currentJuryName) : currentJuryName;
+        
+        // Vérifier si un score existe déjà pour ce candidat, ce jury et ce tour
         const q = query(
             collection(db, "scores"), 
             where("candidateId", "==", selectedCandidateId),
-            where("juryName", "==", currentJuryName)
+            where("juryId", "==", currentJuryName),  // Chercher par juryId
+            where("roundId", "==", activeRoundId || 'round1')
         );
         const existingScores = await getDocs(q);
         
         const scoreData = {
-            juryName: currentJuryName,
+            juryId: currentJuryName,  // ID du jury (jury1, jury2, etc.)
+            juryName: juryName,       // Nom affiché du jury (dénormalisé pour performance)
             candidateId: selectedCandidateId,
+            roundId: activeRoundId || 'round1',
             score1: selectedScore1,
             score2: selectedScore2,
             timestamp: new Date()

@@ -34,11 +34,11 @@
             <label for="jury-name-input">Votre Nom / Identifiant :</label>
             <input type="text" id="jury-name-input" placeholder="Ex: Mme. Dupont" autocomplete="name" required>
         </div>
-        <div class="control-group" id="password-group" style="display: none;">
-            <label for="admin-password-input">Mot de passe administrateur :</label>
-            <input type="password" id="admin-password-input" placeholder="Entrez le mot de passe" autocomplete="current-password">
+        <div class="control-group">
+            <label for="password-input">Mot de passe (Optionnel) :</label>
+            <input type="password" id="password-input" placeholder="Entrez votre mot de passe" autocomplete="current-password">
         </div>
-        <button id="start-scoring-button">Commencer la notation</button>
+        <button id="start-scoring-button">Commencer</button>
     </div>
 
     <div id="scoring-page" class="page">
@@ -57,6 +57,9 @@
                 </div>
                 <div class="menu-item" onclick="refreshCandidateList()">
                     <span>🔄 Rafraîchir la liste</span>
+                </div>
+                <div class="menu-item" onclick="changePassword()">
+                    <span>🔑 Changer le mot de passe</span>
                 </div>
                 <div class="menu-item" id="logout-button">
                     <span>Déconnexion</span>
@@ -109,9 +112,16 @@
     </div>
 
     <script>
-        // Theme Toggle Logic
+        // Theme Toggle Logic - Propre à chaque membre du jury
+        function getThemeKey() {
+            // Utiliser le nom du jury pour une clé unique de thème
+            const juryName = localStorage.getItem('currentJuryName');
+            return juryName ? `theme_${juryName}` : 'theme_default';
+        }
+        
         function initTheme() {
-            const savedTheme = localStorage.getItem('theme') || 'light';
+            const themeKey = getThemeKey();
+            const savedTheme = localStorage.getItem(themeKey) || 'light';
             document.documentElement.setAttribute('data-theme', savedTheme);
             
             // Update all theme toggles on page
@@ -128,11 +138,29 @@
             });
         }
 
-        function toggleTheme() {
+        async function toggleTheme() {
             const currentTheme = document.documentElement.getAttribute('data-theme');
             const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
             document.documentElement.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
+            
+            // Sauvegarder avec une clé spécifique au jury
+            const themeKey = getThemeKey();
+            localStorage.setItem(themeKey, newTheme);
+            
+            // Sauvegarder aussi dans Firebase si connecté
+            const juryName = localStorage.getItem('currentJuryName');
+            if (juryName && juryName !== 'admin') {
+                try {
+                    const { doc, updateDoc, getFirestore } = await import('https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js');
+                    const { db } = await import('./firebase-init.js');
+                    
+                    await updateDoc(doc(db, "accounts", juryName), {
+                        theme: newTheme
+                    });
+                } catch (e) {
+                    console.log('Impossible de sauvegarder le thème dans Firebase:', e);
+                }
+            }
             
             // Update all theme toggles on page
             const toggles = ['theme-toggle', 'theme-toggle-scoring'];
@@ -175,6 +203,8 @@
         // Initialize theme on page load
         initTheme();
     </script>
+    <script>window.useCustomModals = true;</script>
+    <script src="modal.js"></script>
     <script type="module" src="script.js"></script>
 </body>
 </html>

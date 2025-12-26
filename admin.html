@@ -156,7 +156,7 @@
 
         /* Candidate Zone */
         .candidate-zone { 
-            margin-top: var(--spacing);
+            margin-top: 10px;
             padding: clamp(15px, 3vw, 25px);
             border: 2px solid var(--border-color);
             background: var(--input-bg);
@@ -167,6 +167,11 @@
         .candidate-zone h2 {
             margin-top: 0;
             color: var(--primary);
+        }
+
+        .candidate-zone h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
         }
 
         .candidate-zone textarea { 
@@ -739,12 +744,14 @@
                 </div>
             </div>
         </div>
-        
-        <h1>Tableau de bord Administrateur</h1>
-        
+
+    <h1>Tableau de bord Administrateur</h1>
+    
         <!-- Tab Navigation -->
         <div class="tab-navigation">
             <button class="tab-btn active" onclick="switchTab('candidats')">Candidats</button>
+            <button class="tab-btn" onclick="switchTab('jury')">Jury</button>
+            <button class="tab-btn" onclick="switchTab('tours')">Tours</button>
             <button class="tab-btn" onclick="switchTab('notes')">Notes</button>
             <button class="tab-btn" onclick="switchTab('resultats')">Résultats</button>
             <button class="tab-btn" onclick="switchTab('podium')">Podium</button>
@@ -753,13 +760,12 @@
 
         <!-- TAB 1: CANDIDATS -->
         <div id="tab-candidats" class="tab-content active">
-            <h2>Gestion des Candidats</h2>
-            
-            <div class="candidate-zone">
+    <div class="candidate-zone">
                 <h3 style="color: var(--text-color);">Import rapide (copier-coller)</h3>
+                <p style="color: var(--text-color); font-size: 0.9em; margin: 5px 0;">Les candidats de la liste seront <strong>ajoutés</strong> aux candidats existants (pas de remplacement).</p>
                 <textarea id="candidate-names" placeholder="Un nom par ligne...&#10;Exemple:&#10;Alice Martin&#10;Bob Dupont&#10;Claire Bernard"></textarea>
-                <button onclick="importCandidates()" class="action-button" style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color:white;">Importer la liste</button>
-            </div>
+                <button onclick="importCandidates()" class="action-button" style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color:white;">Ajouter les nouveaux candidats</button>
+    </div>
 
             <h3 style="color: var(--text-color);">Liste des candidats</h3>
             <button onclick="addCandidate()" class="action-button" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color:white;">+ Ajouter un candidat</button>
@@ -776,13 +782,74 @@
                     <!-- Rempli dynamiquement -->
                 </tbody>
             </table>
+    </div>
+
+        <!-- TAB 2: JURY -->
+        <div id="tab-jury" class="tab-content">
+            <div class="candidate-zone">
+                <h3 style="color: var(--text-color);">Import rapide (copier-coller)</h3>
+                <p style="color: var(--text-color); font-size: 0.9em; margin: 5px 0;">Les jurys de la liste seront <strong>ajoutés</strong> aux jurys existants (pas de remplacement).</p>
+                <textarea id="jury-names" placeholder="Un nom par ligne...&#10;Exemple:&#10;Pierre Dubois&#10;Marie Martin&#10;Jacques Bernard"></textarea>
+                <button onclick="importJuries()" class="action-button" style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color:white;">Ajouter les nouveaux jurys</button>
+            </div>
+
+            <h3 style="color: var(--text-color);">Liste des jurys</h3>
+            <button onclick="addJury()" class="action-button" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color:white;">+ Ajouter un jury</button>
+            
+            <table class="candidate-table" id="jury-table">
+                <thead>
+                    <tr>
+                        <th>Nom du jury</th>
+                        <th style="width: 100px;">Mot de passe</th>
+                        <th style="width: 150px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="jury-table-body">
+                    <!-- Rempli dynamiquement -->
+                </tbody>
+            </table>
         </div>
 
-        <!-- TAB 2: NOTES -->
+        <!-- TAB 3: TOURS -->
+        <div id="tab-tours" class="tab-content">
+            <p style="color: var(--text-secondary); margin-bottom: 20px;">
+                Définissez les différents tours du concours. Chaque tour peut avoir un type différent.
+            </p>
+            
+            <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                <button onclick="addRound()" class="action-button" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color:white;">+ Ajouter un tour</button>
+                
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <label for="active-round-select" style="color: var(--text-color); font-weight: 600;">Tour actif :</label>
+                    <select id="active-round-select" onchange="setActiveRound(this.value)" style="padding: 8px 12px; border: 2px solid var(--border-color); border-radius: 6px; background: var(--input-bg); color: var(--text-color); font-size: 1em; font-family: inherit; min-width: 200px;">
+                        <!-- Rempli dynamiquement -->
+                    </select>
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <table class="notes-table" id="rounds-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 100px;">Actions</th>
+                            <th style="width: 80px;">Ordre</th>
+                            <th style="width: 15%;">Nom du tour</th>
+                            <th style="width: 50%;">Type</th>
+                            <th style="width: 12%;">Candidats suivants</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rounds-table-body">
+                        <!-- Rempli dynamiquement -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB 4: NOTES -->
         <div id="tab-notes" class="tab-content">
-            <h2>Gestion des Notes</h2>
             <p style="color: var(--text-secondary); margin-bottom: 20px;">
                 Modifiez les notes directement dans le tableau. Les modifications sont sauvegardées automatiquement.
+                <br><strong id="active-round-notes" style="color: var(--primary);"></strong>
             </p>
             
             <div class="button-group" style="margin-bottom: 20px;">
@@ -795,9 +862,7 @@
                 <table class="notes-table" id="notes-table">
                     <thead>
                         <tr>
-                            <th style="width: 60px;">Actions</th>
-                            <th style="width: 150px;">Candidat</th>
-                            <!-- Colonnes jurys ajoutées dynamiquement -->
+                            <!-- En-tête généré dynamiquement -->
                         </tr>
                     </thead>
                     <tbody id="notes-table-body">
@@ -807,21 +872,24 @@
             </div>
         </div>
 
-        <!-- TAB 3: RESULTATS -->
+        <!-- TAB 5: RESULTATS -->
         <div id="tab-resultats" class="tab-content">
             <h2>Résultats du Concours (Note1 ×3 + Note2 ×1)</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 20px;">
+                <strong id="active-round-results" style="color: var(--primary);"></strong>
+            </p>
 
             <div class="table-container">
-                <table id="scores-matrix">
-                    <thead><tr><th>Candidat</th></tr></thead>
-                    <tbody></tbody>
-                </table>
+    <table id="scores-matrix">
+        <thead><tr><th>Candidat</th></tr></thead>
+        <tbody></tbody>
+    </table>
             </div>
         </div>
 
-        <!-- TAB 4: PODIUM -->
+        <!-- TAB 6: PODIUM -->
         <div id="tab-podium" class="tab-content">
-            <h2>Classement Officiel</h2>
+    <h2>Classement Officiel</h2>
             
             <div style="margin-bottom: 20px;">
                 <label for="result-limit" style="font-weight: 600; margin-right: 10px; color: var(--text-color);">Nombre de candidats à afficher:</label>
@@ -830,56 +898,43 @@
             </div>
 
             <div class="table-container">
-                <table id="podium-table">
-                    <thead>
-                        <tr><th>Rang</th><th>Candidat</th><th>Score Pondéré</th><th>Statut</th></tr>
-                    </thead>
-                    <tbody id="podium-body"></tbody>
-                </table>
+    <table id="podium-table">
+        <thead>
+            <tr><th>Rang</th><th>Candidat</th><th>Score Pondéré</th><th>Statut</th></tr>
+        </thead>
+        <tbody id="podium-body"></tbody>
+    </table>
             </div>
         </div>
 
-        <!-- TAB 5: REINITIALISER -->
+        <!-- TAB 7: REINITIALISER -->
         <div id="tab-reinitialiser" class="tab-content">
-            <h2>Zone de Danger</h2>
+        <h2>Zone de Danger</h2>
             <p style="color: var(--danger-color); font-weight: 600; margin-bottom: 20px;">
                 ⚠️ Attention: Ces actions sont irréversibles !
             </p>
 
             <div class="reset-zone" style="background: var(--info-bg-start); border: 2px solid var(--primary);">
                 <h3 style="color: var(--primary);">🔧 Utilitaires</h3>
-                <p>Nettoyer les anciennes valeurs calculées stockées en base (utile si les totaux sont incorrects). Les scores pondérés sont maintenant toujours calculés à la volée.</p>
-                <button onclick="recalculateAllScores()" class="action-button" style="background: var(--primary);">Nettoyer la base de données</button>
-                
-                <p style="margin-top: 15px;">Supprimer les doublons de scores (un même jury ayant noté plusieurs fois le même candidat).</p>
-                <button onclick="removeDuplicateScores()" class="action-button" style="background: var(--warning-color); color: #212529;">Supprimer les doublons</button>
+                <p>Vérifier et nettoyer la base de données : supprime les doublons, les scores orphelins (candidats/jurys supprimés), et les valeurs calculées obsolètes.</p>
+                <p style="font-weight: 600; color: var(--warning-color); margin-top: 10px;">⚠️ Recommandé : Sauvegardez votre base de données avant de lancer cette opération.</p>
+                <button onclick="cleanDatabase()" class="action-button" style="background: var(--primary);">Nettoyer la base de données</button>
             </div>
 
-            <div class="reset-zone" style="background: var(--success-color); background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border: 2px solid var(--success-color);">
-                <h3 style="color: var(--success-color);">💾 Sauvegarde & Restauration</h3>
-                <p>Télécharger toutes les données (candidats, scores, verrous, configuration) en format JSON.</p>
-                <button onclick="downloadDatabase()" class="action-button" style="background: var(--success-color);">📥 Télécharger la base de données</button>
+            <div class="reset-zone" style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border: 2px solid #28a745;">
+                <h3 style="color: #1e7e34;">💾 Sauvegarde & Restauration</h3>
+                <p style="color: #212529;">Télécharger toutes les données (candidats, scores, verrous, configuration) en format JSON.</p>
+                <button onclick="downloadDatabase()" class="action-button" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white;">📥 Télécharger la base de données</button>
                 
-                <p style="margin-top: 15px;">Restaurer les données depuis un fichier JSON de sauvegarde.</p>
+                <p style="margin-top: 15px; color: #212529;">Restaurer les données depuis un fichier JSON de sauvegarde.</p>
                 <input type="file" id="db-upload-file" accept=".json" style="display: none;" onchange="uploadDatabase(event)">
-                <button onclick="document.getElementById('db-upload-file').click()" class="action-button" style="background: var(--success-color);">📤 Restaurer depuis un fichier</button>
-            </div>
-
-            <div class="reset-zone">
-                <h3 style="color: var(--text-color);">Supprimer un jury spécifique</h3>
-                <p>Supprime toutes les notations d'un jury spécifique.</p>
-                <div style="margin-bottom: 15px;">
-                    <select id="jury-to-delete" style="padding: 10px; border: 2px solid var(--border-color); border-radius: 5px; background: var(--card-bg); color: var(--text-color); font-family: inherit; min-width: 200px;">
-                        <option value="">-- Sélectionner un jury --</option>
-                    </select>
-                </div>
-                <button onclick="confirmDeleteJury()" class="action-button">Supprimer ce jury</button>
+                <button onclick="document.getElementById('db-upload-file').click()" class="action-button" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white;">📤 Restaurer depuis un fichier</button>
             </div>
 
             <div class="reset-zone" style="margin-top: 30px;">
                 <h3 style="color: var(--text-color);">Supprimer TOUS les jurys</h3>
                 <p>Supprime toutes les notations de tous les jurys (mais conserve la liste des candidats).</p>
-                <button onclick="confirmDeleteAllJuries()" class="action-button" style="background: var(--warning-color); color: #212529;">Supprimer tous les jurys</button>
+                <button onclick="confirmDeleteAllJuries()" class="action-button" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white;">Supprimer tous les jurys</button>
             </div>
 
             <div class="reset-zone" style="margin-top: 30px;">
@@ -899,9 +954,11 @@
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <script type="module">
         import { db } from './firebase-init.js';
-        import { collection, getDocs, deleteDoc, doc, setDoc, getDoc, addDoc, query, where } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
+        import { collection, getDocs, deleteDoc, doc, setDoc, getDoc, addDoc, query, where, writeBatch } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
 
         let CANDIDATES = [];
+        let ROUNDS = [];
+        let activeRoundId = null;
         let aggregatedData = {};
         let candidateLocks = {}; // {candidateId: {juryName: boolean}}
 
@@ -922,14 +979,18 @@
             // Load tab-specific data
             if (tabName === 'candidats') {
                 renderCandidateTable();
+            } else if (tabName === 'jury') {
+                renderJuryTable();
+            } else if (tabName === 'tours') {
+                renderRoundsTable();
             } else if (tabName === 'notes') {
+                updateActiveRoundIndicators();
                 renderNotesTable();
             } else if (tabName === 'resultats') {
+                updateActiveRoundIndicators();
                 loadResults();
             } else if (tabName === 'podium') {
                 loadResults();
-            } else if (tabName === 'reinitialiser') {
-                populateJuryDropdown();
             }
         };
 
@@ -938,6 +999,14 @@
             const snap = await getDoc(doc(db, "candidats", "liste_actuelle"));
             if (snap.exists()) {
                 CANDIDATES = snap.data().candidates || [];
+                
+                // Initialiser les nouveaux champs tour et status s'ils n'existent pas
+                CANDIDATES = CANDIDATES.map(c => ({
+                    ...c,
+                    tour: c.tour || activeRoundId || 'round1',
+                    status: c.status || 'Actif'
+                }));
+                
                 document.getElementById('candidate-names').value = CANDIDATES.map(c => c.name).join('\n');
                 renderCandidateTable();
             }
@@ -956,24 +1025,73 @@
                 return;
             }
             
-            const list = names.map((n, i) => ({ id: `C${i+1}`, name: n }));
-            await setDoc(doc(db, "candidats", "liste_actuelle"), { candidates: list });
-            alert(`${names.length} candidat(s) importé(s) !`);
-            CANDIDATES = list;
+            // Charger les candidats existants
+            const docSnap = await getDoc(doc(db, "candidats", "liste_actuelle"));
+            const existingCandidates = docSnap.exists() ? (docSnap.data().candidates || []) : [];
+            
+            // Créer un Set des noms existants pour vérification rapide
+            const existingNames = new Set(existingCandidates.map(c => c.name.toLowerCase()));
+            
+            // Trouver le prochain ID disponible
+            let maxNum = 0;
+            existingCandidates.forEach(c => {
+                const match = c.id.match(/^C(\d+)$/);
+                if (match) {
+                    const num = parseInt(match[1]);
+                    if (num > maxNum) maxNum = num;
+                }
+            });
+            
+            // Ajouter uniquement les nouveaux candidats
+            const newCandidates = [];
+            const duplicates = [];
+            
+            names.forEach(name => {
+                if (existingNames.has(name.toLowerCase())) {
+                    duplicates.push(name);
+                } else {
+                    maxNum++;
+                    newCandidates.push({ 
+                        id: `C${maxNum}`, 
+                        name: name,
+                        tour: activeRoundId || 'round1',
+                        status: 'Actif'
+                    });
+                    existingNames.add(name.toLowerCase());
+                }
+            });
+            
+            // Fusionner avec les candidats existants
+            const updatedList = [...existingCandidates, ...newCandidates];
+            
+            // Sauvegarder
+            await setDoc(doc(db, "candidats", "liste_actuelle"), { candidates: updatedList });
+            
+            // Message de confirmation
+            let message = `✓ ${newCandidates.length} nouveau(x) candidat(s) ajouté(s)`;
+            if (duplicates.length > 0) {
+                message += `\n⚠️ ${duplicates.length} candidat(s) déjà existant(s) ignoré(s):\n${duplicates.join(', ')}`;
+            }
+            alert(message);
+            
+            CANDIDATES = updatedList;
             renderCandidateTable();
         };
 
         window.addCandidate = () => {
-            const name = prompt("Nom du nouveau candidat:");
-            if (!name || !name.trim()) return;
-            
+            // Ajouter un candidat avec un nom par défaut
             const newId = `C${CANDIDATES.length + 1}`;
-            CANDIDATES.push({ id: newId, name: name.trim() });
+            CANDIDATES.push({ 
+                id: newId, 
+                name: `Candidat ${CANDIDATES.length + 1}`,
+                tour: activeRoundId || 'round1',
+                status: 'Actif'
+            });
             saveCandidates();
         };
 
         window.deleteCandidate = async (candidateId) => {
-            if (!confirm(`Supprimer ce candidat et toutes ses notes ?`)) return;
+            if (!await confirm(`Supprimer ce candidat et toutes ses notes ?`)) return;
             
             CANDIDATES = CANDIDATES.filter(c => c.id !== candidateId);
             
@@ -1018,93 +1136,673 @@
 
         loadList();
 
+        // --- GESTION JURY ---
+        let JURIES = [];
+        
+        const loadJuries = async () => {
+            const accountsSnap = await getDocs(collection(db, "accounts"));
+            JURIES = [];
+            accountsSnap.forEach(docSnap => {
+                JURIES.push({
+                    id: docSnap.id,  // ID numérique (jury1, jury2, etc.)
+                    name: docSnap.data().name || docSnap.id,  // Nom affiché
+                    password: docSnap.data().password || '',
+                    theme: docSnap.data().theme || 'light',
+                    createdAt: docSnap.data().createdAt
+                });
+            });
+            
+            // Trier par ID
+            JURIES.sort((a, b) => {
+                const numA = parseInt(a.id.replace('jury', ''));
+                const numB = parseInt(b.id.replace('jury', ''));
+                return numA - numB;
+            });
+            
+            // Mettre à jour le textarea avec la liste des noms de jurys
+            const textarea = document.getElementById('jury-names');
+            if (textarea) {
+                textarea.value = JURIES.map(j => j.name).join('\n');
+            }
+            
+            renderJuryTable();
+        };
+        
+        // Fonction utilitaire pour générer le prochain ID de jury
+        async function getNextJuryId() {
+            const accountsSnap = await getDocs(collection(db, "accounts"));
+            let maxNum = 0;
+            accountsSnap.forEach(doc => {
+                const match = doc.id.match(/^jury(\d+)$/);
+                if (match) {
+                    const num = parseInt(match[1]);
+                    if (num > maxNum) maxNum = num;
+                }
+            });
+            return `jury${maxNum + 1}`;
+        }
+        
+        window.importJuries = async () => {
+            const names = document.getElementById('jury-names').value.split('\n').map(n => n.trim()).filter(n => n !== "");
+            if (names.length === 0) {
+                alert("Veuillez entrer au moins un jury");
+                return;
+            }
+            
+            // Charger les jurys existants
+            await loadJuries();
+            
+            // Créer un Set des noms existants pour vérification rapide
+            const existingNames = new Set(JURIES.map(j => j.name.toLowerCase()));
+            
+            // Ajouter uniquement les nouveaux jurys
+            const newJuries = [];
+            const duplicates = [];
+            
+            for (const name of names) {
+                if (existingNames.has(name.toLowerCase())) {
+                    duplicates.push(name);
+                } else {
+                    const juryId = await getNextJuryId();
+                    await setDoc(doc(db, "accounts", juryId), {
+                        name: name,
+                        password: '',
+                        theme: 'light',
+                        createdAt: new Date()
+                    });
+                    newJuries.push(name);
+                    existingNames.add(name.toLowerCase());
+                }
+            }
+            
+            // Message de confirmation
+            let message = `✓ ${newJuries.length} nouveau(x) jury(s) ajouté(s)`;
+            if (duplicates.length > 0) {
+                message += `\n⚠️ ${duplicates.length} jury(s) déjà existant(s) ignoré(s):\n${duplicates.join(', ')}`;
+            }
+            alert(message);
+            
+            await loadJuries();
+        };
+        
+        window.addJury = async () => {
+            // Ajouter un jury avec un nom par défaut
+            const juryId = await getNextJuryId();
+            const juryNumber = JURIES.length + 1;
+            
+            await setDoc(doc(db, "accounts", juryId), {
+                name: `Jury ${juryNumber}`,
+                password: '',
+                theme: 'light',
+                createdAt: new Date()
+            });
+            
+            await loadJuries();
+        };
+        
+        window.deleteJury = async (juryId) => {
+            const jury = JURIES.find(j => j.id === juryId);
+            if (!jury) return;
+            
+            if (!await confirm(`Supprimer le jury "${jury.name}" et toutes ses notations ?`)) return;
+            
+            // Supprimer le compte
+            await deleteDoc(doc(db, "accounts", juryId));
+            
+            // Supprimer toutes les notations de ce jury
+            const scoresQuery = query(collection(db, "scores"), where("juryId", "==", juryId));
+            const scoresSnap = await getDocs(scoresQuery);
+            const batch = writeBatch(db);
+            scoresSnap.forEach(doc => batch.delete(doc.ref));
+            await batch.commit();
+            
+            await loadJuries();
+        };
+        
+        window.updateJuryName = async (juryId, newName) => {
+            if (!newName || !newName.trim()) {
+                await loadJuries();
+                return;
+            }
+            
+            const jury = JURIES.find(j => j.id === juryId);
+            if (!jury || jury.name === newName.trim()) {
+                await loadJuries();
+                return;
+            }
+            
+            // Simplement mettre à jour le nom dans le document
+            await setDoc(doc(db, "accounts", juryId), {
+                name: newName.trim()
+            }, { merge: true });
+            
+            // Mettre à jour le champ dénormalisé juryName dans tous les scores
+            const scoresQuery = query(collection(db, "scores"), where("juryId", "==", juryId));
+            const scoresSnap = await getDocs(scoresQuery);
+            if (!scoresSnap.empty) {
+                const batch = writeBatch(db);
+                scoresSnap.forEach(docSnap => {
+                    batch.update(docSnap.ref, { juryName: newName.trim() });
+                });
+                await batch.commit();
+            }
+            
+            await loadJuries();
+        };
+        
+        window.resetJuryPassword = async (juryId) => {
+            const jury = JURIES.find(j => j.id === juryId);
+            if (!jury) return;
+            
+            if (!await confirm(`Réinitialiser le mot de passe de "${jury.name}" (vide) ?`)) return;
+            
+            await setDoc(doc(db, "accounts", juryId), {
+                password: ''
+            }, { merge: true });
+            
+            alert('Mot de passe réinitialisé à vide');
+            await loadJuries();
+        };
+        
+        function renderJuryTable() {
+            const tbody = document.getElementById('jury-table-body');
+            if (!tbody) return;
+            
+            tbody.innerHTML = '';
+            
+            JURIES.forEach(jury => {
+                const row = tbody.insertRow();
+                const passwordDisplay = jury.password ? '🔒 Défini' : '🔓 Vide';
+                row.innerHTML = `
+                    <td><input type="text" value="${jury.name}" onchange="updateJuryName('${jury.id}', this.value)" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px;"></td>
+                    <td style="text-align: center;">${passwordDisplay}</td>
+                    <td class="actions">
+                        <button class="icon-btn" onclick="resetJuryPassword('${jury.id}')" title="Réinitialiser le mot de passe">🔑</button>
+                        <button class="icon-btn delete" onclick="deleteJury('${jury.id}')" title="Supprimer">🗑️</button>
+                    </td>
+                `;
+            });
+        }
+        
+        loadJuries();
+        
+        // Charger le thème admin depuis Firebase au chargement
+        async function loadAdminTheme() {
+            try {
+                const adminDoc = await getDoc(doc(db, "config", "admin"));
+                if (adminDoc.exists()) {
+                    const adminTheme = adminDoc.data().theme || 'light';
+                    localStorage.setItem('theme_admin', adminTheme);
+                    // Réappliquer le thème
+                    initTheme();
+                }
+            } catch (e) {
+                console.log('Impossible de charger le thème admin:', e);
+            }
+        }
+        loadAdminTheme();
+
+        // --- GESTION TOURS ---
+        const loadRounds = async () => {
+            const snap = await getDoc(doc(db, "config", "rounds"));
+            if (snap.exists()) {
+                ROUNDS = snap.data().rounds || [];
+                activeRoundId = snap.data().activeRoundId || null;
+            }
+            
+            // Initialiser avec un tour par défaut si aucun n'existe
+            if (ROUNDS.length === 0) {
+                ROUNDS = [{
+                    id: 'round1',
+                    order: 1,
+                    name: 'Premier tour',
+                    type: 'Notation individuelle',
+                    nextRoundCandidates: 'ALL',
+                    active: true
+                }];
+                activeRoundId = 'round1';
+                await saveRounds();
+            }
+            
+            renderRoundsTable();
+        };
+        
+        async function saveRounds() {
+            await setDoc(doc(db, "config", "rounds"), { 
+                rounds: ROUNDS,
+                activeRoundId: activeRoundId
+            });
+            renderRoundsTable();
+        }
+        
+        function renderRoundsTable() {
+            const tbody = document.getElementById('rounds-table-body');
+            const select = document.getElementById('active-round-select');
+            if (!tbody) return;
+            
+            tbody.innerHTML = '';
+            
+            // Trier par ordre
+            const sortedRounds = [...ROUNDS].sort((a, b) => a.order - b.order);
+            
+            sortedRounds.forEach(round => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td class="actions">
+                        <button class="icon-btn delete" onclick="deleteRound('${round.id}')" title="Supprimer">🗑️</button>
+                    </td>
+                    <td><input type="number" value="${round.order}" onchange="updateRoundField('${round.id}', 'order', parseInt(this.value))" style="width: 60px; padding: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px;"></td>
+                    <td><input type="text" value="${round.name}" onchange="updateRoundField('${round.id}', 'name', this.value)" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px;"></td>
+                    <td>
+                        <select onchange="updateRoundField('${round.id}', 'type', this.value)" style="width: 100%; padding: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px; font-size: 14px;">
+                            <option value="Notation individuelle" ${round.type === 'Notation individuelle' ? 'selected' : ''}>Notation individuelle</option>
+                            <option value="Repêchage" ${round.type === 'Repêchage' ? 'selected' : ''}>Repêchage</option>
+                            <option value="Duels" ${round.type === 'Duels' ? 'selected' : ''}>Duels</option>
+                            <option value="Classement" ${round.type === 'Classement' ? 'selected' : ''}>Classement</option>
+                        </select>
+                    </td>
+                    <td><input type="text" value="${round.nextRoundCandidates}" onchange="updateRoundField('${round.id}', 'nextRoundCandidates', this.value)" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px;" placeholder="ALL ou nombre"></td>
+                `;
+            });
+            
+            // Mettre à jour le dropdown du tour actif
+            if (select) {
+                select.innerHTML = '<option value="">-- Sélectionner un tour --</option>';
+                sortedRounds.forEach(round => {
+                    const option = document.createElement('option');
+                    option.value = round.id;
+                    option.textContent = `${round.name} (${round.type})`;
+                    option.selected = (round.id === activeRoundId);
+                    select.appendChild(option);
+                });
+            }
+            
+            // Mettre à jour les indicateurs de tour actif dans les autres onglets
+            updateActiveRoundIndicators();
+        }
+        
+        function updateActiveRoundIndicators() {
+            const activeRound = ROUNDS.find(r => r.id === activeRoundId);
+            const roundName = activeRound ? activeRound.name : 'Aucun tour actif';
+            
+            const notesIndicator = document.getElementById('active-round-notes');
+            const resultsIndicator = document.getElementById('active-round-results');
+            
+            if (notesIndicator) notesIndicator.textContent = `📍 Tour actif: ${roundName}`;
+            if (resultsIndicator) resultsIndicator.textContent = `📍 Tour actif: ${roundName}`;
+        }
+        
+        window.addRound = () => {
+            // Créer un nouveau tour avec des valeurs par défaut
+            const newId = `round${Date.now()}`;
+            const newOrder = ROUNDS.length > 0 ? Math.max(...ROUNDS.map(r => r.order)) + 1 : 1;
+            const roundNumber = ROUNDS.length + 1;
+            
+            ROUNDS.push({
+                id: newId,
+                order: newOrder,
+                name: `Tour #${roundNumber}`,
+                type: 'Notation individuelle',
+                nextRoundCandidates: 'ALL',
+                active: false
+            });
+            
+            saveRounds();
+        };
+        
+        window.editRound = async (roundId) => {
+            const round = ROUNDS.find(r => r.id === roundId);
+            if (!round) return;
+            
+            const name = await prompt("Nom du tour:", round.name);
+            if (!name || !name.trim()) return;
+            
+            const typeNum = {
+                'Notation individuelle': '1',
+                'Repêchage': '2',
+                'Duels': '3',
+                'Classement': '4'
+            }[round.type] || '1';
+            
+            const type = await prompt(`Type du tour:\n1 - Notation individuelle\n2 - Repêchage\n3 - Duels\n4 - Classement\n\nEntrez le numéro:`, typeNum);
+            const types = {
+                '1': 'Notation individuelle',
+                '2': 'Repêchage',
+                '3': 'Duels',
+                '4': 'Classement'
+            };
+            
+            if (!types[type]) {
+                alert("Type invalide");
+                return;
+            }
+            
+            const nextCandidates = await prompt("Nombre de candidats pour le tour suivant (ou 'ALL' pour tous):", 
+                round.nextRoundCandidates === 'ALL' ? 'ALL' : round.nextRoundCandidates.toString());
+            if (!nextCandidates || !nextCandidates.trim()) return;
+            
+            const candidates = nextCandidates.toUpperCase() === 'ALL' ? 'ALL' : parseInt(nextCandidates);
+            if (candidates !== 'ALL' && isNaN(candidates)) {
+                alert("Nombre invalide");
+                return;
+            }
+            
+            round.name = name.trim();
+            round.type = types[type];
+            round.nextRoundCandidates = candidates;
+            
+            saveRounds();
+        };
+        
+        window.deleteRound = async (roundId) => {
+            const round = ROUNDS.find(r => r.id === roundId);
+            if (!round) return;
+            
+            // Vérifier si ce tour contient des scores
+            const scoresSnap = await getDocs(query(collection(db, "scores"), where("roundId", "==", roundId)));
+            if (!scoresSnap.empty) {
+                if (!await confirm(`Ce tour contient ${scoresSnap.size} notation(s). Supprimer le tour ET toutes ses notations ?`)) {
+                    return;
+                }
+                
+                // Supprimer tous les scores du tour
+                const batch = writeBatch(db);
+                scoresSnap.forEach(doc => batch.delete(doc.ref));
+                await batch.commit();
+            } else {
+                if (!await confirm(`Supprimer le tour "${round.name}" ?`)) {
+                    return;
+                }
+            }
+            
+            ROUNDS = ROUNDS.filter(r => r.id !== roundId);
+            
+            // Si on supprime le tour actif, activer le premier tour disponible
+            if (activeRoundId === roundId && ROUNDS.length > 0) {
+                activeRoundId = ROUNDS[0].id;
+                ROUNDS[0].active = true;
+            }
+            
+            saveRounds();
+        };
+        
+        window.setActiveRound = (roundId) => {
+            ROUNDS.forEach(r => r.active = (r.id === roundId));
+            activeRoundId = roundId;
+            saveRounds();
+        };
+        
+        loadRounds();
+
         // --- GESTION NOTES ---
+        // Variables globales pour le tri du tableau Notes
+        let notesSortColumn = null;
+        let notesSortAscending = true;
+        
         async function renderNotesTable() {
             const tbody = document.getElementById('notes-table-body');
             const thead = document.querySelector('#notes-table thead tr');
             tbody.innerHTML = '';
             
-            // Charger tous les scores
-            const querySnapshot = await getDocs(collection(db, "scores"));
+            // Charger TOUS les jurys depuis la collection accounts
+            await loadJuries();
+            const sortedJuries = [...JURIES].sort((a, b) => a.name.localeCompare(b.name));
+            
+            // Charger les scores du tour actif
+            const q = query(
+                collection(db, "scores"),
+                where("roundId", "==", activeRoundId || 'round1')
+            );
+            const querySnapshot = await getDocs(q);
             const scoresByCandidate = {};
-            const juries = new Set();
             
             querySnapshot.forEach(docSnap => {
                 const data = docSnap.data();
-                juries.add(data.juryName);
+                const juryId = data.juryId || data.juryName;
                 if (!scoresByCandidate[data.candidateId]) {
                     scoresByCandidate[data.candidateId] = {};
                 }
-                scoresByCandidate[data.candidateId][data.juryName] = {
+                scoresByCandidate[data.candidateId][juryId] = {
                     id: docSnap.id,
                     score1: data.score1,
                     score2: data.score2
                 };
             });
             
-            const sortedJuries = Array.from(juries).sort();
+            // Calculer le score total pour chaque candidat
+            const candidatesWithScores = CANDIDATES.map(candidate => {
+                let totalScore = 0;
+                let hasScores = false;
+                
+                sortedJuries.forEach(jury => {
+                    const scores = scoresByCandidate[candidate.id]?.[jury.id];
+                    if (scores) {
+                        const s1 = parseFloat(scores.score1) || 0;
+                        const s2 = parseFloat(scores.score2) || 0;
+                        if (scores.score1 !== '-' && scores.score1 !== 'Elimine' &&
+                            scores.score2 !== '-' && scores.score2 !== 'Elimine') {
+                            totalScore += (s1 * 3 + s2);
+                            hasScores = true;
+                        }
+                    }
+                });
+                
+                return {
+                    candidate,
+                    totalScore: hasScores ? totalScore : null,
+                    scoresByJury: scoresByCandidate[candidate.id] || {}
+                };
+            });
             
-            // Construire l'en-tête avec bouton lock/unlock all
+            // Appliquer le tri si une colonne est sélectionnée
+            if (notesSortColumn) {
+                candidatesWithScores.sort((a, b) => {
+                    let valA, valB;
+                    
+                    if (notesSortColumn === 'id') {
+                        valA = parseInt(a.candidate.id.replace('C', '')) || 0;
+                        valB = parseInt(b.candidate.id.replace('C', '')) || 0;
+                    } else if (notesSortColumn === 'candidat') {
+                        valA = a.candidate.name.toLowerCase();
+                        valB = b.candidate.name.toLowerCase();
+                    } else if (notesSortColumn === 'score') {
+                        valA = a.totalScore !== null ? a.totalScore : -Infinity;
+                        valB = b.totalScore !== null ? b.totalScore : -Infinity;
+                    } else if (notesSortColumn === 'tour') {
+                        const roundA = ROUNDS.find(r => r.id === a.candidate.tour);
+                        const roundB = ROUNDS.find(r => r.id === b.candidate.tour);
+                        valA = roundA ? roundA.name.toLowerCase() : '';
+                        valB = roundB ? roundB.name.toLowerCase() : '';
+                    } else if (notesSortColumn === 'statut') {
+                        valA = a.candidate.status.toLowerCase();
+                        valB = b.candidate.status.toLowerCase();
+                    }
+                    
+                    if (valA < valB) return notesSortAscending ? -1 : 1;
+                    if (valA > valB) return notesSortAscending ? 1 : -1;
+                    return 0;
+                });
+            }
+            
+            // Construire l'en-tête avec colonnes triables
+            const sortIcon = (col) => {
+                if (notesSortColumn === col) {
+                    return notesSortAscending ? ' ▲' : ' ▼';
+                }
+                return '';
+            };
+            
             thead.innerHTML = `
-                <th class="col-actions">
-                    Actions<br>
-                    <button class="icon-btn" onclick="toggleAllLocks()" title="Verrouiller/Déverrouiller tout" style="font-size: 0.9em; margin-top: 5px;">🔒 Tout</button>
-                </th>
-                <th class="col-candidate">Candidat</th>
-                ${sortedJuries.map(j => `<th colspan="2" class="col-score">${j}<br><small>(Fond | Forme)</small></th>`).join('')}
+                <th style="width: 60px; cursor: pointer;" onclick="sortNotesTable('id')">ID${sortIcon('id')}</th>
+                <th class="col-candidate" style="cursor: pointer;" onclick="sortNotesTable('candidat')">Candidat${sortIcon('candidat')}</th>
+                <th style="width: 100px; cursor: pointer;" onclick="sortNotesTable('score')">Score${sortIcon('score')}</th>
+                <th style="width: 180px; cursor: pointer;" onclick="sortNotesTable('tour')">Tour${sortIcon('tour')}</th>
+                <th style="width: 150px; cursor: pointer;" onclick="sortNotesTable('statut')">Statut${sortIcon('statut')}</th>
+                ${sortedJuries.map(j => `<th colspan="2" class="col-score">${j.name}<br><small>(Fond | Forme)</small></th>`).join('')}
             `;
             
             // Construire les lignes
-            CANDIDATES.forEach(candidate => {
+            candidatesWithScores.forEach(item => {
+                const candidate = item.candidate;
                 const row = tbody.insertRow();
-                const isLocked = candidateLocks[candidate.id] || {};
                 
-                // Actions
-                const actionsCell = row.insertCell();
-                actionsCell.className = 'col-actions';
-                actionsCell.innerHTML = `
-                    <button class="icon-btn reset" onclick="resetCandidateScores('${candidate.id}')" title="Réinitialiser à '-'">🔄</button>
-                    <button class="icon-btn lock ${Object.keys(isLocked).length > 0 ? 'locked' : ''}" onclick="toggleCandidateLock('${candidate.id}')" title="Verrouiller/Déverrouiller">🔒</button>
-                `;
+                // ID
+                const idCell = row.insertCell();
+                idCell.textContent = candidate.id;
+                idCell.style.textAlign = 'center';
                 
                 // Nom du candidat
                 const nameCell = row.insertCell();
                 nameCell.className = 'candidate-name col-candidate';
                 nameCell.textContent = candidate.name;
                 
+                // Score total
+                const scoreCell = row.insertCell();
+                scoreCell.textContent = item.totalScore !== null ? item.totalScore.toFixed(0) : '-';
+                scoreCell.style.textAlign = 'center';
+                scoreCell.style.fontWeight = 'bold';
+                
+                // Tour
+                const tourCell = row.insertCell();
+                tourCell.innerHTML = createTourDropdown(candidate);
+                
+                // Statut
+                const statusCell = row.insertCell();
+                statusCell.innerHTML = createStatusDropdown(candidate);
+                
                 // Notes par jury
                 sortedJuries.forEach(jury => {
-                    const scores = scoresByCandidate[candidate.id]?.[jury];
-                    const locked = isLocked[jury] || false;
+                    const scores = item.scoresByJury[jury.id];
                     
                     const cell1 = row.insertCell();
                     const cell2 = row.insertCell();
                     cell1.className = 'col-score';
                     cell2.className = 'col-score';
                     
-                    // Si verrouillé ET qu'il n'y a pas de scores, afficher le cadenas
-                    // Sinon, afficher les scores (existants ou dropdowns vides)
-                    if (locked && !scores) {
-                        cell1.className += ' locked-cell';
-                        cell2.className += ' locked-cell';
-                        cell1.textContent = '🔒';
-                        cell2.textContent = '🔒';
-                    } else if (scores) {
-                        cell1.innerHTML = createScoreDropdown(scores.id, 'score1', scores.score1, candidate.id, jury);
-                        cell2.innerHTML = createScoreDropdown(scores.id, 'score2', scores.score2, candidate.id, jury);
+                    // Si le statut est "Elimine" ou "Qualifie", les notes ne sont pas éditables
+                    const readonly = (candidate.status === 'Elimine' || candidate.status === 'Qualifie');
+                    
+                    if (scores) {
+                        cell1.innerHTML = createScoreDropdown(scores.id, 'score1', scores.score1, candidate.id, jury.id, readonly);
+                        cell2.innerHTML = createScoreDropdown(scores.id, 'score2', scores.score2, candidate.id, jury.id, readonly);
                     } else {
-                        cell1.innerHTML = createScoreDropdown(null, 'score1', '-', candidate.id, jury);
-                        cell2.innerHTML = createScoreDropdown(null, 'score2', '-', candidate.id, jury);
+                        cell1.innerHTML = createScoreDropdown(null, 'score1', '-', candidate.id, jury.id, readonly);
+                        cell2.innerHTML = createScoreDropdown(null, 'score2', '-', candidate.id, jury.id, readonly);
                     }
                 });
             });
         }
-
-        function createScoreDropdown(scoreId, field, currentValue, candidateId, juryName) {
-            const options = ['-', '5', '10', '15', '20', 'Elimine'];
-            const selectId = `score-${candidateId}-${juryName}-${field}`;
+        
+        window.sortNotesTable = (column) => {
+            if (notesSortColumn === column) {
+                notesSortAscending = !notesSortAscending;
+            } else {
+                notesSortColumn = column;
+                notesSortAscending = true;
+            }
+            renderNotesTable();
+        };
+        
+        function createTourDropdown(candidate) {
+            let html = `<select onchange="updateCandidateTour('${candidate.id}', this.value)" style="width: 100%; padding: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px; font-size: 14px;">`;
+            ROUNDS.forEach(round => {
+                const selected = round.id === candidate.tour ? 'selected' : '';
+                html += `<option value="${round.id}" ${selected}>${round.name}</option>`;
+            });
+            html += '</select>';
+            return html;
+        }
+        
+        function createStatusDropdown(candidate) {
+            const statuses = ['Actif', 'Reset', 'Elimine', 'Qualifie'];
+            let html = `<select onchange="updateCandidateStatus('${candidate.id}', this.value)" style="width: 100%; padding: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px; font-size: 14px;">`;
+            statuses.forEach(status => {
+                const selected = status === candidate.status ? 'selected' : '';
+                html += `<option value="${status}" ${selected}>${status}</option>`;
+            });
+            html += '</select>';
+            return html;
+        }
+        
+        window.updateCandidateTour = async (candidateId, newTour) => {
+            const candidate = CANDIDATES.find(c => c.id === candidateId);
+            if (candidate) {
+                candidate.tour = newTour;
+                await saveCandidates();
+                renderNotesTable();
+            }
+        };
+        
+        window.updateCandidateStatus = async (candidateId, newStatus) => {
+            const candidate = CANDIDATES.find(c => c.id === candidateId);
+            if (!candidate) return;
             
-            let html = `<select id="${selectId}" onchange="handleScoreChange('${scoreId}', '${field}', this.value, '${candidateId}', '${juryName}')">`;
+            const oldStatus = candidate.status;
+            candidate.status = newStatus;
+            
+            // Si on passe à "Reset", réinitialiser les notes et revenir à "Actif"
+            if (newStatus === 'Reset') {
+                await resetCandidateScores(candidateId);
+                candidate.status = 'Actif';
+            }
+            
+            await saveCandidates();
+            renderNotesTable();
+            await loadResults();
+        };
+        
+        // Fonction pour vérifier si un candidat a toutes ses notes définies et le qualifier automatiquement
+        async function checkAndQualifyCandidate(candidateId) {
+            const candidate = CANDIDATES.find(c => c.id === candidateId);
+            if (!candidate || candidate.status !== 'Actif') return;
+            
+            // Charger toutes les notes du candidat pour le tour actif
+            const q = query(
+                collection(db, "scores"),
+                where("candidateId", "==", candidateId),
+                where("roundId", "==", activeRoundId || 'round1')
+            );
+            const querySnapshot = await getDocs(q);
+            
+            // Vérifier si toutes les notes sont définies (score1 ET score2 par jury)
+            const juryScores = {};
+            querySnapshot.forEach(docSnap => {
+                const data = docSnap.data();
+                const juryId = data.juryId || data.juryName;
+                juryScores[juryId] = {
+                    score1: data.score1,
+                    score2: data.score2
+                };
+            });
+            
+            // Vérifier que chaque jury a ses deux notes complètes
+            let allComplete = true;
+            if (JURIES.length === 0) {
+                allComplete = false;
+            } else {
+                for (const jury of JURIES) {
+                    const scores = juryScores[jury.id];
+                    if (!scores || 
+                        !scores.score1 || scores.score1 === '-' || scores.score1 === 'Elimine' ||
+                        !scores.score2 || scores.score2 === '-' || scores.score2 === 'Elimine') {
+                        allComplete = false;
+                        break;
+                    }
+                }
+            }
+            
+            if (allComplete) {
+                candidate.status = 'Qualifie';
+                await saveCandidates();
+            }
+        }
+
+        function createScoreDropdown(scoreId, field, currentValue, candidateId, juryId, readonly = false) {
+            const options = ['-', '5', '10', '15', '20', 'Elimine'];
+            const selectId = `score-${candidateId}-${juryId}-${field}`;
+            const disabledAttr = readonly ? 'disabled' : '';
+            
+            let html = `<select id="${selectId}" onchange="handleScoreChange('${scoreId}', '${field}', this.value, '${candidateId}', '${juryId}')" ${disabledAttr}>`;
             options.forEach(opt => {
                 const selected = opt === String(currentValue) ? 'selected' : '';
                 html += `<option value="${opt}" ${selected}>${opt}</option>`;
@@ -1113,7 +1811,7 @@
             return html;
         }
 
-        window.handleScoreChange = async function(scoreId, field, value, candidateId, juryName) {
+        window.handleScoreChange = async function(scoreId, field, value, candidateId, juryId) {
             if (value === '-') {
                 // Supprimer le score s'il existe
                 if (scoreId && scoreId !== 'null') {
@@ -1124,26 +1822,65 @@
                 if (scoreId && scoreId !== 'null') {
                     await updateScore(scoreId, field, value);
                 } else {
-                    await createScore(candidateId, juryName, field, value);
+                    await createScore(candidateId, juryId, field, value);
                 }
             }
+            
+            // Vérifier si le candidat doit être qualifié automatiquement
+            await checkAndQualifyCandidate(candidateId);
+            
             // Rafraîchir les deux onglets
             renderNotesTable();
             await loadResults();
         };
 
-        async function createScore(candidateId, juryName, field, value) {
-            // Vérifier si un score existe déjà
-            const q = query(collection(db, "scores"), 
+        async function createScore(candidateId, juryNameOrId, field, value) {
+            // juryNameOrId est maintenant le juryId dans le nouveau système ou le nom dans l'ancien
+            // On essaie d'abord par juryId, sinon par juryName (compatibilité)
+            let q = query(collection(db, "scores"), 
                 where("candidateId", "==", candidateId),
-                where("juryName", "==", juryName));
-            const snap = await getDocs(q);
+                where("juryId", "==", juryNameOrId),
+                where("roundId", "==", activeRoundId || 'round1'));
+            let snap = await getDocs(q);
+            
+            // Si pas trouvé par juryId, essayer par juryName (ancien système)
+            if (snap.empty) {
+                q = query(collection(db, "scores"), 
+                    where("candidateId", "==", candidateId),
+                    where("juryName", "==", juryNameOrId),
+                    where("roundId", "==", activeRoundId || 'round1'));
+                snap = await getDocs(q);
+            }
             
             if (snap.empty) {
-                // Créer nouveau score (sans totalWeightedScore - calculé à la volée)
+                // Créer nouveau score - déterminer si on a un juryId ou juryName
+                let juryId, juryName;
+                if (juryNameOrId.startsWith('jury')) {
+                    // C'est un ID numérique
+                    juryId = juryNameOrId;
+                    const juryDoc = await getDoc(doc(db, "accounts", juryId));
+                    juryName = juryDoc.exists() ? (juryDoc.data().name || juryId) : juryId;
+                } else {
+                    // C'est un ancien nom - chercher l'ID
+                    const accountsSnap = await getDocs(collection(db, "accounts"));
+                    accountsSnap.forEach(d => {
+                        if ((d.data().name || d.id) === juryNameOrId) {
+                            juryId = d.id;
+                            juryName = juryNameOrId;
+                        }
+                    });
+                    // Si pas trouvé, utiliser le nom comme ID (compatibilité)
+                    if (!juryId) {
+                        juryId = juryNameOrId;
+                        juryName = juryNameOrId;
+                    }
+                }
+                
                 const data = {
                     candidateId: candidateId,
+                    juryId: juryId,
                     juryName: juryName,
+                    roundId: activeRoundId || 'round1',
                     score1: field === 'score1' ? value : '-',
                     score2: field === 'score2' ? value : '-',
                     timestamp: new Date()
@@ -1193,133 +1930,34 @@
             }
         };
 
-        window.resetCandidateScores = async (candidateId) => {
-            if (!confirm('Réinitialiser toutes les notes de ce candidat à "-" ?')) return;
-            
-            const scoresQuery = query(collection(db, "scores"), where("candidateId", "==", candidateId));
+        async function resetCandidateScores(candidateId) {
+            // Supprimer toutes les notes de ce candidat pour le tour actif
+            const scoresQuery = query(
+                collection(db, "scores"), 
+                where("candidateId", "==", candidateId),
+                where("roundId", "==", activeRoundId || 'round1')
+            );
             const scoresSnap = await getDocs(scoresQuery);
             
             for (const scoreDoc of scoresSnap.docs) {
-                const data = scoreDoc.data();
-                data.score1 = '-';
-                data.score2 = '-';
-                // Ne pas stocker totalWeightedScore - calculé à la volée
-                delete data.totalWeightedScore;
-                await setDoc(doc(db, "scores", scoreDoc.id), data);
+                await deleteDoc(doc(db, "scores", scoreDoc.id));
             }
             
-            // Déverrouiller automatiquement ce candidat après réinitialisation
+            // Déverrouiller automatiquement ce candidat après réinitialisation (compatibilité)
             if (candidateLocks[candidateId]) {
                 delete candidateLocks[candidateId];
                 await setDoc(doc(db, "config", "locks"), { locks: candidateLocks });
             }
-            
-            alert('Notes réinitialisées à "-"\nLe candidat a été déverrouillé automatiquement.');
-            renderNotesTable();
-            await loadResults();
-        };
-
-        window.toggleAllLocks = async () => {
-            // Compter combien de candidats ont des scores non-set (-)
-            const querySnapshot = await getDocs(collection(db, "scores"));
-            const scoresByCandidate = {};
-            const juries = new Set();
-            
-            querySnapshot.forEach(docSnap => {
-                const data = docSnap.data();
-                juries.add(data.juryName);
-                if (!scoresByCandidate[data.candidateId]) {
-                    scoresByCandidate[data.candidateId] = {};
-                }
-                scoresByCandidate[data.candidateId][data.juryName] = {
-                    score1: data.score1,
-                    score2: data.score2
-                };
-            });
-            
-            const sortedJuries = Array.from(juries).sort();
-            let hasUnlockedNonSet = false;
-            
-            // Vérifier s'il y a des scores "-" non verrouillés
-            CANDIDATES.forEach(candidate => {
-                const isLocked = candidateLocks[candidate.id] || {};
-                sortedJuries.forEach(jury => {
-                    const scores = scoresByCandidate[candidate.id]?.[jury];
-                    const locked = isLocked[jury] || false;
-                    
-                    if (!locked && (!scores || scores.score1 === '-' || scores.score2 === '-')) {
-                        hasUnlockedNonSet = true;
-                    }
-                });
-            });
-            
-            // Toggle: si des non-set sont déverrouillés -> verrouiller tout
-            // sinon -> déverrouiller tout
-            if (hasUnlockedNonSet) {
-                // Verrouiller tous les "-"
-                CANDIDATES.forEach(candidate => {
-                    if (!candidateLocks[candidate.id]) {
-                        candidateLocks[candidate.id] = {};
-                    }
-                    sortedJuries.forEach(jury => {
-                        const scores = scoresByCandidate[candidate.id]?.[jury];
-                        if (!scores || scores.score1 === '-' || scores.score2 === '-') {
-                            candidateLocks[candidate.id][jury] = true;
-                        }
-                    });
-                });
-            } else {
-                // Déverrouiller tout
-                candidateLocks = {};
-            }
-            
-            await setDoc(doc(db, "config", "locks"), { locks: candidateLocks });
-            renderNotesTable();
-        };
-
-        window.toggleCandidateLock = async (candidateId) => {
-            const allJuriesLocked = candidateLocks[candidateId] && Object.keys(candidateLocks[candidateId]).length > 0;
-            
-            if (allJuriesLocked) {
-                // Déverrouiller tous les jurys pour ce candidat
-                delete candidateLocks[candidateId];
-            } else {
-                // Verrouiller uniquement les jurys qui n'ont pas encore de notes pour ce candidat
-                const querySnapshot = await getDocs(collection(db, "scores"));
-                const juries = new Set();
-                const existingScores = new Set(); // Pour stocker les combinaisons candidat-jury qui ont déjà des scores
-                
-                querySnapshot.forEach(d => {
-                    const data = d.data();
-                    juries.add(data.juryName);
-                    
-                    // Si ce jury a déjà noté ce candidat avec des vraies notes (pas juste "-"), on le marque
-                    if (data.candidateId === candidateId) {
-                        const hasRealScores = (data.score1 && data.score1 !== '-') || 
-                                             (data.score2 && data.score2 !== '-');
-                        if (hasRealScores) {
-                            existingScores.add(data.juryName);
-                        }
-                    }
-                });
-                
-                candidateLocks[candidateId] = {};
-                
-                // Ne verrouiller que les jurys qui n'ont pas encore de scores réels
-                Array.from(juries).forEach(jury => {
-                    if (!existingScores.has(jury)) {
-                        candidateLocks[candidateId][jury] = true;
-                    }
-                });
-            }
-            
-            await setDoc(doc(db, "config", "locks"), { locks: candidateLocks });
-            renderNotesTable();
-        };
+        }
 
         // --- CALCUL DES SCORES ---
         window.loadResults = async () => {
-            const querySnapshot = await getDocs(collection(db, "scores"));
+            // Charger les scores du tour actif
+            const q = query(
+                collection(db, "scores"),
+                where("roundId", "==", activeRoundId || 'round1')
+            );
+            const querySnapshot = await getDocs(q);
             aggregatedData = {};
             const juries = new Set();
 
@@ -1370,7 +2008,7 @@
         let currentSortColumn = -1;
         let currentSortDirection = 'desc'; // Start with descending for Total column
         let cachedSortedJuries = [];
-        
+
         function renderMatrix(sortedJuries) {
             cachedSortedJuries = sortedJuries; // Cache for sorting
             
@@ -1471,7 +2109,7 @@
                 totalCell.textContent = data.total;
             });
         }
-        
+
         function sortTable(colIndex) {
             if (currentSortColumn === colIndex) {
                 // Toggle direction
@@ -1533,9 +2171,178 @@
             });
         };
 
+        // Migrer les scores vers le nouveau système avec juryId
+        window.migrateScoresToJuryIds = async () => {
+            if (!await confirm('Migrer tous les scores vers le nouveau système avec IDs numériques ?\n\nCela ajoutera un champ juryId à tous les scores qui n\'en ont pas encore.')) {
+                return;
+            }
+            
+            try {
+                // Charger tous les comptes jury
+                const accountsSnap = await getDocs(collection(db, "accounts"));
+                const juryNameToId = new Map();
+                accountsSnap.forEach(doc => {
+                    const juryName = doc.data().name || doc.id;
+                    juryNameToId.set(juryName, doc.id);
+                });
+                
+                // Charger tous les scores
+                const scoresSnap = await getDocs(collection(db, "scores"));
+                let migrated = 0;
+                let skipped = 0;
+                let notFound = 0;
+                
+                const batch = writeBatch(db);
+                let batchCount = 0;
+                
+                for (const scoreDoc of scoresSnap.docs) {
+                    const data = scoreDoc.data();
+                    
+                    // Si le score a déjà un juryId, le sauter
+                    if (data.juryId) {
+                        skipped++;
+                        continue;
+                    }
+                    
+                    // Chercher le juryId correspondant au juryName
+                    const juryId = juryNameToId.get(data.juryName);
+                    
+                    if (juryId) {
+                        // Ajouter le juryId au score
+                        batch.update(scoreDoc.ref, { juryId: juryId });
+                        migrated++;
+                        batchCount++;
+                        
+                        // Firestore batch limit is 500
+                        if (batchCount >= 500) {
+                            await batch.commit();
+                            batchCount = 0;
+                        }
+                    } else {
+                        notFound++;
+                        console.warn(`⚠️ Jury non trouvé pour le score: ${data.juryName}`);
+                    }
+                }
+                
+                // Commit remaining operations
+                if (batchCount > 0) {
+                    await batch.commit();
+                }
+                
+                alert(`✓ Migration terminée !\n\n${migrated} score(s) migré(s)\n${skipped} score(s) déjà à jour\n${notFound} jury(s) non trouvé(s)`);
+                
+                // Rafraîchir l'affichage
+                await loadResults();
+            } catch (e) {
+                console.error('Erreur:', e);
+                alert('Erreur lors de la migration: ' + e.message);
+            }
+        };
+        
+        // Nettoyer et vérifier la conformité de la base de données
+        window.cleanDatabase = async () => {
+            if (!await confirm('⚠️ NETTOYAGE DE LA BASE DE DONNÉES ⚠️\n\nCette opération va :\n- Supprimer les doublons de scores\n- Supprimer les scores orphelins (candidats/jurys supprimés)\n- Nettoyer les valeurs calculées obsolètes\n\n💾 Recommandation : Sauvegardez votre base avant de continuer !\n\nContinuer le nettoyage ?')) {
+                return;
+            }
+            
+            try {
+                let report = {
+                    duplicatesRemoved: 0,
+                    orphanScores: 0,
+                    obsoleteFields: 0
+                };
+                
+                // 1. Charger les candidats et jurys valides
+                const candidatsSnap = await getDoc(doc(db, "candidats", "liste_actuelle"));
+                const validCandidates = new Set(candidatsSnap.exists() ? (candidatsSnap.data().candidates || []).map(c => c.id) : []);
+                
+                const accountsSnap = await getDocs(collection(db, "accounts"));
+                const validJuries = new Set();
+                accountsSnap.forEach(d => {
+                    validJuries.add(d.id); // juryId
+                    validJuries.add(d.data().name || d.id); // juryName pour compatibilité
+                });
+                
+                // 2. Analyser tous les scores
+                const querySnapshot = await getDocs(collection(db, "scores"));
+                const scoresByKey = {};
+                const toDelete = [];
+                
+                querySnapshot.forEach(scoreDoc => {
+                    const data = scoreDoc.data();
+                    const key = `${data.candidateId}_${data.juryId || data.juryName}_${data.roundId || 'round1'}`;
+                    
+                    // Vérifier si le score est orphelin
+                    const isOrphan = !validCandidates.has(data.candidateId) || 
+                                     (!validJuries.has(data.juryId) && !validJuries.has(data.juryName));
+                    
+                    if (isOrphan) {
+                        toDelete.push({ id: scoreDoc.id, reason: 'orphan' });
+                        report.orphanScores++;
+                    } else {
+                        // Grouper pour détecter les doublons
+                        if (!scoresByKey[key]) {
+                            scoresByKey[key] = [];
+                        }
+                        scoresByKey[key].push({ 
+                            id: scoreDoc.id, 
+                            data: data, 
+                            timestamp: data.timestamp 
+                        });
+                    }
+                    
+                    // Vérifier les champs obsolètes
+                    if ('totalWeightedScore' in data) {
+                        toDelete.push({ id: scoreDoc.id, reason: 'obsoleteField', data: data });
+                        report.obsoleteFields++;
+                    }
+                });
+                
+                // 3. Trouver les doublons
+                for (const key in scoresByKey) {
+                    const scores = scoresByKey[key];
+                    if (scores.length > 1) {
+                        // Trier par timestamp (le plus récent en premier)
+                        scores.sort((a, b) => {
+                            const timeA = a.timestamp?.toDate?.() || new Date(0);
+                            const timeB = b.timestamp?.toDate?.() || new Date(0);
+                            return timeB - timeA;
+                        });
+                        
+                        // Marquer les anciens pour suppression
+                        for (let i = 1; i < scores.length; i++) {
+                            toDelete.push({ id: scores[i].id, reason: 'duplicate' });
+                            report.duplicatesRemoved++;
+                        }
+                    }
+                }
+                
+                // 4. Supprimer les scores invalides/obsolètes
+                for (const item of toDelete) {
+                    if (item.reason === 'obsoleteField') {
+                        // Juste enlever le champ obsolète
+                        const { totalWeightedScore, ...cleanData } = item.data;
+                        await setDoc(doc(db, "scores", item.id), cleanData);
+                    } else {
+                        // Supprimer complètement (doublon ou orphelin)
+                        await deleteDoc(doc(db, "scores", item.id));
+                    }
+                }
+                
+                await alert(`✓ Nettoyage terminé !\n\n📊 Rapport :\n- ${report.duplicatesRemoved} doublon(s) supprimé(s)\n- ${report.orphanScores} score(s) orphelin(s) supprimé(s)\n- ${report.obsoleteFields} champ(s) obsolète(s) nettoyé(s)\n\nTotal : ${report.duplicatesRemoved + report.orphanScores} score(s) supprimé(s)`);
+                
+                // Rafraîchir l'affichage
+                renderNotesTable();
+                await loadResults();
+            } catch (e) {
+                console.error('Erreur:', e);
+                await alert('Erreur lors du nettoyage: ' + e.message);
+            }
+        };
+        
         // Supprimer les doublons de scores
         window.removeDuplicateScores = async () => {
-            if (!confirm('Rechercher et supprimer les doublons de scores ?\n\nPour chaque combinaison candidat+jury, seule la note la plus récente sera conservée.')) {
+            if (!await confirm('Rechercher et supprimer les doublons de scores ?\n\nPour chaque combinaison candidat+jury, seule la note la plus récente sera conservée.')) {
                 return;
             }
             
@@ -1597,7 +2404,7 @@
             try {
                 const backup = {
                     exportDate: new Date().toISOString(),
-                    version: "1.0",
+                    version: "2.0",
                     data: {}
                 };
                 
@@ -1607,27 +2414,56 @@
                     backup.data.candidats = candidatsSnap.data();
                 }
                 
+                // Exporter tous les comptes jury (collection accounts)
+                const accountsSnap = await getDocs(collection(db, "accounts"));
+                backup.data.accounts = [];
+                accountsSnap.forEach(d => {
+                    backup.data.accounts.push({ 
+                        id: d.id, 
+                        ...d.data(),
+                        // Convertir les timestamps en ISO strings pour le JSON
+                        createdAt: d.data().createdAt?.toDate?.()?.toISOString() || null
+                    });
+                });
+                
                 // Exporter tous les scores
                 const scoresSnap = await getDocs(collection(db, "scores"));
                 backup.data.scores = [];
                 scoresSnap.forEach(d => {
-                    backup.data.scores.push({ id: d.id, ...d.data() });
+                    const scoreData = d.data();
+                    backup.data.scores.push({ 
+                        id: d.id, 
+                        ...scoreData,
+                        // Convertir les timestamps en ISO strings
+                        timestamp: scoreData.timestamp?.toDate?.()?.toISOString() || null
+                    });
                 });
                 
-                // Exporter la configuration (verrous, session, mot de passe admin)
+                // Exporter la configuration complète
+                backup.data.config = {};
+                
+                // Config: locks
                 const locksSnap = await getDoc(doc(db, "config", "locks"));
                 if (locksSnap.exists()) {
-                    backup.data.locks = locksSnap.data();
+                    backup.data.config.locks = locksSnap.data();
                 }
                 
+                // Config: session
                 const sessionSnap = await getDoc(doc(db, "config", "session"));
                 if (sessionSnap.exists()) {
-                    backup.data.session = sessionSnap.data();
+                    backup.data.config.session = sessionSnap.data();
                 }
                 
-                const passwordSnap = await getDoc(doc(db, "config", "admin_password"));
-                if (passwordSnap.exists()) {
-                    backup.data.adminPassword = passwordSnap.data();
+                // Config: admin (mot de passe et thème)
+                const adminSnap = await getDoc(doc(db, "config", "admin"));
+                if (adminSnap.exists()) {
+                    backup.data.config.admin = adminSnap.data();
+                }
+                
+                // Config: rounds (tours)
+                const roundsSnap = await getDoc(doc(db, "config", "rounds"));
+                if (roundsSnap.exists()) {
+                    backup.data.config.rounds = roundsSnap.data();
                 }
                 
                 // Créer le fichier JSON
@@ -1644,7 +2480,7 @@
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
                 
-                alert(`✓ Sauvegarde créée avec succès !\n\n${backup.data.scores.length} score(s)\n${backup.data.candidats?.candidates?.length || 0} candidat(s)`);
+                alert(`✓ Sauvegarde créée avec succès !\n\n${backup.data.scores.length} score(s)\n${backup.data.candidats?.candidates?.length || 0} candidat(s)\n${backup.data.accounts.length} jury(s)`);
             } catch (e) {
                 console.error('Erreur:', e);
                 alert('Erreur lors de la sauvegarde: ' + e.message);
@@ -1656,7 +2492,7 @@
             const file = event.target.files[0];
             if (!file) return;
             
-            if (!confirm(`⚠️ ATTENTION ⚠️\n\nRestaurer la base de données va REMPLACER toutes les données actuelles !\n\nVoulez-vous continuer ?`)) {
+            if (!await confirm(`⚠️ ATTENTION ⚠️\n\nRestaurer la base de données va REMPLACER toutes les données actuelles !\n\nVoulez-vous continuer ?`)) {
                 event.target.value = ''; // Reset file input
                 return;
             }
@@ -1678,6 +2514,24 @@
                     restored++;
                 }
                 
+                // Restaurer les comptes jury (supprimer les anciens d'abord)
+                if (backup.data.accounts) {
+                    const oldAccounts = await getDocs(collection(db, "accounts"));
+                    for (const d of oldAccounts.docs) {
+                        await deleteDoc(doc(db, "accounts", d.id));
+                    }
+                    
+                    for (const account of backup.data.accounts) {
+                        const { id, ...accountData } = account;
+                        // Convertir les ISO strings en Timestamps
+                        if (accountData.createdAt && typeof accountData.createdAt === 'string') {
+                            accountData.createdAt = new Date(accountData.createdAt);
+                        }
+                        await setDoc(doc(db, "accounts", id), accountData);
+                        restored++;
+                    }
+                }
+                
                 // Restaurer les scores (supprimer les anciens d'abord)
                 const oldScores = await getDocs(collection(db, "scores"));
                 for (const d of oldScores.docs) {
@@ -1687,29 +2541,58 @@
                 if (backup.data.scores) {
                     for (const score of backup.data.scores) {
                         const { id, ...scoreData } = score;
+                        // Convertir les ISO strings en Timestamps
+                        if (scoreData.timestamp && typeof scoreData.timestamp === 'string') {
+                            scoreData.timestamp = new Date(scoreData.timestamp);
+                        }
                         await addDoc(collection(db, "scores"), scoreData);
                         restored++;
                     }
                 }
                 
-                // Restaurer la configuration
-                if (backup.data.locks) {
-                    await setDoc(doc(db, "config", "locks"), backup.data.locks);
-                    candidateLocks = backup.data.locks.locks || {};
-                    restored++;
+                // Restaurer la configuration (version 2.0 avec structure unifiée)
+                if (backup.data.config) {
+                    if (backup.data.config.locks) {
+                        await setDoc(doc(db, "config", "locks"), backup.data.config.locks);
+                        candidateLocks = backup.data.config.locks.locks || {};
+                        restored++;
+                    }
+                    
+                    if (backup.data.config.session) {
+                        await setDoc(doc(db, "config", "session"), backup.data.config.session);
+                        restored++;
+                    }
+                    
+                    if (backup.data.config.admin) {
+                        await setDoc(doc(db, "config", "admin"), backup.data.config.admin);
+                        restored++;
+                    }
+                    
+                    if (backup.data.config.rounds) {
+                        await setDoc(doc(db, "config", "rounds"), backup.data.config.rounds);
+                        restored++;
+                    }
+                }
+                // Support de l'ancien format (version 1.0)
+                else {
+                    if (backup.data.locks) {
+                        await setDoc(doc(db, "config", "locks"), backup.data.locks);
+                        candidateLocks = backup.data.locks.locks || {};
+                        restored++;
+                    }
+                    
+                    if (backup.data.session) {
+                        await setDoc(doc(db, "config", "session"), backup.data.session);
+                        restored++;
+                    }
+                    
+                    if (backup.data.adminPassword) {
+                        await setDoc(doc(db, "config", "admin"), { password: backup.data.adminPassword });
+                        restored++;
+                    }
                 }
                 
-                if (backup.data.session) {
-                    await setDoc(doc(db, "config", "session"), backup.data.session);
-                    restored++;
-                }
-                
-                if (backup.data.adminPassword) {
-                    await setDoc(doc(db, "config", "admin_password"), backup.data.adminPassword);
-                    restored++;
-                }
-                
-                alert(`✓ Restauration réussie !\n\n${restored} élément(s) restauré(s)\nDate de sauvegarde: ${new Date(backup.exportDate).toLocaleString()}`);
+                alert(`✓ Restauration réussie !\n\n${restored} élément(s) restauré(s)\nVersion: ${backup.version}\nDate de sauvegarde: ${new Date(backup.exportDate).toLocaleString()}`);
                 
                 // Recharger la page pour rafraîchir toutes les données
                 location.reload();
@@ -1721,7 +2604,7 @@
         };
 
         window.recalculateAllScores = async () => {
-            if (!confirm('Nettoyer les valeurs calculées obsolètes en base de données ?\n\nLes scores pondérés seront désormais toujours calculés à la volée.')) {
+            if (!await confirm('Nettoyer les valeurs calculées obsolètes en base de données ?\n\nLes scores pondérés seront désormais toujours calculés à la volée.')) {
                 return;
             }
             
@@ -1751,53 +2634,13 @@
             }
         };
 
-        window.confirmDeleteJury = async () => {
-            const jurySelect = document.getElementById('jury-to-delete');
-            const juryName = jurySelect.value;
-            
-            if (!juryName) {
-                alert('Veuillez sélectionner un jury');
-                return;
-            }
-            
-            if (!confirm(`Supprimer TOUTES les notes du jury "${juryName}" ?\n\nCette action est irréversible.`)) {
-                return;
-            }
-            
-            try {
-                const q = query(collection(db, "scores"), where("juryName", "==", juryName));
-                const snap = await getDocs(q);
-                
-                for (const d of snap.docs) {
-                    await deleteDoc(doc(db, "scores", d.id));
-                }
-                
-                // Supprimer aussi les verrous pour ce jury
-                Object.keys(candidateLocks).forEach(candidateId => {
-                    if (candidateLocks[candidateId][juryName]) {
-                        delete candidateLocks[candidateId][juryName];
-                        if (Object.keys(candidateLocks[candidateId]).length === 0) {
-                            delete candidateLocks[candidateId];
-                        }
-                    }
-                });
-                await setDoc(doc(db, "config", "locks"), { locks: candidateLocks });
-                
-                alert(`Jury "${juryName}" supprimé avec succès`);
-                location.reload();
-            } catch (e) {
-                console.error('Erreur:', e);
-                alert('Erreur lors de la suppression: ' + e.message);
-            }
-        };
-
         window.confirmDeleteAllJuries = async () => {
-            if (!confirm(`⚠️ ATTENTION ⚠️\n\nSupprimer TOUTES les notations de TOUS les jurys ?\n\nLa liste des candidats sera conservée.\n\nCette action est IRRÉVERSIBLE !`)) {
+            if (!await confirm(`⚠️ ATTENTION ⚠️\n\nSupprimer TOUTES les notations de TOUS les jurys ?\n\nLa liste des candidats sera conservée.\n\nCette action est IRRÉVERSIBLE !`)) {
                 return;
             }
             
             // Double confirmation
-            if (!confirm(`Êtes-vous VRAIMENT sûr ?\n\nToutes les notes de tous les jurys seront supprimées définitivement.`)) {
+            if (!await confirm(`Êtes-vous VRAIMENT sûr ?\n\nToutes les notes de tous les jurys seront supprimées définitivement.`)) {
                 return;
             }
             
@@ -1822,25 +2665,6 @@
             }
         };
 
-        async function populateJuryDropdown() {
-            const querySnapshot = await getDocs(collection(db, "scores"));
-            const juries = new Set();
-            
-            querySnapshot.forEach(doc => {
-                juries.add(doc.data().juryName);
-            });
-            
-            const select = document.getElementById('jury-to-delete');
-            select.innerHTML = '<option value="">-- Sélectionner un jury --</option>';
-            
-            Array.from(juries).sort().forEach(jury => {
-                const option = document.createElement('option');
-                option.value = jury;
-                option.textContent = jury;
-                select.appendChild(option);
-            });
-        }
-
         window.confirmResetScores = async () => {
             if(!confirm("Supprimer TOUTES les notes (les candidats seront conservés) ?")) return;
             
@@ -1863,7 +2687,7 @@
         };
 
         window.confirmResetAll = async () => {
-            const confirmation = prompt('Pour confirmer la réinitialisation TOTALE, tapez "RESET":');
+            const confirmation = await prompt('Pour confirmer la réinitialisation TOTALE, tapez "RESET":');
             if (confirmation !== 'RESET') {
                 alert('Réinitialisation annulée');
                 return;
@@ -1894,8 +2718,12 @@
         // Export des notes en CSV (format éditable)
         window.exportNotesToCSV = async () => {
             try {
-                // Récupérer tous les scores
-                const scoresSnap = await getDocs(collection(db, "scores"));
+                // Récupérer les scores du tour actif
+                const q = query(
+                    collection(db, "scores"),
+                    where("roundId", "==", activeRoundId || 'round1')
+                );
+                const scoresSnap = await getDocs(q);
                 const juries = new Set();
                 const scoresByCandidate = {};
                 
@@ -1957,7 +2785,7 @@
             const file = event.target.files[0];
             if (!file) return;
             
-            if (!confirm(`⚠️ ATTENTION ⚠️\n\nImporter depuis CSV va :\n- Vérifier le format du fichier\n- Mettre à jour les notes existantes\n- Créer de nouvelles notes si nécessaire\n\nLes notes actuelles seront modifiées !\n\nContinuer ?`)) {
+            if (!await confirm(`⚠️ ATTENTION ⚠️\n\nImporter depuis CSV va :\n- Vérifier le format du fichier\n- Mettre à jour les notes existantes\n- Créer de nouvelles notes si nécessaire\n\nLes notes actuelles seront modifiées !\n\nContinuer ?`)) {
                 event.target.value = '';
                 return;
             }
@@ -1978,11 +2806,17 @@
                     throw new Error('Format CSV invalide. L\'en-tête doit commencer par: CandidatID,CandidatNom');
                 }
                 
-                // Extraire les jurys de l'en-tête
+                // Extraire les jurys de l'en-tête et mapper aux IDs
+                await loadJuries();  // S'assurer que JURIES est chargé
                 const juries = [];
                 for (let i = 2; i < header.length; i += 2) {
                     const juryName = header[i].replace('_Note1', '');
-                    juries.push(juryName);
+                    // Chercher le juryId correspondant
+                    const jury = JURIES.find(j => j.name === juryName);
+                    juries.push({
+                        name: juryName,
+                        id: jury ? jury.id : null
+                    });
                 }
                 
                 if (juries.length === 0) {
@@ -2010,9 +2844,17 @@
                     
                     // Importer les notes pour chaque jury
                     for (let j = 0; j < juries.length; j++) {
-                        const juryName = juries[j];
+                        const jury = juries[j];
+                        const juryName = jury.name;
+                        const juryId = jury.id;
                         const note1 = values[2 + j * 2];
                         const note2 = values[3 + j * 2];
+                        
+                        // Vérifier que le jury existe
+                        if (!juryId) {
+                            errors.push(`Ligne ${i + 1}: Jury "${juryName}" non trouvé dans la base de données`);
+                            continue;
+                        }
                         
                         // Valider les notes
                         const validValues = ['-', '5', '10', '15', '20', 'Elimine'];
@@ -2021,17 +2863,20 @@
                             continue;
                         }
                         
-                        // Chercher si un score existe déjà
+                        // Chercher si un score existe déjà pour ce tour (par juryId)
                         const q = query(
                             collection(db, "scores"),
                             where("candidateId", "==", candidatId),
-                            where("juryName", "==", juryName)
+                            where("juryId", "==", juryId),
+                            where("roundId", "==", activeRoundId || 'round1')
                         );
                         const existingScores = await getDocs(q);
                         
                         const scoreData = {
                             candidateId: candidatId,
+                            juryId: juryId,
                             juryName: juryName,
+                            roundId: activeRoundId || 'round1',
                             score1: note1,
                             score2: note2,
                             timestamp: new Date()
@@ -2071,9 +2916,9 @@
             }
         };
 
-        window.exportToExcel = () => {
+        window.exportToExcel = async () => {
             if (!CANDIDATES.length || !Object.keys(aggregatedData).length) {
-                alert('Veuillez d\'abord charger les résultats (bouton "Charger et Calculer")');
+                await alert('Veuillez d\'abord charger les résultats (bouton "Charger et Calculer")');
                 return;
             }
 
@@ -2206,7 +3051,7 @@
         window.showPasswordModal = async function() {
             try {
                 // 1. Demander le mot de passe actuel
-                const currentPassword = prompt('Étape 1/3: Entrez le mot de passe actuel:');
+                const currentPassword = await prompt('Étape 1/3: Entrez le mot de passe actuel:');
                 
                 if (!currentPassword) {
                     return; // Annulé
@@ -2222,7 +3067,7 @@
                 }
 
                 // 2. Demander le nouveau mot de passe
-                const newPassword = prompt('Étape 2/3: Entrez le nouveau mot de passe:\n(minimum 4 caractères)');
+                const newPassword = await prompt('Étape 2/3: Entrez le nouveau mot de passe:\n(minimum 4 caractères)');
                 
                 if (!newPassword) {
                     return; // Annulé
@@ -2234,7 +3079,7 @@
                 }
 
                 // 3. Demander la confirmation
-                const confirmPassword = prompt('Étape 3/3: Confirmez le nouveau mot de passe:');
+                const confirmPassword = await prompt('Étape 3/3: Confirmez le nouveau mot de passe:');
                 
                 if (!confirmPassword) {
                     return; // Annulé
@@ -2266,15 +3111,15 @@
         }
 
         // Déconnexion admin
-        window.adminLogout = function() {
-            if (confirm('Voulez-vous vous déconnecter ?')) {
+        window.adminLogout = async function() {
+            if (await confirm('Voulez-vous vous déconnecter ?')) {
                 window.location.href = 'index.html';
             }
         };
 
-        // Theme Toggle Logic
+        // Theme Toggle Logic - Propre à l'admin
         function initTheme() {
-            const savedTheme = localStorage.getItem('theme') || 'light';
+            const savedTheme = localStorage.getItem('theme_admin') || 'light';
             document.documentElement.setAttribute('data-theme', savedTheme);
             const toggle = document.getElementById('theme-toggle');
             if (toggle) {
@@ -2284,11 +3129,22 @@
             }
         }
 
-        window.toggleTheme = function() {
+        window.toggleTheme = async function() {
             const currentTheme = document.documentElement.getAttribute('data-theme');
             const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
             document.documentElement.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
+            
+            // Sauvegarder avec une clé spécifique à l'admin
+            localStorage.setItem('theme_admin', newTheme);
+            
+            // Sauvegarder aussi dans Firebase avec merge pour préserver le mot de passe
+            try {
+                await setDoc(doc(db, "config", "admin"), {
+                    theme: newTheme
+                }, { merge: true });
+            } catch (e) {
+                console.log('Impossible de sauvegarder le thème admin dans Firebase:', e);
+            }
             
             const toggle = document.getElementById('theme-toggle');
             if (toggle) {
@@ -2319,5 +3175,8 @@
         // Initialize theme on page load
         initTheme();
     </script>
+    
+    <script>window.useCustomModals = true;</script>
+    <script src="modal.js"></script>
 </body>
 </html>
