@@ -799,6 +799,7 @@
             <table class="candidate-table" id="jury-table">
                 <thead>
                     <tr>
+                        <th style="width: 60px;">ID</th>
                         <th>Nom du jury</th>
                         <th style="width: 100px;">Mot de passe</th>
                         <th style="width: 150px;">Actions</th>
@@ -833,9 +834,9 @@
                         <tr>
                             <th style="width: 100px;">Actions</th>
                             <th style="width: 80px;">Ordre</th>
-                            <th style="width: 15%;">Nom du tour</th>
-                            <th style="width: 50%;">Type</th>
-                            <th style="width: 12%;">Candidats suivants</th>
+                            <th style="width: 12%;">Nom du tour</th>
+                            <th style="min-width: 220px; width: 25%;">Type</th>
+                            <th style="width: 10%;">Candidats suivants</th>
                         </tr>
                     </thead>
                     <tbody id="rounds-table-body">
@@ -995,6 +996,37 @@
         };
 
         // --- GESTION CANDIDATS ---
+        
+        // Génère un ID aléatoire unique entre 001 et 999
+        function generateUniqueCandidateId() {
+            const existingIds = new Set(CANDIDATES.map(c => c.id));
+            let attempts = 0;
+            const maxAttempts = 1000;
+            
+            while (attempts < maxAttempts) {
+                // Générer un nombre aléatoire entre 1 et 999
+                const randomNum = Math.floor(Math.random() * 999) + 1;
+                // Formater avec des zéros devant (001, 002, etc.)
+                const id = String(randomNum).padStart(3, '0');
+                
+                if (!existingIds.has(id)) {
+                    return id;
+                }
+                attempts++;
+            }
+            
+            // Si tous les IDs sont pris (très improbable), chercher le premier disponible
+            for (let i = 1; i <= 999; i++) {
+                const id = String(i).padStart(3, '0');
+                if (!existingIds.has(id)) {
+                    return id;
+                }
+            }
+            
+            // Si vraiment tous les IDs sont pris (999 candidats), retourner null
+            return null;
+        }
+        
         const loadList = async () => {
             const snap = await getDoc(doc(db, "candidats", "liste_actuelle"));
             if (snap.exists()) {
@@ -1021,7 +1053,7 @@
         window.importCandidates = async () => {
             const names = document.getElementById('candidate-names').value.split('\n').map(n => n.trim()).filter(n => n !== "");
             if (names.length === 0) {
-                alert("Veuillez entrer au moins un candidat");
+                await customAlert("Veuillez entrer au moins un candidat");
                 return;
             }
             
@@ -1029,18 +1061,11 @@
             const docSnap = await getDoc(doc(db, "candidats", "liste_actuelle"));
             const existingCandidates = docSnap.exists() ? (docSnap.data().candidates || []) : [];
             
+            // Créer une copie de CANDIDATES pour la génération d'ID (éviter les modifications par référence)
+            CANDIDATES = [...existingCandidates];
+            
             // Créer un Set des noms existants pour vérification rapide
             const existingNames = new Set(existingCandidates.map(c => c.name.toLowerCase()));
-            
-            // Trouver le prochain ID disponible
-            let maxNum = 0;
-            existingCandidates.forEach(c => {
-                const match = c.id.match(/^C(\d+)$/);
-                if (match) {
-                    const num = parseInt(match[1]);
-                    if (num > maxNum) maxNum = num;
-                }
-            });
             
             // Ajouter uniquement les nouveaux candidats
             const newCandidates = [];
@@ -1050,14 +1075,19 @@
                 if (existingNames.has(name.toLowerCase())) {
                     duplicates.push(name);
                 } else {
-                    maxNum++;
-                    newCandidates.push({ 
-                        id: `C${maxNum}`, 
-                        name: name,
-                        tour: activeRoundId || 'round1',
-                        status: 'Actif'
-                    });
-                    existingNames.add(name.toLowerCase());
+                    const newId = generateUniqueCandidateId();
+                    if (newId) {
+                        const newCandidate = { 
+                            id: newId, 
+                            name: name,
+                            tour: activeRoundId || 'round1',
+                            status: 'Actif'
+                        };
+                        newCandidates.push(newCandidate);
+                        existingNames.add(name.toLowerCase());
+                        // Ajouter temporairement à CANDIDATES pour les prochaines générations d'ID
+                        CANDIDATES.push(newCandidate);
+                    }
                 }
             });
             
@@ -1072,18 +1102,23 @@
             if (duplicates.length > 0) {
                 message += `\n⚠️ ${duplicates.length} candidat(s) déjà existant(s) ignoré(s):\n${duplicates.join(', ')}`;
             }
-            alert(message);
+            await customAlert(message);
             
             CANDIDATES = updatedList;
             renderCandidateTable();
         };
 
-        window.addCandidate = () => {
-            // Ajouter un candidat avec un nom par défaut
-            const newId = `C${CANDIDATES.length + 1}`;
+        window.addCandidate = async () => {
+            // Générer un ID aléatoire unique
+            const newId = generateUniqueCandidateId();
+            if (!newId) {
+                await customAlert("Impossible d'ajouter un candidat : tous les IDs (001-999) sont utilisés.");
+                return;
+            }
+            
             CANDIDATES.push({ 
                 id: newId, 
-                name: `Candidat ${CANDIDATES.length + 1}`,
+                name: `Candidat ${newId}`,
                 tour: activeRoundId || 'round1',
                 status: 'Actif'
             });
@@ -1105,6 +1140,63 @@
             saveCandidates();
         };
 
+        window.updateCandidateId = async (oldId, newId) => {
+            // Nettoyer et valider le nouvel ID
+            newId = newId.trim();
+            
+            // Vérifier le format (doit être un nombre entre 001 et 999)
+            if (!/^\d{3}$/.test(newId)) {
+                await customAlert("L'ID doit être un nombre à 3 chiffres (001 à 999)");
+                renderCandidateTable(); // Restaurer l'ancien ID
+                return;
+            }
+            
+            const numericId = parseInt(newId);
+            if (numericId < 1 || numericId > 999) {
+                await customAlert("L'ID doit être entre 001 et 999");
+                renderCandidateTable();
+                return;
+            }
+            
+            // Vérifier l'unicité
+            if (oldId !== newId && CANDIDATES.some(c => c.id === newId)) {
+                await customAlert(`L'ID ${newId} est déjà utilisé par un autre candidat`);
+                renderCandidateTable();
+                return;
+            }
+            
+            // Si l'ID n'a pas changé, ne rien faire
+            if (oldId === newId) {
+                return;
+            }
+            
+            // Mettre à jour l'ID du candidat
+            const candidate = CANDIDATES.find(c => c.id === oldId);
+            if (candidate) {
+                candidate.id = newId;
+                
+                // Mettre à jour tous les scores associés à ce candidat
+                const scoresQuery = query(collection(db, "scores"), where("candidateId", "==", oldId));
+                const scoresSnap = await getDocs(scoresQuery);
+                
+                for (const scoreDoc of scoresSnap.docs) {
+                    await updateDoc(doc(db, "scores", scoreDoc.id), {
+                        candidateId: newId
+                    });
+                }
+                
+                // Mettre à jour les verrous si nécessaire
+                if (candidateLocks[oldId]) {
+                    candidateLocks[newId] = candidateLocks[oldId];
+                    delete candidateLocks[oldId];
+                    await setDoc(doc(db, "config", "locks"), { locks: candidateLocks });
+                }
+                
+                await saveCandidates();
+                await customAlert(`ID mis à jour : ${oldId} → ${newId}`);
+            }
+        };
+        
         window.updateCandidateName = (candidateId, newName) => {
             const candidate = CANDIDATES.find(c => c.id === candidateId);
             if (candidate) {
@@ -1125,8 +1217,8 @@
             CANDIDATES.forEach(candidate => {
                 const row = tbody.insertRow();
                 row.innerHTML = `
-                    <td>${candidate.id}</td>
-                    <td><input type="text" value="${candidate.name}" onchange="updateCandidateName('${candidate.id}', this.value)"></td>
+                    <td><input type="text" value="${candidate.id}" onchange="updateCandidateId('${candidate.id}', this.value)" style="width: 70px; padding: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px; text-align: center; font-family: monospace;"></td>
+                    <td><input type="text" value="${candidate.name}" onchange="updateCandidateName('${candidate.id}', this.value)" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px;"></td>
                     <td class="actions">
                         <button class="icon-btn delete" onclick="deleteCandidate('${candidate.id}')" title="Supprimer">🗑️</button>
                     </td>
@@ -1313,7 +1405,10 @@
             JURIES.forEach(jury => {
                 const row = tbody.insertRow();
                 const passwordDisplay = jury.password ? '🔒 Défini' : '🔓 Vide';
+                // Extraire le numéro de l'ID (jury1 -> 1, jury2 -> 2, etc.)
+                const juryNumber = jury.id.replace('jury', '');
                 row.innerHTML = `
+                    <td style="text-align: center; color: var(--text-secondary); font-family: monospace;">${juryNumber}</td>
                     <td><input type="text" value="${jury.name}" onchange="updateJuryName('${jury.id}', this.value)" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px;"></td>
                     <td style="text-align: center;">${passwordDisplay}</td>
                     <td class="actions">
@@ -1394,7 +1489,7 @@
                     <td><input type="number" value="${round.order}" onchange="updateRoundField('${round.id}', 'order', parseInt(this.value))" style="width: 60px; padding: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px;"></td>
                     <td><input type="text" value="${round.name}" onchange="updateRoundField('${round.id}', 'name', this.value)" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px;"></td>
                     <td>
-                        <select onchange="updateRoundField('${round.id}', 'type', this.value)" style="width: 100%; padding: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px; font-size: 14px;">
+                        <select onchange="updateRoundField('${round.id}', 'type', this.value)" style="width: 100%; min-width: 200px; padding: 6px 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px; font-size: 13px;">
                             <option value="Notation individuelle" ${round.type === 'Notation individuelle' ? 'selected' : ''}>Notation individuelle</option>
                             <option value="Repêchage" ${round.type === 'Repêchage' ? 'selected' : ''}>Repêchage</option>
                             <option value="Duels" ${round.type === 'Duels' ? 'selected' : ''}>Duels</option>
@@ -1636,7 +1731,7 @@
                 <th style="width: 60px; cursor: pointer;" onclick="sortNotesTable('id')">ID${sortIcon('id')}</th>
                 <th class="col-candidate" style="cursor: pointer;" onclick="sortNotesTable('candidat')">Candidat${sortIcon('candidat')}</th>
                 <th style="width: 100px; cursor: pointer;" onclick="sortNotesTable('score')">Score${sortIcon('score')}</th>
-                <th style="width: 180px; cursor: pointer;" onclick="sortNotesTable('tour')">Tour${sortIcon('tour')}</th>
+                <th style="min-width: 200px; width: 200px; cursor: pointer;" onclick="sortNotesTable('tour')">Tour${sortIcon('tour')}</th>
                 <th style="width: 150px; cursor: pointer;" onclick="sortNotesTable('statut')">Statut${sortIcon('statut')}</th>
                 ${sortedJuries.map(j => `<th colspan="2" class="col-score">${j.name}<br><small>(Fond | Forme)</small></th>`).join('')}
             `;
@@ -1704,7 +1799,7 @@
         };
         
         function createTourDropdown(candidate) {
-            let html = `<select onchange="updateCandidateTour('${candidate.id}', this.value)" style="width: 100%; padding: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px; font-size: 14px;">`;
+            let html = `<select onchange="updateCandidateTour('${candidate.id}', this.value)" style="width: 100%; min-width: 180px; padding: 6px 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px; font-size: 13px;">`;
             ROUNDS.forEach(round => {
                 const selected = round.id === candidate.tour ? 'selected' : '';
                 html += `<option value="${round.id}" ${selected}>${round.name}</option>`;
@@ -1715,7 +1810,7 @@
         
         function createStatusDropdown(candidate) {
             const statuses = ['Actif', 'Reset', 'Elimine', 'Qualifie'];
-            let html = `<select onchange="updateCandidateStatus('${candidate.id}', this.value)" style="width: 100%; padding: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px; font-size: 14px;">`;
+            let html = `<select onchange="updateCandidateStatus('${candidate.id}', this.value)" style="width: 100%; min-width: 130px; padding: 6px 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px; font-size: 13px;">`;
             statuses.forEach(status => {
                 const selected = status === candidate.status ? 'selected' : '';
                 html += `<option value="${status}" ${selected}>${status}</option>`;

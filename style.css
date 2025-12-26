@@ -926,3 +926,29 @@ hr {
 [data-theme="dark"] #notes-table th[onclick]:hover {
     background-color: rgba(77, 163, 255, 0.15);
 }
+
+/* Improved dropdown styles in tables */
+.notes-table select,
+#rounds-table select {
+    min-width: 120px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 6px 8px;
+    font-size: 13px;
+    line-height: 1.4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Specific styles for tour and status dropdowns in Notes table */
+#notes-table td:nth-child(4) select,
+#notes-table td:nth-child(5) select {
+    min-width: 140px;
+}
+
+/* Type dropdown in Rounds table */
+#rounds-table select[onchange*="type"] {
+    min-width: 180px;
+}
