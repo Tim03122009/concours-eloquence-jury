@@ -46,15 +46,15 @@ window.customAlert = function(message) {
             max-width: 500px;
             width: 90%;
             max-height: 90vh;
-            overflow: hidden;
+            overflow: visible;
             border: 2px solid #dee2e6;
             opacity: 1;
         `;
         modal.innerHTML = `
             <div class="modal-header" style="padding: 20px 24px; background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: white; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
-                <h3 style="margin: 0; font-size: 1.4em; font-weight: 600; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);">Information</h3>
+                <h3 style="margin: 0; font-size: 1.4em; font-weight: 700; color: #ffffff; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);">Information</h3>
             </div>
-            <div class="modal-body" style="padding: 24px; background: white; color: #212529;">
+            <div class="modal-body" style="padding: 24px; background: white; color: #212529; max-height: calc(90vh - 200px); overflow-y: auto;">
                 <p style="margin: 0; line-height: 1.6; font-size: 1.05em;">${escapeHtml(message).replace(/\n/g, '<br>')}</p>
             </div>
             <div class="modal-footer" style="padding: 20px 24px; background: #f8f9fa; border-top: 1px solid #dee2e6; display: flex; gap: 12px; justify-content: flex-end;">
@@ -130,15 +130,15 @@ window.customConfirm = function(message) {
             max-width: 500px;
             width: 90%;
             max-height: 90vh;
-            overflow: hidden;
+            overflow: visible;
             border: 2px solid #dee2e6;
             opacity: 1;
         `;
         modal.innerHTML = `
             <div class="modal-header modal-header-warning" style="padding: 20px 24px; background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); color: white; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
-                <h3 style="margin: 0; font-size: 1.4em; font-weight: 600; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);">⚠️ Confirmation</h3>
+                <h3 style="margin: 0; font-size: 1.4em; font-weight: 700; color: #ffffff; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);">⚠️ Confirmation</h3>
             </div>
-            <div class="modal-body" style="padding: 24px; background: white; color: #212529;">
+            <div class="modal-body" style="padding: 24px; background: white; color: #212529; max-height: calc(90vh - 200px); overflow-y: auto;">
                 <p style="margin: 0; line-height: 1.6; font-size: 1.05em;">${escapeHtml(message).replace(/\n/g, '<br>')}</p>
             </div>
             <div class="modal-footer" style="padding: 20px 24px; background: #f8f9fa; border-top: 1px solid #dee2e6; display: flex; gap: 12px; justify-content: flex-end;">
@@ -235,15 +235,15 @@ window.customPrompt = function(message, defaultValue = '') {
             max-width: 500px;
             width: 90%;
             max-height: 90vh;
-            overflow: hidden;
+            overflow: visible;
             border: 2px solid #dee2e6;
             opacity: 1;
         `;
         modal.innerHTML = `
             <div class="modal-header" style="padding: 20px 24px; background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: white; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
-                <h3 style="margin: 0; font-size: 1.4em; font-weight: 600; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);">Saisie</h3>
+                <h3 style="margin: 0; font-size: 1.4em; font-weight: 700; color: #ffffff; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);">Saisie</h3>
             </div>
-            <div class="modal-body" style="padding: 24px; background: white; color: #212529;">
+            <div class="modal-body" style="padding: 24px; background: white; color: #212529; max-height: calc(90vh - 200px); overflow-y: auto;">
                 <p style="margin: 0 0 16px 0; line-height: 1.6; font-size: 1.05em;">${escapeHtml(message).replace(/\n/g, '<br>')}</p>
                 <input type="text" id="modal-input" class="modal-input" value="${escapeHtml(defaultValue)}" style="width: 100%; padding: 12px 16px; border: 2px solid #ced4da; border-radius: 6px; font-size: 1em; font-family: inherit; background: white; color: #212529;">
             </div>

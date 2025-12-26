@@ -198,6 +198,7 @@
         /* Tables */
         .table-container {
             overflow-x: auto;
+            max-width: 100%;
             margin: var(--spacing) 0;
             border-radius: var(--radius);
             box-shadow: var(--shadow-md);
@@ -474,7 +475,12 @@
             width: 100%;
             border-collapse: collapse;
             font-size: 0.9em;
-            table-layout: fixed;
+            table-layout: auto;
+        }
+        
+        #notes-table {
+            width: max-content;
+            min-width: 100%;
         }
 
         .notes-table th,
@@ -482,7 +488,7 @@
             border: 1px solid var(--border-color);
             padding: 8px;
             text-align: center;
-            overflow: hidden;
+            overflow: visible;
             color: var(--text-color);
         }
 
@@ -497,14 +503,15 @@
 
         .notes-table select {
             width: 100%;
+            min-width: 80px;
             max-width: 90px;
-            padding: 4px;
+            padding: 6px;
             border: 1px solid var(--border-color);
             border-radius: 3px;
             background: var(--card-bg);
             color: var(--text-color);
             text-align: center;
-            font-size: 0.9em;
+            font-size: 14px;
             font-family: inherit;
         }
 
@@ -529,7 +536,9 @@
         }
 
         .notes-table .col-score {
-            width: 100px;
+            min-width: 90px;
+            width: 90px;
+            text-align: center;
         }
 
         /* Burger Menu & Theme Toggle */
@@ -753,7 +762,6 @@
             <button class="tab-btn" onclick="switchTab('jury')">Jury</button>
             <button class="tab-btn" onclick="switchTab('tours')">Tours</button>
             <button class="tab-btn" onclick="switchTab('notes')">Notes</button>
-            <button class="tab-btn" onclick="switchTab('resultats')">Résultats</button>
             <button class="tab-btn" onclick="switchTab('podium')">Podium</button>
             <button class="tab-btn" onclick="switchTab('reinitialiser')">Réinitialiser</button>
         </div>
@@ -764,6 +772,10 @@
                 <h3 style="color: var(--text-color);">Import rapide (copier-coller)</h3>
                 <p style="color: var(--text-color); font-size: 0.9em; margin: 5px 0;">Les candidats de la liste seront <strong>ajoutés</strong> aux candidats existants (pas de remplacement).</p>
                 <textarea id="candidate-names" placeholder="Un nom par ligne...&#10;Exemple:&#10;Alice Martin&#10;Bob Dupont&#10;Claire Bernard"></textarea>
+                <div style="display: flex; align-items: center; gap: 8px; margin: 10px 0;">
+                    <input type="checkbox" id="random-ids-checkbox" checked style="width: 18px; height: 18px; cursor: pointer;">
+                    <label for="random-ids-checkbox" style="color: var(--text-color); cursor: pointer; font-size: 0.95em;">Définir des IDs aléatoires (sinon 001, 002, 003...)</label>
+                </div>
                 <button onclick="importCandidates()" class="action-button" style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color:white;">Ajouter les nouveaux candidats</button>
     </div>
 
@@ -825,6 +837,7 @@
                     <select id="active-round-select" onchange="setActiveRound(this.value)" style="padding: 8px 12px; border: 2px solid var(--border-color); border-radius: 6px; background: var(--input-bg); color: var(--text-color); font-size: 1em; font-family: inherit; min-width: 200px;">
                         <!-- Rempli dynamiquement -->
                     </select>
+                    <button onclick="finishRound()" class="action-button" style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color:white; padding: 8px 16px;">✓ Terminer le tour</button>
                 </div>
             </div>
             
@@ -832,11 +845,11 @@
                 <table class="notes-table" id="rounds-table">
                     <thead>
                         <tr>
-                            <th style="width: 100px;">Actions</th>
-                            <th style="width: 80px;">Ordre</th>
-                            <th style="width: 12%;">Nom du tour</th>
-                            <th style="min-width: 220px; width: 25%;">Type</th>
-                            <th style="width: 10%;">Candidats suivants</th>
+                            <th style="width: 70px;">Actions</th>
+                            <th style="width: 60px;">Ordre</th>
+                            <th style="width: 20%;">Nom du tour</th>
+                            <th style="min-width: 220px; width: 35%;">Type</th>
+                            <th style="width: 140px;">Candidats suivants</th>
                         </tr>
                     </thead>
                     <tbody id="rounds-table-body">
@@ -850,13 +863,27 @@
         <div id="tab-notes" class="tab-content">
             <p style="color: var(--text-secondary); margin-bottom: 20px;">
                 Modifiez les notes directement dans le tableau. Les modifications sont sauvegardées automatiquement.
-                <br><strong id="active-round-notes" style="color: var(--primary);"></strong>
             </p>
             
-            <div class="button-group" style="margin-bottom: 20px;">
-                <button onclick="exportNotesToCSV()" class="action-button export-button excel">📥 Exporter en CSV</button>
-                <input type="file" id="csv-import-file" accept=".csv" style="display: none;" onchange="importNotesFromCSV(event)">
-                <button onclick="document.getElementById('csv-import-file').click()" class="action-button import-button">📤 Importer depuis CSV</button>
+            <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 15px;">
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <label for="notes-round-select" style="color: var(--text-color); font-weight: 600;">Tour à afficher :</label>
+                        <select id="notes-round-select" onchange="changeNotesRound(this.value)" style="padding: 8px 12px; border: 2px solid var(--border-color); border-radius: 6px; background: var(--input-bg); color: var(--text-color); font-size: 1em; font-family: inherit; min-width: 200px;">
+                            <!-- Rempli dynamiquement -->
+                        </select>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="notes-filter-current-round" onchange="renderNotesTable()" checked style="width: 18px; height: 18px; cursor: pointer;">
+                        <label for="notes-filter-current-round" style="color: var(--text-color); cursor: pointer;">Candidats en cours sur ce tour</label>
+                    </div>
+                </div>
+                
+                <div class="button-group">
+                    <button onclick="exportNotesToCSV()" class="action-button export-button excel">📥 Exporter en CSV</button>
+                    <input type="file" id="csv-import-file" accept=".csv" style="display: none;" onchange="importNotesFromCSV(event)">
+                    <button onclick="document.getElementById('csv-import-file').click()" class="action-button import-button">📤 Importer depuis CSV</button>
+                </div>
             </div>
             
             <div class="table-container">
@@ -873,29 +900,23 @@
             </div>
         </div>
 
-        <!-- TAB 5: RESULTATS -->
-        <div id="tab-resultats" class="tab-content">
-            <h2>Résultats du Concours (Note1 ×3 + Note2 ×1)</h2>
-            <p style="color: var(--text-secondary); margin-bottom: 20px;">
-                <strong id="active-round-results" style="color: var(--primary);"></strong>
-            </p>
-
-            <div class="table-container">
-    <table id="scores-matrix">
-        <thead><tr><th>Candidat</th></tr></thead>
-        <tbody></tbody>
-    </table>
-            </div>
-        </div>
-
-        <!-- TAB 6: PODIUM -->
+        <!-- TAB 5: PODIUM -->
         <div id="tab-podium" class="tab-content">
     <h2>Classement Officiel</h2>
             
-            <div style="margin-bottom: 20px;">
-                <label for="result-limit" style="font-weight: 600; margin-right: 10px; color: var(--text-color);">Nombre de candidats à afficher:</label>
-                <input type="number" id="result-limit" value="3" min="1" oninput="renderPodium()" style="width: 80px; padding: 8px; border: 2px solid var(--border-color); border-radius: 5px; background: var(--card-bg); color: var(--text-color);">
-                <button onclick="exportPodiumToImage()" class="action-button export-button" style="margin-left: 10px;">Exporter en image</button>
+            <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <label for="podium-round-select" style="color: var(--text-color); font-weight: 600;">Tour à afficher :</label>
+                    <select id="podium-round-select" onchange="changePodiumRound(this.value)" style="padding: 8px 12px; border: 2px solid var(--border-color); border-radius: 6px; background: var(--input-bg); color: var(--text-color); font-size: 1em; font-family: inherit; min-width: 200px;">
+                        <!-- Rempli dynamiquement -->
+                    </select>
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <label for="result-limit" style="font-weight: 600; color: var(--text-color);">Nombre de candidats :</label>
+                    <input type="number" id="result-limit" value="3" min="1" oninput="renderPodium()" style="width: 80px; padding: 8px; border: 2px solid var(--border-color); border-radius: 5px; background: var(--card-bg); color: var(--text-color);">
+                    <button onclick="exportPodiumToImage()" class="action-button export-button">Exporter en image</button>
+                </div>
             </div>
 
             <div class="table-container">
@@ -920,6 +941,16 @@
                 <p>Vérifier et nettoyer la base de données : supprime les doublons, les scores orphelins (candidats/jurys supprimés), et les valeurs calculées obsolètes.</p>
                 <p style="font-weight: 600; color: var(--warning-color); margin-top: 10px;">⚠️ Recommandé : Sauvegardez votre base de données avant de lancer cette opération.</p>
                 <button onclick="cleanDatabase()" class="action-button" style="background: var(--primary);">Nettoyer la base de données</button>
+            </div>
+
+            <div class="reset-zone" style="background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%); border: 2px solid #ffc107;">
+                <h3 style="color: #856404;">🧪 Tests</h3>
+                <p style="color: #212529;">Insérer des candidats et jurys de test pour simuler rapidement un concours.</p>
+                <button onclick="insertTestData()" class="action-button" style="background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); color: #212529; margin-bottom: 10px;">📋 Insérer candidats et jurys de test</button>
+                
+                <p style="color: #212529; margin-top: 15px;">Auto-remplir les notes des candidats actifs du tour en cours avec "-" et les passer en "Qualifié".</p>
+                <p style="font-weight: 600; color: #856404; margin-top: 10px;">⚠️ Utile pour les tests rapides.</p>
+                <button onclick="autoFillActiveRound()" class="action-button" style="background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); color: #212529;">✓ Auto-remplir et qualifier le tour actif</button>
             </div>
 
             <div class="reset-zone" style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border: 2px solid #28a745;">
@@ -985,12 +1016,10 @@
             } else if (tabName === 'tours') {
                 renderRoundsTable();
             } else if (tabName === 'notes') {
-                updateActiveRoundIndicators();
+                populateNotesRoundDropdown();
                 renderNotesTable();
-            } else if (tabName === 'resultats') {
-                updateActiveRoundIndicators();
-                loadResults();
             } else if (tabName === 'podium') {
+                populatePodiumRoundDropdown();
                 loadResults();
             }
         };
@@ -1050,12 +1079,27 @@
             }
         };
 
+        function generateSequentialCandidateId() {
+            // Trouver le prochain ID séquentiel disponible
+            const usedIds = new Set(CANDIDATES.map(c => c.id));
+            for (let i = 1; i <= 999; i++) {
+                const id = String(i).padStart(3, '0');
+                if (!usedIds.has(id)) {
+                    return id;
+                }
+            }
+            return null; // Tous les IDs sont utilisés
+        }
+
         window.importCandidates = async () => {
             const names = document.getElementById('candidate-names').value.split('\n').map(n => n.trim()).filter(n => n !== "");
             if (names.length === 0) {
                 await customAlert("Veuillez entrer au moins un candidat");
                 return;
             }
+            
+            // Vérifier si l'utilisateur veut des IDs aléatoires ou séquentiels
+            const useRandomIds = document.getElementById('random-ids-checkbox').checked;
             
             // Charger les candidats existants
             const docSnap = await getDoc(doc(db, "candidats", "liste_actuelle"));
@@ -1075,7 +1119,8 @@
                 if (existingNames.has(name.toLowerCase())) {
                     duplicates.push(name);
                 } else {
-                    const newId = generateUniqueCandidateId();
+                    // Générer l'ID selon le choix de l'utilisateur
+                    const newId = useRandomIds ? generateUniqueCandidateId() : generateSequentialCandidateId();
                     if (newId) {
                         const newCandidate = { 
                             id: newId, 
@@ -1099,6 +1144,11 @@
             
             // Message de confirmation
             let message = `✓ ${newCandidates.length} nouveau(x) candidat(s) ajouté(s)`;
+            if (useRandomIds) {
+                message += '\n(IDs aléatoires)';
+            } else {
+                message += '\n(IDs séquentiels)';
+            }
             if (duplicates.length > 0) {
                 message += `\n⚠️ ${duplicates.length} candidat(s) déjà existant(s) ignoré(s):\n${duplicates.join(', ')}`;
             }
@@ -1214,7 +1264,14 @@
             const tbody = document.getElementById('candidate-table-body');
             tbody.innerHTML = '';
             
-            CANDIDATES.forEach(candidate => {
+            // Trier les candidats par ID (numériquement)
+            const sortedCandidates = [...CANDIDATES].sort((a, b) => {
+                const idA = parseInt(a.id) || 0;
+                const idB = parseInt(b.id) || 0;
+                return idA - idB;
+            });
+            
+            sortedCandidates.forEach(candidate => {
                 const row = tbody.insertRow();
                 row.innerHTML = `
                     <td><input type="text" value="${candidate.id}" onchange="updateCandidateId('${candidate.id}', this.value)" style="width: 70px; padding: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px; text-align: center; font-family: monospace;"></td>
@@ -1445,16 +1502,58 @@
                 activeRoundId = snap.data().activeRoundId || null;
             }
             
-            // Initialiser avec un tour par défaut si aucun n'existe
+            // Initialiser avec les tours par défaut si aucun n'existe
             if (ROUNDS.length === 0) {
-                ROUNDS = [{
-                    id: 'round1',
-                    order: 1,
-                    name: 'Premier tour',
-                    type: 'Notation individuelle',
-                    nextRoundCandidates: 'ALL',
-                    active: true
-                }];
+                ROUNDS = [
+                    {
+                        id: 'round1',
+                        order: 1,
+                        name: '1er tour',
+                        type: 'Notation individuelle',
+                        nextRoundCandidates: 'ALL',
+                        active: true
+                    },
+                    {
+                        id: 'round2',
+                        order: 2,
+                        name: 'Repechage 1er tour',
+                        type: 'Repêchage',
+                        nextRoundCandidates: 18,
+                        active: false
+                    },
+                    {
+                        id: 'round3',
+                        order: 3,
+                        name: '2eme tour',
+                        type: 'Duels',
+                        nextRoundCandidates: 'ALL',
+                        active: false
+                    },
+                    {
+                        id: 'round4',
+                        order: 4,
+                        name: 'Repechage 2eme tour',
+                        type: 'Repêchage',
+                        nextRoundCandidates: 7,
+                        active: false
+                    },
+                    {
+                        id: 'round5',
+                        order: 5,
+                        name: 'Demi-finale',
+                        type: 'Duels',
+                        nextRoundCandidates: 3,
+                        active: false
+                    },
+                    {
+                        id: 'round6',
+                        order: 6,
+                        name: 'Finale',
+                        type: 'Duels',
+                        nextRoundCandidates: 1,
+                        active: false
+                    }
+                ];
                 activeRoundId = 'round1';
                 await saveRounds();
             }
@@ -1506,25 +1605,12 @@
                 sortedRounds.forEach(round => {
                     const option = document.createElement('option');
                     option.value = round.id;
-                    option.textContent = `${round.name} (${round.type})`;
+                    option.textContent = round.name;
                     option.selected = (round.id === activeRoundId);
                     select.appendChild(option);
                 });
             }
             
-            // Mettre à jour les indicateurs de tour actif dans les autres onglets
-            updateActiveRoundIndicators();
-        }
-        
-        function updateActiveRoundIndicators() {
-            const activeRound = ROUNDS.find(r => r.id === activeRoundId);
-            const roundName = activeRound ? activeRound.name : 'Aucun tour actif';
-            
-            const notesIndicator = document.getElementById('active-round-notes');
-            const resultsIndicator = document.getElementById('active-round-results');
-            
-            if (notesIndicator) notesIndicator.textContent = `📍 Tour actif: ${roundName}`;
-            if (resultsIndicator) resultsIndicator.textContent = `📍 Tour actif: ${roundName}`;
         }
         
         window.addRound = () => {
@@ -1627,26 +1713,101 @@
             saveRounds();
         };
         
+        window.finishRound = async () => {
+            if (!activeRoundId) {
+                await customAlert("Aucun tour actif sélectionné.");
+                return;
+            }
+            
+            const activeRound = ROUNDS.find(r => r.id === activeRoundId);
+            if (!activeRound) {
+                await customAlert("Tour actif introuvable.");
+                return;
+            }
+            
+            // Vérifier que tous les candidats du tour actif sont soit qualifiés soit éliminés
+            const candidatesInRound = CANDIDATES.filter(c => c.tour === activeRoundId);
+            const candidatesNotReady = candidatesInRound.filter(c => c.status !== 'Qualifie' && c.status !== 'Elimine');
+            
+            if (candidatesNotReady.length > 0) {
+                const names = candidatesNotReady.map(c => `- ${c.name} (${c.status})`).join('\n');
+                await customAlert(`❌ Impossible de terminer le tour.\n\n${candidatesNotReady.length} candidat(s) ne sont ni Qualifiés ni Éliminés :\n\n${names}\n\nVeuillez mettre à jour leur statut dans l'onglet "Notes".`);
+                return;
+            }
+            
+            // Trouver le tour suivant
+            const sortedRounds = [...ROUNDS].sort((a, b) => a.order - b.order);
+            const currentIndex = sortedRounds.findIndex(r => r.id === activeRoundId);
+            
+            if (currentIndex === -1) {
+                await customAlert("Erreur : impossible de trouver le tour actif.");
+                return;
+            }
+            
+            if (currentIndex >= sortedRounds.length - 1) {
+                await customAlert("C'est le dernier tour. Impossible de passer au tour suivant.");
+                return;
+            }
+            
+            const nextRound = sortedRounds[currentIndex + 1];
+            
+            // Demander confirmation
+            const qualifiedCount = candidatesInRound.filter(c => c.status === 'Qualifie').length;
+            const eliminatedCount = candidatesInRound.filter(c => c.status === 'Elimine').length;
+            
+            if (!await customConfirm(`Terminer le tour "${activeRound.name}" ?\n\n✓ ${qualifiedCount} candidat(s) qualifié(s) passeront au tour "${nextRound.name}"\n✗ ${eliminatedCount} candidat(s) éliminé(s)\n\nContinuer ?`)) {
+                return;
+            }
+            
+            // Passer les candidats qualifiés au tour suivant et les remettre en "Actif"
+            let movedCount = 0;
+            CANDIDATES.forEach(candidate => {
+                if (candidate.tour === activeRoundId && candidate.status === 'Qualifie') {
+                    candidate.tour = nextRound.id;
+                    candidate.status = 'Actif';
+                    movedCount++;
+                }
+            });
+            
+            // Sauvegarder les modifications
+            await setDoc(doc(db, "candidats", "liste_actuelle"), { candidates: CANDIDATES });
+            
+            // Changer le tour actif
+            activeRoundId = nextRound.id;
+            ROUNDS.forEach(r => r.active = (r.id === activeRoundId));
+            await saveRounds();
+            
+            await customAlert(`✓ Tour terminé avec succès !\n\n${movedCount} candidat(s) qualifié(s) sont passés au tour "${nextRound.name}".\n\nLe tour actif est maintenant : "${nextRound.name}"`);
+            
+            // Rafraîchir l'affichage
+            renderNotesTable();
+        };
+        
         loadRounds();
 
         // --- GESTION NOTES ---
-        // Variables globales pour le tri du tableau Notes
-        let notesSortColumn = null;
+        // Variables globales pour le tri du tableau Notes et l'affichage des tours
+        let notesSortColumn = 'id'; // Tri par défaut par ID
         let notesSortAscending = true;
+        let notesDisplayRound = null; // Tour affiché dans le tableau Notes
+        let podiumDisplayRound = null; // Tour affiché dans le podium
         
         async function renderNotesTable() {
             const tbody = document.getElementById('notes-table-body');
             const thead = document.querySelector('#notes-table thead tr');
             tbody.innerHTML = '';
             
+            // Utiliser le tour sélectionné dans le dropdown ou le tour actif par défaut
+            const displayRound = notesDisplayRound || activeRoundId || 'round1';
+            
             // Charger TOUS les jurys depuis la collection accounts
             await loadJuries();
             const sortedJuries = [...JURIES].sort((a, b) => a.name.localeCompare(b.name));
             
-            // Charger les scores du tour actif
+            // Charger les scores du tour sélectionné
             const q = query(
                 collection(db, "scores"),
-                where("roundId", "==", activeRoundId || 'round1')
+                where("roundId", "==", displayRound)
             );
             const querySnapshot = await getDocs(q);
             const scoresByCandidate = {};
@@ -1665,7 +1826,7 @@
             });
             
             // Calculer le score total pour chaque candidat
-            const candidatesWithScores = CANDIDATES.map(candidate => {
+            let candidatesWithScores = CANDIDATES.map(candidate => {
                 let totalScore = 0;
                 let hasScores = false;
                 
@@ -1674,8 +1835,8 @@
                     if (scores) {
                         const s1 = parseFloat(scores.score1) || 0;
                         const s2 = parseFloat(scores.score2) || 0;
-                        if (scores.score1 !== '-' && scores.score1 !== 'Elimine' &&
-                            scores.score2 !== '-' && scores.score2 !== 'Elimine') {
+                        if (scores.score1 !== '-' && scores.score1 !== 'EL' &&
+                            scores.score2 !== '-' && scores.score2 !== 'EL') {
                             totalScore += (s1 * 3 + s2);
                             hasScores = true;
                         }
@@ -1689,14 +1850,22 @@
                 };
             });
             
+            // Filtrer par tour si le checkbox est coché
+            const filterCheckbox = document.getElementById('notes-filter-current-round');
+            if (filterCheckbox && filterCheckbox.checked) {
+                candidatesWithScores = candidatesWithScores.filter(item => 
+                    item.candidate.tour === displayRound
+                );
+            }
+            
             // Appliquer le tri si une colonne est sélectionnée
             if (notesSortColumn) {
                 candidatesWithScores.sort((a, b) => {
                     let valA, valB;
                     
                     if (notesSortColumn === 'id') {
-                        valA = parseInt(a.candidate.id.replace('C', '')) || 0;
-                        valB = parseInt(b.candidate.id.replace('C', '')) || 0;
+                        valA = parseInt(a.candidate.id) || 0;
+                        valB = parseInt(b.candidate.id) || 0;
                     } else if (notesSortColumn === 'candidat') {
                         valA = a.candidate.name.toLowerCase();
                         valB = b.candidate.name.toLowerCase();
@@ -1731,9 +1900,9 @@
                 <th style="width: 60px; cursor: pointer;" onclick="sortNotesTable('id')">ID${sortIcon('id')}</th>
                 <th class="col-candidate" style="cursor: pointer;" onclick="sortNotesTable('candidat')">Candidat${sortIcon('candidat')}</th>
                 <th style="width: 100px; cursor: pointer;" onclick="sortNotesTable('score')">Score${sortIcon('score')}</th>
-                <th style="min-width: 200px; width: 200px; cursor: pointer;" onclick="sortNotesTable('tour')">Tour${sortIcon('tour')}</th>
+                <th style="min-width: 200px; width: 200px; cursor: pointer;" onclick="sortNotesTable('tour')">Dernier Tour${sortIcon('tour')}</th>
                 <th style="width: 150px; cursor: pointer;" onclick="sortNotesTable('statut')">Statut${sortIcon('statut')}</th>
-                ${sortedJuries.map(j => `<th colspan="2" class="col-score">${j.name}<br><small>(Fond | Forme)</small></th>`).join('')}
+                ${sortedJuries.map(j => `<th colspan="2" class="col-score" style="min-width: 180px;">${j.name}<br><small>(Fond | Forme)</small></th>`).join('')}
             `;
             
             // Construire les lignes
@@ -1773,6 +1942,10 @@
                     const cell2 = row.insertCell();
                     cell1.className = 'col-score';
                     cell2.className = 'col-score';
+                    cell1.style.minWidth = '90px';
+                    cell1.style.width = '90px';
+                    cell2.style.minWidth = '90px';
+                    cell2.style.width = '90px';
                     
                     // Si le statut est "Elimine" ou "Qualifie", les notes ne sont pas éditables
                     const readonly = (candidate.status === 'Elimine' || candidate.status === 'Qualifie');
@@ -1796,6 +1969,52 @@
                 notesSortAscending = true;
             }
             renderNotesTable();
+        };
+        
+        // Fonction pour remplir le dropdown des tours dans l'onglet Notes
+        function populateNotesRoundDropdown() {
+            const select = document.getElementById('notes-round-select');
+            if (!select) return;
+            
+            select.innerHTML = '';
+            const sortedRounds = [...ROUNDS].sort((a, b) => a.order - b.order);
+            
+            sortedRounds.forEach(round => {
+                const option = document.createElement('option');
+                option.value = round.id;
+                option.textContent = round.name;
+                option.selected = (round.id === (notesDisplayRound || activeRoundId));
+                select.appendChild(option);
+            });
+        }
+        
+        // Fonction pour remplir le dropdown des tours dans l'onglet Podium
+        function populatePodiumRoundDropdown() {
+            const select = document.getElementById('podium-round-select');
+            if (!select) return;
+            
+            select.innerHTML = '';
+            const sortedRounds = [...ROUNDS].sort((a, b) => a.order - b.order);
+            
+            sortedRounds.forEach(round => {
+                const option = document.createElement('option');
+                option.value = round.id;
+                option.textContent = round.name;
+                option.selected = (round.id === (podiumDisplayRound || activeRoundId));
+                select.appendChild(option);
+            });
+        }
+        
+        // Fonction pour changer le tour affiché dans Notes
+        window.changeNotesRound = (roundId) => {
+            notesDisplayRound = roundId;
+            renderNotesTable();
+        };
+        
+        // Fonction pour changer le tour affiché dans Podium
+        window.changePodiumRound = (roundId) => {
+            podiumDisplayRound = roundId;
+            loadResults();
         };
         
         function createTourDropdown(candidate) {
@@ -1878,8 +2097,8 @@
                 for (const jury of JURIES) {
                     const scores = juryScores[jury.id];
                     if (!scores || 
-                        !scores.score1 || scores.score1 === '-' || scores.score1 === 'Elimine' ||
-                        !scores.score2 || scores.score2 === '-' || scores.score2 === 'Elimine') {
+                        !scores.score1 || scores.score1 === '-' || scores.score1 === 'EL' ||
+                        !scores.score2 || scores.score2 === '-' || scores.score2 === 'EL') {
                         allComplete = false;
                         break;
                     }
@@ -1893,11 +2112,11 @@
         }
 
         function createScoreDropdown(scoreId, field, currentValue, candidateId, juryId, readonly = false) {
-            const options = ['-', '5', '10', '15', '20', 'Elimine'];
+            const options = ['-', '5', '10', '15', '20', 'EL'];
             const selectId = `score-${candidateId}-${juryId}-${field}`;
             const disabledAttr = readonly ? 'disabled' : '';
             
-            let html = `<select id="${selectId}" onchange="handleScoreChange('${scoreId}', '${field}', this.value, '${candidateId}', '${juryId}')" ${disabledAttr}>`;
+            let html = `<select id="${selectId}" onchange="handleScoreChange('${scoreId}', '${field}', this.value, '${candidateId}', '${juryId}')" ${disabledAttr} style="text-align: center;">`;
             options.forEach(opt => {
                 const selected = opt === String(currentValue) ? 'selected' : '';
                 html += `<option value="${opt}" ${selected}>${opt}</option>`;
@@ -2047,10 +2266,13 @@
 
         // --- CALCUL DES SCORES ---
         window.loadResults = async () => {
-            // Charger les scores du tour actif
+            // Utiliser le tour sélectionné dans le dropdown du podium ou le tour actif par défaut
+            const displayRound = podiumDisplayRound || activeRoundId || 'round1';
+            
+            // Charger les scores du tour sélectionné
             const q = query(
                 collection(db, "scores"),
-                where("roundId", "==", activeRoundId || 'round1')
+                where("roundId", "==", displayRound)
             );
             const querySnapshot = await getDocs(q);
             aggregatedData = {};
@@ -2079,7 +2301,7 @@
                     aggregatedData[data.candidateId].hasScores = true;
                     aggregatedData[data.candidateId].juryScores[data.juryName] = data;
                     
-                    if (data.score1 === "Elimine") {
+                    if (data.score1 === "EL") {
                         aggregatedData[data.candidateId].elimCount++;
                     } else {
                         // TOUJOURS calculer le score pondéré à partir des scores bruts
@@ -2087,7 +2309,7 @@
                         let weightedScore = 0;
                         if (data.score1 && data.score1 !== '-' && 
                             data.score2 && data.score2 !== '-' &&
-                            data.score1 !== 'Elimine' && data.score2 !== 'Elimine') {
+                            data.score1 !== 'EL' && data.score2 !== 'EL') {
                             weightedScore = (parseInt(data.score1) * 3) + parseInt(data.score2);
                             console.log(`Candidat ${data.candidateId}, Jury ${data.juryName}: ${data.score1}×3 + ${data.score2} = ${weightedScore} (DB avait: ${data.totalWeightedScore})`);
                         }
@@ -2153,11 +2375,11 @@
                         valB = 0;
                         
                         if (scoreA && scoreA.score1 !== '-' && scoreA.score2 !== '-' && 
-                            scoreA.score1 !== 'Elimine' && scoreA.score2 !== 'Elimine') {
+                            scoreA.score1 !== 'EL' && scoreA.score2 !== 'EL') {
                             valA = (parseInt(scoreA.score1) * 3) + parseInt(scoreA.score2);
                         }
                         if (scoreB && scoreB.score1 !== '-' && scoreB.score2 !== '-' && 
-                            scoreB.score1 !== 'Elimine' && scoreB.score2 !== 'Elimine') {
+                            scoreB.score1 !== 'EL' && scoreB.score2 !== 'EL') {
                             valB = (parseInt(scoreB.score1) * 3) + parseInt(scoreB.score2);
                         }
                         
@@ -2184,7 +2406,7 @@
                     const scoreObj = data.juryScores[j];
                     const cell = row.insertCell();
                     if (scoreObj) {
-                        if (scoreObj.score1 === "Elimine") {
+                        if (scoreObj.score1 === "EL") {
                             cell.className = "eliminado";
                             cell.textContent = "ÉLIMINÉ";
                         } else {
@@ -2192,7 +2414,7 @@
                             let displayWeightedScore = 0;
                             if (scoreObj.score1 && scoreObj.score1 !== '-' && 
                                 scoreObj.score2 && scoreObj.score2 !== '-' &&
-                                scoreObj.score1 !== 'Elimine' && scoreObj.score2 !== 'Elimine') {
+                                scoreObj.score1 !== 'EL' && scoreObj.score2 !== 'EL') {
                                 displayWeightedScore = (parseInt(scoreObj.score1) * 3) + parseInt(scoreObj.score2);
                             }
                             cell.innerHTML = `<span class="detail-note">${scoreObj.score1} | ${scoreObj.score2}</span><span class="weighted-total">${displayWeightedScore}</span>`;
@@ -2760,8 +2982,185 @@
             }
         };
 
+        window.insertTestData = async () => {
+            if (!await customConfirm("Insérer les candidats et jurys de test ?\n\n✓ 68 candidats\n✓ 6 jurys\n\nCeci ajoutera ces données aux données existantes.")) {
+                return;
+            }
+            
+            try {
+                const testCandidateNames = [
+                    "Timéo Charvolin", "Paul Régent", "Loïc Delais", "Sophie Moreau", "Lucas Bernard",
+                    "Emma Dubois", "Nathan Thomas", "Léa Petit", "Hugo Robert", "Chloé Richard",
+                    "Arthur Durand", "Manon Lefebvre", "Louis Martin", "Camille Laurent", "Gabriel Simon",
+                    "Sarah Michel", "Alexandre Lefèvre", "Julie Garcia", "Maxime Roux", "Marine Vincent",
+                    "Théo Fournier", "Clara Bertrand", "Antoine Girard", "Pauline Morel", "Nicolas André",
+                    "Laura Mercier", "Julien Blanchard", "Alice Fontaine", "Romain Rousseau", "Anaïs Lambert",
+                    "Pierre Chevalier", "Amélie Bonnet", "Léna Garnier", "Benjamin Faure", "Inès Clement",
+                    "Raphaël Gauthier", "Timéo Charvolin", "Paul Régent", "Loïc Delais", "Sophie Moreau",
+                    "Lucas Bernard", "Emma Dubois", "Nathan Thomas", "Léa Petit", "Hugo Robert",
+                    "Chloé Richard", "Arthur Durand", "Manon Lefebvre", "Louis Martin", "Camille Laurent",
+                    "Gabriel Simon", "Sarah Michel", "Alexandre Lefèvre", "Julie Garcia", "Maxime Roux",
+                    "Marine Vincent", "Théo Fournier", "Clara Bertrand", "Antoine Girard", "Pauline Morel",
+                    "Nicolas André", "Laura Mercier", "Julien Blanchard", "Alice Fontaine", "Romain Rousseau",
+                    "Anaïs Lambert", "Pierre Chevalier", "Amélie Bonnet", "Léna Garnier", "Benjamin Faure",
+                    "Inès Clement", "Raphaël Gauthier"
+                ];
+                
+                const testJuryNames = ["Martin", "Lasso", "Murat", "Blier", "Collisse", "Pierre"];
+                
+                // Charger les candidats et jurys existants
+                const candidatesDoc = await getDoc(doc(db, "candidats", "liste_actuelle"));
+                let existingCandidates = candidatesDoc.exists() ? candidatesDoc.data().candidates || [] : [];
+                
+                await loadJuries();
+                const existingJuryNames = new Set(JURIES.map(j => j.name.toLowerCase()));
+                
+                // Ajouter les candidats de test
+                let candidatesAdded = 0;
+                const usedIds = new Set(existingCandidates.map(c => c.id));
+                
+                for (const name of testCandidateNames) {
+                    // Générer un ID unique
+                    let newId;
+                    do {
+                        newId = String(Math.floor(Math.random() * 999) + 1).padStart(3, '0');
+                    } while (usedIds.has(newId));
+                    usedIds.add(newId);
+                    
+                    existingCandidates.push({
+                        id: newId,
+                        name: name,
+                        tour: activeRoundId || 'round1',
+                        status: 'Actif'
+                    });
+                    candidatesAdded++;
+                }
+                
+                // Sauvegarder les candidats
+                await setDoc(doc(db, "candidats", "liste_actuelle"), { candidates: existingCandidates });
+                
+                // Ajouter les jurys de test
+                let juriesAdded = 0;
+                for (const juryName of testJuryNames) {
+                    if (!existingJuryNames.has(juryName.toLowerCase())) {
+                        // Trouver le prochain ID disponible
+                        let maxId = 0;
+                        JURIES.forEach(j => {
+                            const num = parseInt(j.id.replace('jury', ''));
+                            if (num > maxId) maxId = num;
+                        });
+                        const newJuryId = `jury${maxId + 1}`;
+                        
+                        await setDoc(doc(db, "accounts", newJuryId), {
+                            name: juryName,
+                            password: '',
+                            theme: 'light'
+                        });
+                        
+                        JURIES.push({
+                            id: newJuryId,
+                            name: juryName
+                        });
+                        
+                        juriesAdded++;
+                    }
+                }
+                
+                await customAlert(`✓ ${candidatesAdded} candidat(s) ajouté(s)\n✓ ${juriesAdded} jury(s) ajouté(s)`);
+                
+                // Rafraîchir l'affichage
+                await loadList();
+                await loadJuries();
+                renderJuryTable();
+            } catch (e) {
+                console.error('Erreur:', e);
+                await customAlert('Erreur lors de l\'insertion des données de test: ' + e.message);
+            }
+        };
+
+        window.autoFillActiveRound = async () => {
+            if (!await customConfirm("Auto-remplir les notes des candidats actifs du tour en cours avec '-' et les passer en 'Qualifié' ?")) {
+                return;
+            }
+            
+            try {
+                // Charger les candidats
+                const candidatesDoc = await getDoc(doc(db, "candidats", "liste_actuelle"));
+                if (!candidatesDoc.exists()) {
+                    await customAlert("Aucun candidat trouvé");
+                    return;
+                }
+                const allCandidates = candidatesDoc.data().candidates || [];
+                
+                // Filtrer les candidats actifs du tour en cours
+                const activeCandidatesInRound = allCandidates.filter(c => 
+                    c.tour === activeRoundId && (c.status === 'Actif' || c.status === 'Reset')
+                );
+                
+                if (activeCandidatesInRound.length === 0) {
+                    await customAlert("Aucun candidat actif trouvé pour le tour en cours");
+                    return;
+                }
+                
+                // Charger les jurys
+                await loadJuries();
+                if (JURIES.length === 0) {
+                    await customAlert("Aucun jury trouvé");
+                    return;
+                }
+                
+                // Pour chaque candidat actif, créer des scores "-" pour chaque jury
+                let scoresCreated = 0;
+                for (const candidate of activeCandidatesInRound) {
+                    for (const jury of JURIES) {
+                        // Vérifier si un score existe déjà
+                        const q = query(
+                            collection(db, "scores"),
+                            where("candidateId", "==", candidate.id),
+                            where("juryId", "==", jury.id),
+                            where("roundId", "==", activeRoundId)
+                        );
+                        const existingScores = await getDocs(q);
+                        
+                        // Ne créer un score que s'il n'existe pas déjà
+                        if (existingScores.empty) {
+                            const scoreData = {
+                                juryId: jury.id,
+                                juryName: jury.name,
+                                candidateId: candidate.id,
+                                roundId: activeRoundId,
+                                score1: '-',
+                                score2: '-',
+                                timestamp: new Date()
+                            };
+                            await addDoc(collection(db, "scores"), scoreData);
+                            scoresCreated++;
+                        }
+                    }
+                    
+                    // Passer le candidat en "Qualifié"
+                    const candidateIndex = allCandidates.findIndex(c => c.id === candidate.id);
+                    if (candidateIndex >= 0) {
+                        allCandidates[candidateIndex].status = 'Qualifie';
+                    }
+                }
+                
+                // Sauvegarder les candidats mis à jour
+                await setDoc(doc(db, "candidats", "liste_actuelle"), { candidates: allCandidates });
+                
+                await customAlert(`✓ ${scoresCreated} score(s) créé(s) et ${activeCandidatesInRound.length} candidat(s) qualifié(s)`);
+                
+                // Rafraîchir l'affichage
+                await loadList();
+                await renderNotesTable();
+            } catch (e) {
+                console.error('Erreur:', e);
+                await customAlert('Erreur lors de l\'auto-remplissage: ' + e.message);
+            }
+        };
+
         window.confirmResetScores = async () => {
-            if(!confirm("Supprimer TOUTES les notes (les candidats seront conservés) ?")) return;
+            if(!await customConfirm("Supprimer TOUTES les notes (les candidats seront conservés) ?")) return;
             
             try {
                 const snap = await getDocs(collection(db, "scores"));
@@ -2952,7 +3351,7 @@
                         }
                         
                         // Valider les notes
-                        const validValues = ['-', '5', '10', '15', '20', 'Elimine'];
+                        const validValues = ['-', '5', '10', '15', '20', 'EL', 'Elimine']; // Accepter Elimine pour rétrocompatibilité
                         if (!validValues.includes(note1) || !validValues.includes(note2)) {
                             errors.push(`Ligne ${i + 1}, ${juryName}: Notes invalides (${note1}, ${note2})`);
                             continue;
@@ -3038,14 +3437,14 @@
                 sortedJuries.forEach((jury, index) => {
                     const scoreObj = data.juryScores[jury];
                     if (scoreObj) {
-                        if (scoreObj.score1 === "Elimine") {
+                        if (scoreObj.score1 === "EL") {
                             row += 'ÉLIMINÉ';
                         } else {
                             // Recalculer le score pondéré pour l'export
                             let weightedScore = 0;
                             if (scoreObj.score1 && scoreObj.score1 !== '-' && 
                                 scoreObj.score2 && scoreObj.score2 !== '-' &&
-                                scoreObj.score1 !== 'Elimine' && scoreObj.score2 !== 'Elimine') {
+                                scoreObj.score1 !== 'EL' && scoreObj.score2 !== 'EL') {
                                 weightedScore = (parseInt(scoreObj.score1) * 3) + parseInt(scoreObj.score2);
                             }
                             row += `"${scoreObj.score1}|${scoreObj.score2} (${weightedScore})"`;

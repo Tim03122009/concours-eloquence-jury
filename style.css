@@ -912,7 +912,7 @@ hr {
     border-color: #5a5a6a;
 }
 
-/* Sortable table headers */
+la /* Sortable table headers */
 #notes-table th[onclick] {
     cursor: pointer;
     user-select: none;
@@ -951,4 +951,49 @@ hr {
 /* Type dropdown in Rounds table */
 #rounds-table select[onchange*="type"] {
     min-width: 180px;
+}
+
+/* Notes table: ensure score columns have enough width */
+#notes-table {
+    white-space: nowrap;
+}
+
+#notes-table th.col-score,
+#notes-table td.col-score {
+    min-width: 90px;
+    width: 90px;
+    text-align: center;
+}
+
+#notes-table select {
+    min-width: 80px;
+    max-width: 90px;
+    font-size: 14px;
+    text-align: center;
+}
+
+/* Colonnes fixes pour le tableau Notes */
+#notes-table th:nth-child(1), /* ID */
+#notes-table td:nth-child(1) {
+    min-width: 60px;
+}
+
+#notes-table th:nth-child(2), /* Candidat */
+#notes-table td:nth-child(2) {
+    min-width: 150px;
+}
+
+#notes-table th:nth-child(3), /* Score */
+#notes-table td:nth-child(3) {
+    min-width: 80px;
+}
+
+#notes-table th:nth-child(4), /* Tour */
+#notes-table td:nth-child(4) {
+    min-width: 180px;
+}
+
+#notes-table th:nth-child(5), /* Statut */
+#notes-table td:nth-child(5) {
+    min-width: 130px;
 }
