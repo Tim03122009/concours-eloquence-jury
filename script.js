@@ -276,7 +276,22 @@ document.getElementById('start-scoring-button').onclick = async () => {
                 alert('Mot de passe incorrect');
             }
         } else {
-            // Le compte n'existe pas - proposer de le créer
+            // Le compte n'existe pas - vérifier le mot de passe par défaut
+            // Charger le mot de passe par défaut depuis Firebase
+            const juryDefaultsDoc = await getDoc(doc(db, "config", "juryDefaults"));
+            const defaultPassword = juryDefaultsDoc.exists() ? (juryDefaultsDoc.data().defaultPassword || '') : '';
+            
+            // Vérifier que le mot de passe correspond au mot de passe par défaut
+            if (password !== defaultPassword) {
+                if (defaultPassword) {
+                    alert(`❌ Mot de passe incorrect.\n\nPour créer un nouveau compte jury, vous devez utiliser le mot de passe par défaut fourni par l'administrateur.`);
+                } else {
+                    alert(`❌ Impossible de créer un compte.\n\nL'administrateur n'a pas encore configuré de mot de passe par défaut pour les jurys.\nContactez l'administrateur.`);
+                }
+                return;
+            }
+            
+            // Proposer de créer le compte
             if (await confirm(`Ce compte n'existe pas. Voulez-vous le créer ?`)) {
                 // Générer un nouvel ID numérique
                 let maxNum = 0;
@@ -289,24 +304,24 @@ document.getElementById('start-scoring-button').onclick = async () => {
                 });
                 const newJuryId = `jury${maxNum + 1}`;
                 
-                // Créer le nouveau compte avec thème par défaut
+                // Créer le nouveau compte avec le mot de passe par défaut
                 await setDoc(doc(db, "accounts", newJuryId), {
                     name: name,
-                    password: password,
+                    password: defaultPassword,
                     theme: 'light',
                     createdAt: new Date()
                 });
                 
                 // Connexion automatique après création
-    const snap = await getDoc(doc(db, "config", "session"));
-    const firebaseSessionId = snap.exists() ? snap.data().current_id : '1';
+                const snap = await getDoc(doc(db, "config", "session"));
+                const firebaseSessionId = snap.exists() ? snap.data().current_id : '1';
 
                 currentJuryName = newJuryId;  // Stocker l'ID du jury
                 currentJuryDisplayName = name;  // Stocker le nom affiché
-    storedSessionId = firebaseSessionId;
+                storedSessionId = firebaseSessionId;
                 localStorage.setItem('currentJuryName', newJuryId);
                 localStorage.setItem('currentJuryDisplayName', name);
-    localStorage.setItem('sessionId', firebaseSessionId);
+                localStorage.setItem('sessionId', firebaseSessionId);
                 
                 // Initialiser le thème pour le nouveau compte
                 localStorage.setItem(`theme_${newJuryId}`, 'light');
@@ -316,7 +331,7 @@ document.getElementById('start-scoring-button').onclick = async () => {
                     initTheme();
                 }
                 
-    startScoring();
+                startScoring();
             }
         }
     } catch (e) {

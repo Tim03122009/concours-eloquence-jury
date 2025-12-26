@@ -15,8 +15,8 @@
     --neutral-color: #6c757d;
     --light-bg: #f4f7f6;
     --white: #ffffff;
-    --text-color: #333;
-    --text-secondary: #666;
+    --text-color: #1a1a1a;
+    --text-secondary: #4a4a4a;
     --border-color: #ddd;
     --bg-gradient-start: #667eea;
     --bg-gradient-end: #764ba2;
@@ -740,15 +740,13 @@ hr {
 
 .custom-modal {
     position: relative;
-    background: var(--card-bg);
-    border-radius: 12px;
+    border-radius: 12px !important;
     box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5);
     max-width: 500px;
     width: 90%;
     max-height: 90vh;
-    overflow: hidden;
+    overflow: hidden !important;
     animation: modalSlideIn 0.3s ease;
-    border: 2px solid var(--border-color);
     margin: auto;
     opacity: 1;
 }
@@ -770,6 +768,7 @@ hr {
     color: white;
     border-bottom: none;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 12px 12px 0 0 !important;
 }
 
 .modal-header h3 {
@@ -785,17 +784,13 @@ hr {
 
 .modal-body {
     padding: 24px;
-    color: var(--text-color);
     max-height: 60vh;
     overflow-y: auto;
-    background: var(--card-bg);
+    border-radius: 0 !important;
 }
 
-.modal-body p {
-    margin: 0;
-    line-height: 1.6;
-    font-size: 1.05em;
-    color: var(--text-color);
+.modal-body * {
+    color: inherit !important;
 }
 
 .modal-input {
@@ -836,6 +831,7 @@ hr {
     display: flex;
     gap: 12px;
     justify-content: flex-end;
+    border-radius: 0 0 12px 12px !important;
 }
 
 .modal-btn {
