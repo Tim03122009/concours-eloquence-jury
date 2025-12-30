@@ -2481,7 +2481,8 @@
                 }
             });
 
-            renderMatrix(Array.from(juries).sort());
+            // L'onglet Résultats n'existe plus, on ne garde que le podium
+            // renderMatrix(Array.from(juries).sort());
             renderPodium();
         };
 
@@ -3427,21 +3428,29 @@
                 const candidatesDoc = await getDoc(doc(db, "candidats", "liste_actuelle"));
                 if (!candidatesDoc.exists()) {
                     await customAlert("Aucun candidat trouvé");
-                    if (wasListenerActive) setupScoresListener();
+                    if (wasListenerActive) {
+                        isFirstSnapshot = true;
+                        setupScoresListener();
+                    }
                     return;
                 }
                 const allCandidates = candidatesDoc.data().candidates || [];
                 console.log(`📋 Total candidats: ${allCandidates.length}`);
                 
                 // Filtrer les candidats actifs du tour en cours
-                const activeCandidatesInRound = allCandidates.filter(c => 
-                    c.tour === activeRoundId && (c.status === 'Actif' || c.status === 'Reset')
+                const candidatesInRound = allCandidates.filter(c => c.tour === activeRoundId);
+                const activeCandidatesInRound = candidatesInRound.filter(c => 
+                    c.status === 'Actif' || c.status === 'Reset'
                 );
-                console.log(`✅ Candidats actifs du tour: ${activeCandidatesInRound.length}`);
+                console.log(`🎯 Candidats dans le tour "${roundName}": ${candidatesInRound.length} (dont ${activeCandidatesInRound.length} actifs)`);
+                console.log(`📊 Détail statuts:`, candidatesInRound.map(c => `${c.name}(${c.status})`).join(', '));
                 
                 if (activeCandidatesInRound.length === 0) {
                     await customAlert(`Aucun candidat actif trouvé pour le tour "${roundName}".\n\nVérifiez que:\n- Des candidats existent\n- Ils sont assignés au tour "${roundName}"\n- Leur statut est "Actif" ou "Reset"`);
-                    if (wasListenerActive) setupScoresListener();
+                    if (wasListenerActive) {
+                        isFirstSnapshot = true;
+                        setupScoresListener();
+                    }
                     return;
                 }
                 
@@ -3451,7 +3460,10 @@
                 
                 if (JURIES.length === 0) {
                     await customAlert("Aucun jury trouvé. Veuillez d'abord ajouter des jurys dans l'onglet 'Jury'.");
-                    if (wasListenerActive) setupScoresListener();
+                    if (wasListenerActive) {
+                        isFirstSnapshot = true;
+                        setupScoresListener();
+                    }
                     return;
                 }
                 
@@ -3469,7 +3481,6 @@
                 console.log(`📊 Scores existants dans ce tour: ${existingScoresSet.size}`);
                 
                 // Préparer les scores à créer en batch
-                const scoresCollectionRef = collection(db, "scores");
                 const batch = writeBatch(db);
                 let scoresCreated = 0;
                 let scoresSkipped = 0;
@@ -3485,8 +3496,8 @@
                         if (existingScoresSet.has(key)) {
                             scoresSkipped++;
                         } else {
-                            // Ajouter au batch
-                            const newScoreRef = doc(scoresCollectionRef);
+                            // Créer une référence de document avec un nouvel ID auto-généré
+                            const newScoreRef = doc(collection(db, "scores"));
                             batch.set(newScoreRef, {
                                 juryId: jury.id,
                                 juryName: jury.name,
@@ -3497,12 +3508,22 @@
                                 timestamp: new Date()
                             });
                             scoresCreated++;
-                            candidateFullyScored = true;
+                            console.log(`➕ Ajout au batch: ${candidate.name} - ${jury.name}`);
                         }
                     }
                     
-                    // Passer le candidat en "Qualifié"
-                    if (candidateFullyScored) {
+                    // Passer le candidat en "Qualifié" seulement s'il a des scores (nouveaux ou existants)
+                    const totalScoresForCandidate = JURIES.length;
+                    let existingScoresForCandidate = 0;
+                    for (const jury of JURIES) {
+                        const key = `${candidate.id}_${jury.id}`;
+                        if (existingScoresSet.has(key)) {
+                            existingScoresForCandidate++;
+                        }
+                    }
+                    const newScoresForCandidate = totalScoresForCandidate - existingScoresForCandidate;
+                    
+                    if (existingScoresForCandidate + newScoresForCandidate === totalScoresForCandidate) {
                         qualifiedCandidates.push(candidate.id);
                         const candidateIndex = allCandidates.findIndex(c => c.id === candidate.id);
                         if (candidateIndex >= 0) {
@@ -3512,10 +3533,17 @@
                 }
                 
                 // Exécuter le batch en UNE SEULE opération
-                console.log(`💾 Création de ${scoresCreated} scores en batch...`);
+                console.log(`💾 Tentative de création de ${scoresCreated} scores en batch...`);
                 if (scoresCreated > 0) {
-                    await batch.commit();
-                    console.log(`✅ Batch exécuté avec succès`);
+                    try {
+                        await batch.commit();
+                        console.log(`✅ Batch exécuté avec succès ! ${scoresCreated} scores créés.`);
+                    } catch (batchError) {
+                        console.error('❌ Erreur lors du commit du batch:', batchError);
+                        throw new Error(`Erreur batch: ${batchError.message}`);
+                    }
+                } else {
+                    console.log('ℹ️ Aucun score à créer (tous existent déjà)');
                 }
                 
                 // Sauvegarder les candidats mis à jour
@@ -3525,6 +3553,7 @@
                 // Réactiver le listener
                 if (wasListenerActive) {
                     console.log('▶️ Réactivation du listener...');
+                    isFirstSnapshot = true; // Réinitialiser le flag pour ignorer le premier snapshot
                     setupScoresListener();
                 }
                 
@@ -3556,6 +3585,7 @@
                 console.error('❌ Erreur:', e);
                 // Réactiver le listener en cas d'erreur
                 if (!scoresListener) {
+                    isFirstSnapshot = true;
                     setupScoresListener();
                 }
                 await customAlert('❌ Erreur lors de l\'auto-remplissage:\n' + e.message);
