@@ -4572,11 +4572,17 @@
                 await setDoc(doc(db, "candidats", "liste_actuelle"), { candidates: allCandidates });
                 console.log(`✅ ${allCandidates.length} candidat(s) remis en "Actif" au tour ${firstRound.id}`);
                 
-                // 6. Réinitialiser les verrous
+                // 6. Réinitialiser le tour actif au premier tour
+                ROUNDS.forEach(r => r.active = (r.id === firstRound.id));
+                activeRoundId = firstRound.id;
+                await saveRounds();
+                console.log(`✅ Tour actif réinitialisé à ${firstRound.id}`);
+                
+                // 7. Réinitialiser les verrous
                 await setDoc(doc(db, "config", "locks"), { locks: {} });
                 console.log('✅ Verrous réinitialisés');
                 
-                await customAlert(`✓ Réinitialisation terminée !\n\n❌ ${scoresSnap.size} note(s) supprimée(s)\n🔄 ${allCandidates.length} candidat(s) remis en "Actif" au tour "${firstRound.name || firstRound.id}"\n✅ Jurys et candidats conservés`);
+                await customAlert(`✓ Réinitialisation terminée !\n\n❌ ${scoresSnap.size} note(s) supprimée(s)\n🔄 ${allCandidates.length} candidat(s) remis en "Actif" au tour "${firstRound.name || firstRound.id}"\n🎯 Tour actif réinitialisé à "${firstRound.name || firstRound.id}"\n✅ Jurys et candidats conservés`);
                 
                 // Rafraîchir l'affichage
                 CANDIDATES = allCandidates;

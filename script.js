@@ -205,6 +205,60 @@ function selectScore(type, value, element) {
     checkValidation();
 }
 
+function displayExistingScoresReadOnly(scores) {
+    // Réinitialiser les sélections
+    selectedScore1 = null;
+    selectedScore2 = null;
+    
+    // Désactiver tous les boutons et les griser
+    document.querySelectorAll('.score-btn').forEach(btn => {
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+        btn.style.cursor = 'not-allowed';
+        btn.classList.remove('selected');
+    });
+    
+    // Afficher les notes existantes en les marquant comme sélectionnées
+    const score1Value = scores.score1;
+    const score2Value = scores.score2;
+    
+    // Sélectionner visuellement le bouton correspondant pour score1
+    document.querySelectorAll('.score-btn-1').forEach(btn => {
+        if (btn.textContent === String(score1Value) || (score1Value === 'EL' && btn.textContent === 'Éliminé')) {
+            btn.classList.add('selected');
+            btn.style.opacity = '0.7'; // Un peu plus visible pour le bouton sélectionné
+        }
+    });
+    
+    // Sélectionner visuellement le bouton correspondant pour score2
+    document.querySelectorAll('.score-btn-2').forEach(btn => {
+        if (btn.textContent === String(score2Value)) {
+            btn.classList.add('selected');
+            btn.style.opacity = '0.7'; // Un peu plus visible pour le bouton sélectionné
+        }
+    });
+    
+    // Mettre à jour l'affichage des notes
+    document.getElementById('display-score-1').textContent = `Note Fond : ${score1Value}`;
+    document.getElementById('display-score-2').textContent = `Note Forme : ${score2Value}`;
+}
+
+function enableScoreButtons() {
+    // Réactiver tous les boutons
+    document.querySelectorAll('.score-btn').forEach(btn => {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+        btn.classList.remove('selected');
+    });
+    
+    // Réinitialiser les affichages
+    selectedScore1 = null;
+    selectedScore2 = null;
+    document.getElementById('display-score-1').textContent = 'Note Fond : -';
+    document.getElementById('display-score-2').textContent = 'Note Forme : -';
+}
+
 // --------------------------------------------------------------------------------
 // LOGIQUE DE NAVIGATION
 // --------------------------------------------------------------------------------
@@ -899,7 +953,7 @@ function showNotationInterface() {
         <hr>
 
         <div class="control-group">
-            <label>2. Fond / Argumentation (Coefficient ×3)</label>
+            <label>2. Première Note</label>
             <div class="score-grid" id="grid-fond"></div>
             <p id="display-score-1" class="selection-info">Note Fond : -</p>
         </div>
@@ -907,7 +961,7 @@ function showNotationInterface() {
         <hr>
 
         <div class="control-group">
-            <label>3. Forme / Éloquence (Coefficient ×1)</label>
+            <label>3. Deuxième Note</label>
             <div class="score-grid" id="grid-forme"></div>
             <p id="display-score-2" class="selection-info">Note Forme : -</p>
         </div>
@@ -968,22 +1022,18 @@ function showNotationInterface() {
         const bothScoresSet = scores && scores.score1 && scores.score1 !== '-' && scores.score2 && scores.score2 !== '-';
         
         if (bothScoresSet) {
-            const confirmOverwrite = await customConfirm(
-                `⚠️ Attention !\n\nVous avez déjà noté ce candidat:\n` +
-                `- Argumentation: ${scores.score1}\n` +
-                `- Réponse aux questions: ${scores.score2}\n\n` +
-                `Voulez-vous modifier ces notes ?`
-            );
-            if (!confirmOverwrite) {
-                selectedCandidateId = null;
-                document.getElementById('candidate-select').value = '';
-                document.getElementById('selected-candidate-display').textContent = '';
-                checkValidation();
-                await updateCandidateSelect();
-                return;
-            }
+            // Afficher les notes existantes en lecture seule
+            document.getElementById('selected-candidate-display').innerHTML = 
+                `Candidat : ${c.name}<br><span style="color: var(--danger-color); font-size: 0.9em;">✓ Candidat déjà noté - Affichage en lecture seule</span>`;
+            displayExistingScoresReadOnly(scores);
+            selectedCandidateId = null; // Empêcher la validation
+            checkValidation();
+            await updateCandidateSelect(candidateId);
+            return;
         }
         
+        // Réactiver les boutons pour un nouveau candidat ou candidat non noté
+        enableScoreButtons();
         document.getElementById('selected-candidate-display').textContent = `Candidat : ${c.name}`;
         checkValidation();
         await updateCandidateSelect(selectedCandidateId);
