@@ -13,7 +13,7 @@
 
 import { db } from './firebase-init.js';
 import { 
-    collection, addDoc, query, where, getDocs, getDoc, doc, setDoc, deleteDoc 
+    collection, addDoc, query, where, getDocs, getDoc, doc, setDoc, deleteDoc, onSnapshot 
 } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
 
 // --- VARIABLES GLOBALES (Ajout de localStorage) ---
@@ -32,6 +32,7 @@ let CANDIDATES = [];
 // Variables pour l'interface Repêchage
 let repechageQualified = [];
 let repechageEliminated = [];
+let repechageScoresListener = null;
 
 // Variables pour l'interface Duels
 let duelCandidate1 = null;
@@ -63,6 +64,12 @@ async function checkSessionAndStart() {
 }
 
 function logout() {
+    // Nettoyer le listener de repêchage s'il existe
+    if (repechageScoresListener) {
+        repechageScoresListener();
+        repechageScoresListener = null;
+    }
+    
     // Supprimer uniquement les données de session, garder les préférences de thème
     localStorage.removeItem('currentJuryName');
     localStorage.removeItem('currentJuryDisplayName');
@@ -304,12 +311,41 @@ document.getElementById('start-scoring-button').onclick = async () => {
                 });
                 const newJuryId = `jury${maxNum + 1}`;
                 
+                // Déterminer si c'est le premier jury (président)
+                const isFirstJury = accountsSnap.docs.length === 0;
+                
+                // Charger les tours pour déterminer les tours par défaut
+                const roundsSnap = await getDoc(doc(db, "config", "rounds"));
+                let defaultRounds = [];
+                if (roundsSnap.exists()) {
+                    const rounds = roundsSnap.data().rounds || [];
+                    const activeRoundId = roundsSnap.data().activeRoundId || null;
+                    const sortedRounds = [...rounds].sort((a, b) => a.order - b.order);
+                    const activeRoundIndex = sortedRounds.findIndex(r => r.id === activeRoundId);
+                    
+                    defaultRounds = sortedRounds
+                        .filter((r, index) => {
+                            // Inclure le tour actif et tous les suivants
+                            if (index < activeRoundIndex) return false;
+                            
+                            // Si c'est un repêchage, l'inclure seulement si c'est le président
+                            if (r.type === 'Repêchage') {
+                                return isFirstJury;
+                            }
+                            
+                            return true;
+                        })
+                        .map(r => r.id);
+                }
+                
                 // Créer le nouveau compte avec le mot de passe par défaut
                 await setDoc(doc(db, "accounts", newJuryId), {
                     name: name,
                     password: defaultPassword,
                     theme: 'light',
-                    createdAt: new Date()
+                    createdAt: new Date(),
+                    isPresident: isFirstJury,
+                    rounds: defaultRounds
                 });
                 
                 // Connexion automatique après création
@@ -455,6 +491,44 @@ async function loadActiveRound() {
 
 async function startScoring() {
     await loadActiveRound(); // Load active round before starting
+    
+    // Vérifier que le jury a accès au tour actif
+    const juryDoc = await getDoc(doc(db, "accounts", currentJuryName));
+    if (juryDoc.exists()) {
+        const juryData = juryDoc.data();
+        const juryRounds = juryData.rounds || [];
+        
+        // Vérifier si le jury est autorisé à accéder au tour actif
+        if (!juryRounds.includes(activeRoundId)) {
+            let message = `❌ Accès refusé\n\nVous n'êtes pas autorisé à accéder au tour actuel "${activeRoundName}".\n\n`;
+            
+            // Si c'est un tour de repêchage, mentionner le président
+            if (activeRoundType === 'Repêchage') {
+                // Charger le président
+                const accountsSnap = await getDocs(collection(db, "accounts"));
+                let presidentName = null;
+                accountsSnap.forEach(doc => {
+                    const data = doc.data();
+                    if (data.isPresident) {
+                        presidentName = data.name || doc.id;
+                    }
+                });
+                
+                if (presidentName) {
+                    message += `ℹ️ Les tours de repêchage sont gérés par le président (${presidentName}).\n\n`;
+                } else {
+                    message += `ℹ️ Les tours de repêchage sont gérés par le président du jury.\n\n`;
+                }
+            }
+            
+            message += `Veuillez vous reconnecter quand votre tour sera actif.\n\nContactez l'administrateur si vous pensez qu'il s'agit d'une erreur.`;
+            
+            await customAlert(message);
+            logout();
+            return;
+        }
+    }
+    
     document.getElementById('current-jury-display').textContent = currentJuryDisplayName;
     const roundDisplay = document.getElementById('scoring-round-display');
     if (roundDisplay) {
@@ -928,6 +1002,7 @@ function showNotationInterface() {
 
 /**
  * Interface pour Repêchage
+ * Système à deux colonnes : Qualifiés (note 1) / Éliminés (note 0)
  */
 async function showRepechageInterface() {
     const scoringPage = document.getElementById('scoring-page');
@@ -941,9 +1016,91 @@ async function showRepechageInterface() {
         c.tour === activeRoundId && (c.status === 'Actif' || c.status === 'Reset')
     );
     
-    // Initialiser les listes
+    // Charger la configuration des tours pour trouver le tour précédent
+    const roundsSnap = await getDoc(doc(db, "config", "rounds"));
+    let previousRoundId = null;
+    let numToQualify = 0;
+    if (roundsSnap.exists()) {
+        const rounds = roundsSnap.data().rounds || [];
+        const sortedRounds = [...rounds].sort((a, b) => a.order - b.order);
+        const currentRoundIndex = sortedRounds.findIndex(r => r.id === activeRoundId);
+        
+        if (currentRoundIndex > 0) {
+            previousRoundId = sortedRounds[currentRoundIndex - 1].id;
+            const currentRound = sortedRounds[currentRoundIndex];
+            numToQualify = parseInt(currentRound.nextRoundCandidates) || 0;
+        }
+    }
+    
+    // Charger les scores du tour précédent pour calculer le classement initial
+    let initiallyQualifiedSet = new Set();
+    if (previousRoundId) {
+        const prevScoresQuery = query(
+            collection(db, "scores"),
+            where("roundId", "==", previousRoundId)
+        );
+        const prevScoresSnap = await getDocs(prevScoresQuery);
+        
+        // Calculer les scores totaux pour chaque candidat
+        const candidateScores = {};
+        prevScoresSnap.forEach(docSnap => {
+            const data = docSnap.data();
+            if (!candidateScores[data.candidateId]) {
+                candidateScores[data.candidateId] = { id: data.candidateId, total: 0 };
+            }
+            
+            const s1 = parseFloat(data.score1) || 0;
+            const s2 = parseFloat(data.score2) || 0;
+            
+            // Si EL, contribution = 0
+            if (data.score1 === 'EL' || data.score2 === 'EL') {
+                candidateScores[data.candidateId].total += 0;
+            } else if (data.score1 !== '-' && data.score2 !== '-') {
+                candidateScores[data.candidateId].total += (s1 * 3 + s2);
+            }
+        });
+        
+        // Trier par score et prendre les N premiers
+        const sortedCandidates = Object.values(candidateScores).sort((a, b) => b.total - a.total);
+        for (let i = 0; i < Math.min(numToQualify, sortedCandidates.length); i++) {
+            initiallyQualifiedSet.add(sortedCandidates[i].id);
+        }
+    }
+    
+    // Stocker globalement pour renderRepechageLists
+    window.repechageInitiallyQualified = initiallyQualifiedSet;
+    
+    // Charger les scores existants pour ce jury
+    const q = query(
+        collection(db, "scores"),
+        where("juryId", "==", currentJuryName),
+        where("roundId", "==", activeRoundId)
+    );
+    const scoresSnap = await getDocs(q);
+    const existingScores = {};
+    scoresSnap.forEach(docSnap => {
+        const data = docSnap.data();
+        existingScores[data.candidateId] = data.score1; // Pour le repêchage, score1 = score2
+    });
+    
+    // Initialiser les listes selon les scores existants
     repechageQualified = [];
-    repechageEliminated = activeCandidates.map(c => c.id);
+    repechageEliminated = [];
+    
+    activeCandidates.forEach(c => {
+        // Utiliser le score existant ou, par défaut, le classement initial
+        let score = existingScores[c.id];
+        if (score === undefined || score === null) {
+            // Si pas de score existant, utiliser le classement initial
+            score = initiallyQualifiedSet.has(c.id) ? '1' : '0';
+        }
+        
+        if (score === '1') {
+            repechageQualified.push(c.id);
+        } else {
+            repechageEliminated.push(c.id);
+        }
+    });
     
     // Afficher l'interface
     scoringPage.innerHTML = `
@@ -972,27 +1129,39 @@ async function showRepechageInterface() {
         </h2>
         
         <h3 style="text-align: center; margin-bottom: var(--spacing); color: var(--text-color);">
-            Repêchage - Sélectionner ${activeRoundNextCandidates} candidat(s)
+            Repêchage
         </h3>
+        
+        <p style="text-align: center; color: var(--text-secondary); margin-bottom: 10px;">
+            Cliquez sur un candidat pour choisir entre <strong>Qualifier</strong> et <strong>Éliminer</strong>
+        </p>
+        <p style="text-align: center; color: var(--text-secondary); font-size: 0.9em; margin-bottom: 20px;">
+            <span style="color: #28a745;">■ Vert</span> = Initialement qualifié • 
+            <span style="color: #dc3545;">■ Rouge</span> = Initialement éliminé
+        </p>
         
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing); margin-bottom: var(--spacing);">
             <div style="border: 2px solid var(--success-color); border-radius: var(--radius); padding: var(--spacing); background: var(--card-bg);">
-                <h4 style="text-align: center; color: var(--success-color); margin-bottom: 10px;">✓ Qualifiés (<span id="qualified-count">0</span>/${activeRoundNextCandidates})</h4>
+                <h4 style="text-align: center; color: var(--success-color); margin-bottom: 10px;">✓ Qualifiés - <span id="qualified-count">0</span></h4>
                 <div id="qualified-list" style="min-height: 200px;">
                     <!-- Liste des qualifiés -->
                 </div>
             </div>
             
             <div style="border: 2px solid var(--danger-color); border-radius: var(--radius); padding: var(--spacing); background: var(--card-bg);">
-                <h4 style="text-align: center; color: var(--danger-color); margin-bottom: 10px;">✗ Éliminés (<span id="eliminated-count">${repechageEliminated.length}</span>)</h4>
+                <h4 style="text-align: center; color: var(--danger-color); margin-bottom: 10px;">✗ Éliminés - <span id="eliminated-count">0</span></h4>
                 <div id="eliminated-list" style="min-height: 200px;">
                     <!-- Liste des éliminés -->
                 </div>
             </div>
         </div>
         
-        <button id="repechage-validate-button" disabled style="width: 100%; padding: 15px; font-size: 1.1em; background: var(--primary-color); color: white; border: none; border-radius: var(--radius); cursor: pointer;">
-            Confirmer le repêchage
+        <p style="text-align: center; color: var(--text-secondary); margin: 20px 0 10px 0; font-size: 0.9em; padding: 10px; background: var(--bg-secondary); border-radius: var(--radius);">
+            ℹ️ Vos votes sont automatiquement sauvegardés. Cliquez ci-dessous pour <strong>finaliser</strong> et mettre à jour les statuts des candidats.
+        </p>
+        
+        <button id="repechage-validate-button" style="width: 100%; padding: 15px; font-size: 1.1em; background: var(--primary-color); color: white; border: none; border-radius: var(--radius); cursor: pointer;">
+            ✓ Finaliser et valider les statuts
         </button>
     `;
     
@@ -1011,6 +1180,67 @@ async function showRepechageInterface() {
     
     // Event listener pour le bouton de validation
     document.getElementById('repechage-validate-button').addEventListener('click', confirmRepechage);
+    
+    // Listener en temps réel pour détecter les changements de scores
+    setupRepechageListener();
+}
+
+/**
+ * Écouter les changements de scores en temps réel pour le repêchage
+ */
+function setupRepechageListener() {
+    // Si un listener existe déjà, le désactiver
+    if (repechageScoresListener) {
+        repechageScoresListener();
+        repechageScoresListener = null;
+    }
+    
+    // Créer un nouveau listener pour les scores de ce jury sur ce tour
+    const q = query(
+        collection(db, "scores"),
+        where("juryId", "==", currentJuryName),
+        where("roundId", "==", activeRoundId)
+    );
+    
+    let isFirstSnapshot = true;
+    
+    repechageScoresListener = onSnapshot(q, (snapshot) => {
+        // Ignorer le premier appel (état initial)
+        if (isFirstSnapshot) {
+            isFirstSnapshot = false;
+            return;
+        }
+        
+        // Vérifier s'il y a eu des changements
+        const changes = snapshot.docChanges();
+        if (changes.length === 0) return;
+        
+        console.log('🔄 Changements détectés dans les scores de repêchage');
+        
+        // Mettre à jour les listes
+        repechageQualified = [];
+        repechageEliminated = [];
+        
+        snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            const score = data.score1; // score1 = score2 pour le repêchage
+            
+            if (score === '1') {
+                if (!repechageQualified.includes(data.candidateId)) {
+                    repechageQualified.push(data.candidateId);
+                }
+            } else if (score === '0') {
+                if (!repechageEliminated.includes(data.candidateId)) {
+                    repechageEliminated.push(data.candidateId);
+                }
+            }
+        });
+        
+        // Rafraîchir l'affichage
+        renderRepechageLists();
+    }, (error) => {
+        console.error('Erreur lors de l\'écoute des scores de repêchage:', error);
+    });
 }
 
 /**
@@ -1020,99 +1250,166 @@ function renderRepechageLists() {
     const qualifiedList = document.getElementById('qualified-list');
     const eliminatedList = document.getElementById('eliminated-list');
     
+    // Récupérer les candidats initialement qualifiés
+    const initiallyQualified = window.repechageInitiallyQualified || new Set();
+    
     // Trier les candidats par ID
     const sortedQualified = repechageQualified.map(id => CANDIDATES.find(c => c.id === id)).sort((a, b) => parseInt(a.id) - parseInt(b.id));
     const sortedEliminated = repechageEliminated.map(id => CANDIDATES.find(c => c.id === id)).sort((a, b) => parseInt(a.id) - parseInt(b.id));
     
     // Afficher les qualifiés
-    qualifiedList.innerHTML = sortedQualified.map(c => `
-        <div style="padding: 10px; margin: 5px 0; background: var(--input-bg); border-radius: var(--radius); cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="moveToEliminated('${c.id}')">
-            <span style="color: var(--text-color);"><strong>${c.id}</strong> - ${c.name}</span>
-            <span style="color: var(--danger-color);">→ Éliminer</span>
-        </div>
-    `).join('');
+    qualifiedList.innerHTML = sortedQualified.map(c => {
+        // Vert si initialement qualifié, rouge si initialement éliminé
+        const nameColor = initiallyQualified.has(c.id) ? '#28a745' : '#dc3545';
+        return `
+            <div style="padding: 10px; margin: 5px 0; background: var(--input-bg); border-radius: var(--radius); cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="moveToEliminated('${c.id}')">
+                <span style="color: ${nameColor}; font-weight: 500;"><strong>${c.id}</strong> - ${c.name}</span>
+                <span style="color: var(--danger-color); font-weight: 500;">→ Éliminer</span>
+            </div>
+        `;
+    }).join('');
     
     // Afficher les éliminés
-    eliminatedList.innerHTML = sortedEliminated.map(c => `
-        <div style="padding: 10px; margin: 5px 0; background: var(--input-bg); border-radius: var(--radius); cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="moveToQualified('${c.id}')">
-            <span style="color: var(--text-color);"><strong>${c.id}</strong> - ${c.name}</span>
-            <span style="color: var(--success-color);">← Qualifier</span>
-        </div>
-    `).join('');
+    eliminatedList.innerHTML = sortedEliminated.map(c => {
+        // Vert si initialement qualifié, rouge si initialement éliminé
+        const nameColor = initiallyQualified.has(c.id) ? '#28a745' : '#dc3545';
+        return `
+            <div style="padding: 10px; margin: 5px 0; background: var(--input-bg); border-radius: var(--radius); cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="moveToQualified('${c.id}')">
+                <span style="color: ${nameColor}; font-weight: 500;"><strong>${c.id}</strong> - ${c.name}</span>
+                <span style="color: var(--success-color); font-weight: 500;">← Qualifier</span>
+            </div>
+        `;
+    }).join('');
     
     // Mettre à jour les compteurs
     document.getElementById('qualified-count').textContent = repechageQualified.length;
     document.getElementById('eliminated-count').textContent = repechageEliminated.length;
-    
-    // Activer/désactiver le bouton de validation
-    const validateBtn = document.getElementById('repechage-validate-button');
-    const expectedCount = parseInt(activeRoundNextCandidates);
-    if (repechageQualified.length === expectedCount) {
-        validateBtn.disabled = false;
-        validateBtn.style.opacity = '1';
-    } else {
-        validateBtn.disabled = true;
-        validateBtn.style.opacity = '0.5';
-    }
 }
 
 /**
- * Déplacer un candidat vers la liste des qualifiés
+ * Déplacer un candidat vers la liste des qualifiés (note 1)
  */
-window.moveToQualified = function(candidateId) {
+window.moveToQualified = async function(candidateId) {
     const index = repechageEliminated.indexOf(candidateId);
     if (index > -1) {
         repechageEliminated.splice(index, 1);
         repechageQualified.push(candidateId);
         renderRepechageLists();
+        
+        // Mettre à jour immédiatement le score dans Firebase
+        await updateRepechageScore(candidateId, '1');
     }
 };
 
 /**
- * Déplacer un candidat vers la liste des éliminés
+ * Déplacer un candidat vers la liste des éliminés (note 0)
  */
-window.moveToEliminated = function(candidateId) {
+window.moveToEliminated = async function(candidateId) {
     const index = repechageQualified.indexOf(candidateId);
     if (index > -1) {
         repechageQualified.splice(index, 1);
         repechageEliminated.push(candidateId);
         renderRepechageLists();
+        
+        // Mettre à jour immédiatement le score dans Firebase
+        await updateRepechageScore(candidateId, '0');
     }
 };
 
 /**
- * Confirmer le repêchage
+ * Mettre à jour le score de repêchage pour un candidat
+ */
+async function updateRepechageScore(candidateId, scoreValue) {
+    try {
+        // Récupérer le nom du jury
+        const juryDoc = await getDoc(doc(db, "accounts", currentJuryName));
+        const juryName = juryDoc.exists() ? juryDoc.data().name : currentJuryName;
+        
+        // Chercher si un score existe déjà
+        const q = query(
+            collection(db, "scores"),
+            where("candidateId", "==", candidateId),
+            where("juryId", "==", currentJuryName),
+            where("roundId", "==", activeRoundId)
+        );
+        const existingScores = await getDocs(q);
+        
+        const scoreData = {
+            juryId: currentJuryName,
+            juryName: juryName,
+            candidateId: candidateId,
+            roundId: activeRoundId,
+            score1: scoreValue,
+            score2: scoreValue, // Les deux scores sont identiques pour le repêchage
+            timestamp: new Date()
+        };
+        
+        if (!existingScores.empty) {
+            // Mettre à jour le score existant
+            const existingDoc = existingScores.docs[0];
+            await setDoc(doc(db, "scores", existingDoc.id), scoreData);
+        } else {
+            // Créer un nouveau score
+            await addDoc(collection(db, "scores"), scoreData);
+        }
+        
+        console.log(`✅ Score mis à jour: ${candidateId} = ${scoreValue}`);
+    } catch (e) {
+        console.error('Erreur lors de la mise à jour du score:', e);
+    }
+}
+
+/**
+ * Confirmer et enregistrer les votes du repêchage
  */
 async function confirmRepechage() {
-    if (!await customConfirm(`Confirmer le repêchage ?\n\n✓ ${repechageQualified.length} candidat(s) qualifié(s)\n✗ ${repechageEliminated.length} candidat(s) éliminé(s)`)) {
+    if (!await customConfirm(`Confirmer et finaliser vos votes ?\n\n✓ ${repechageQualified.length} candidat(s) qualifié(s)\n✗ ${repechageEliminated.length} candidat(s) éliminé(s)\n\nLe statut des candidats sera mis à jour.`)) {
         return;
     }
     
     try {
-        // Mettre à jour le statut de chaque candidat dans la base de données
-        const candidatesRef = doc(db, "candidats", "liste_actuelle");
-        const docSnap = await getDoc(candidatesRef);
-        
-        if (docSnap.exists()) {
-            const allCandidates = docSnap.data().candidates || [];
-            
-            allCandidates.forEach(candidate => {
-                if (repechageQualified.includes(candidate.id)) {
-                    candidate.status = 'Qualifie';
-                } else if (repechageEliminated.includes(candidate.id)) {
-                    candidate.status = 'Elimine';
-                }
-            });
-            
-            await setDoc(candidatesRef, { candidates: allCandidates });
-            
-            await customAlert("✓ Repêchage enregistré avec succès !");
-            
-            // Rafraîchir l'interface
-            showRepechageInterface();
+        // Charger tous les candidats
+        const candidatesDoc = await getDoc(doc(db, "candidats", "liste_actuelle"));
+        if (!candidatesDoc.exists()) {
+            await customAlert('Erreur : Impossible de charger les candidats.');
+            return;
         }
+        
+        let allCandidates = candidatesDoc.data().candidates || [];
+        let updatedCount = 0;
+        
+        // Mettre à jour le statut de chaque candidat selon les votes
+        allCandidates = allCandidates.map(candidate => {
+            // Vérifier si ce candidat est dans le tour de repêchage actif
+            if (candidate.tour === activeRoundId) {
+                if (repechageQualified.includes(candidate.id)) {
+                    // Note 1 → Statut Qualifié
+                    if (candidate.status !== 'Qualifie') {
+                        candidate.status = 'Qualifie';
+                        updatedCount++;
+                    }
+                } else if (repechageEliminated.includes(candidate.id)) {
+                    // Note 0 → Statut Éliminé
+                    if (candidate.status !== 'Elimine') {
+                        candidate.status = 'Elimine';
+                        updatedCount++;
+                    }
+                }
+            }
+            return candidate;
+        });
+        
+        // Sauvegarder les candidats mis à jour
+        await setDoc(doc(db, "candidats", "liste_actuelle"), { candidates: allCandidates });
+        
+        // Mettre à jour la variable globale
+        CANDIDATES = allCandidates;
+        
+        await customAlert(`✓ Votes finalisés avec succès !\n\n✓ ${repechageQualified.length} candidat(s) qualifié(s)\n✗ ${repechageEliminated.length} candidat(s) éliminé(s)\n📊 ${updatedCount} statut(s) mis à jour\n\nℹ️ Les modifications sont automatiquement sauvegardées.`);
+        
     } catch (e) {
-        await customAlert("Erreur lors de l'enregistrement : " + e.message);
+        console.error('Erreur lors de la finalisation des votes:', e);
+        await customAlert('Erreur lors de la mise à jour des statuts : ' + e.message);
     }
 }
 
