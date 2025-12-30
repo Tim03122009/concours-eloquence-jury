@@ -3876,8 +3876,13 @@
                     
                     sortedJuries.forEach(jury => {
                         const scores = scoresByCandidate[c.id]?.[jury];
-                        const note1 = scores?.score1 || '-';
-                        const note2 = scores?.score2 || '-';
+                        let note1 = scores?.score1 || '-';
+                        let note2 = scores?.score2 || '-';
+                        
+                        // Remplacer "EL" par "0" dans l'export CSV
+                        if (note1 === 'EL') note1 = '0';
+                        if (note2 === 'EL') note2 = '0';
+                        
                         row += `,${note1},${note2}`;
                     });
                     
@@ -4067,18 +4072,22 @@
                 sortedJuries.forEach((jury, index) => {
                     const scoreObj = data.juryScores[jury];
                     if (scoreObj) {
-                        if (scoreObj.score1 === "EL") {
-                            row += 'ÉLIMINÉ';
-                        } else {
-                            // Recalculer le score pondéré pour l'export
-                            let weightedScore = 0;
-                            if (scoreObj.score1 && scoreObj.score1 !== '-' && 
-                                scoreObj.score2 && scoreObj.score2 !== '-' &&
-                                scoreObj.score1 !== 'EL' && scoreObj.score2 !== 'EL') {
+                        // Remplacer "EL" par "0" dans l'export
+                        let score1Display = scoreObj.score1 === 'EL' ? '0' : scoreObj.score1;
+                        let score2Display = scoreObj.score2 === 'EL' ? '0' : scoreObj.score2;
+                        
+                        // Recalculer le score pondéré pour l'export
+                        let weightedScore = 0;
+                        if (scoreObj.score1 && scoreObj.score1 !== '-' && 
+                            scoreObj.score2 && scoreObj.score2 !== '-') {
+                            // Si un score est "EL", le score pondéré = 0
+                            if (scoreObj.score1 === 'EL' || scoreObj.score2 === 'EL') {
+                                weightedScore = 0;
+                            } else {
                                 weightedScore = (parseInt(scoreObj.score1) * 3) + parseInt(scoreObj.score2);
                             }
-                            row += `"${scoreObj.score1}|${scoreObj.score2} (${weightedScore})"`;
                         }
+                        row += `"${score1Display}|${score2Display} (${weightedScore})"`;
                     } else {
                         row += '-';
                     }
