@@ -958,8 +958,8 @@
                 <p style="color: #212529;">Insérer des candidats et jurys de test pour simuler rapidement un concours.</p>
                 <button onclick="insertTestData()" class="action-button" style="background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); color: #212529; margin-bottom: 10px;">📋 Insérer candidats et jurys de test</button>
                 
-                <p style="color: #212529; margin-top: 15px;">Auto-remplir les notes des candidats actifs du tour en cours avec "-" et les passer en "Qualifié".</p>
-                <p style="font-weight: 600; color: #856404; margin-top: 10px;">⚠️ Utile pour les tests rapides.</p>
+                <p style="color: #212529; margin-top: 15px;">Auto-remplir les notes des candidats actifs du tour en cours avec des <strong>notes aléatoires de test (5, 10, 15 ou 20)</strong> et les passer en "Qualifié".</p>
+                <p style="font-weight: 600; color: #856404; margin-top: 10px;">⚠️ Utile pour les tests rapides avec des données réalistes. Environ <strong>15% des candidats</strong> seront marqués comme <strong>éliminés</strong> (note "EL").</p>
                 <button onclick="autoFillActiveRound()" class="action-button" style="background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); color: #212529;">✓ Auto-remplir et qualifier le tour actif</button>
             </div>
 
@@ -1933,6 +1933,11 @@
             // Utiliser le tour sélectionné dans le dropdown ou le tour actif par défaut
             const displayRound = notesDisplayRound || activeRoundId || 'round1';
             
+            console.log(`🔍 [renderNotesTable] ==========================================`);
+            console.log(`🔍 [renderNotesTable] notesDisplayRound: ${notesDisplayRound}`);
+            console.log(`🔍 [renderNotesTable] activeRoundId: ${activeRoundId}`);
+            console.log(`🔍 [renderNotesTable] displayRound (utilisé): ${displayRound}`);
+            
             // Charger TOUS les jurys depuis la collection accounts
             await loadJuries();
             const sortedJuries = [...JURIES].sort((a, b) => a.name.localeCompare(b.name));
@@ -1945,9 +1950,13 @@
             const querySnapshot = await getDocs(q);
             const scoresByCandidate = {};
             
+            console.log(`🔍 [renderNotesTable] Chargement des scores pour le tour: ${displayRound}`);
+            console.log(`🔍 [renderNotesTable] Nombre de scores trouvés: ${querySnapshot.size}`);
+            
             querySnapshot.forEach(docSnap => {
                 const data = docSnap.data();
                 const juryId = data.juryId || data.juryName;
+                console.log(`🔍 [renderNotesTable] Score trouvé: candidateId=${data.candidateId}, juryId=${juryId}, score1=${data.score1}, score2=${data.score2}`);
                 if (!scoresByCandidate[data.candidateId]) {
                     scoresByCandidate[data.candidateId] = {};
                 }
@@ -1958,7 +1967,13 @@
                 };
             });
             
+            console.log(`🔍 [renderNotesTable] scoresByCandidate:`, scoresByCandidate);
+            
             // Calculer le score total pour chaque candidat
+            console.log(`🔍 [renderNotesTable] Nombre de candidats à traiter: ${CANDIDATES.length}`);
+            console.log(`🔍 [renderNotesTable] Nombre de jurys: ${sortedJuries.length}`);
+            console.log(`🔍 [renderNotesTable] IDs des jurys:`, sortedJuries.map(j => j.id));
+            
             let candidatesWithScores = CANDIDATES.map(candidate => {
                 let totalScore = 0;
                 let hasScores = false;
@@ -1966,12 +1981,21 @@
                 sortedJuries.forEach(jury => {
                     const scores = scoresByCandidate[candidate.id]?.[jury.id];
                     if (scores) {
-                        const s1 = parseFloat(scores.score1) || 0;
-                        const s2 = parseFloat(scores.score2) || 0;
-                        if (scores.score1 !== '-' && scores.score1 !== 'EL' &&
-                            scores.score2 !== '-' && scores.score2 !== 'EL') {
-                            totalScore += (s1 * 3 + s2);
+                        // Vérifier si ce jury a noté le candidat (pas de '-')
+                        if (scores.score1 !== '-' && scores.score2 !== '-') {
+                            // Ce jury a bien noté le candidat
                             hasScores = true;
+                            
+                            // Règle : si un jury met "EL", toute sa notation = 0
+                            if (scores.score1 === 'EL' || scores.score2 === 'EL') {
+                                // Ce jury a éliminé → contribution = 0
+                                totalScore += 0;
+                            } else {
+                                // Note normale : calcul standard
+                                const s1 = parseFloat(scores.score1) || 0;
+                                const s2 = parseFloat(scores.score2) || 0;
+                                totalScore += (s1 * 3 + s2);
+                            }
                         }
                     }
                 });
@@ -2464,19 +2488,25 @@
                     aggregatedData[data.candidateId].hasScores = true;
                     aggregatedData[data.candidateId].juryScores[data.juryName] = data;
                     
-                    if (data.score1 === "EL") {
-                        aggregatedData[data.candidateId].elimCount++;
-                    } else {
-                        // TOUJOURS calculer le score pondéré à partir des scores bruts
-                        // IGNORER complètement toute valeur totalWeightedScore stockée
-                        let weightedScore = 0;
-                        if (data.score1 && data.score1 !== '-' && 
-                            data.score2 && data.score2 !== '-' &&
-                            data.score1 !== 'EL' && data.score2 !== 'EL') {
-                            weightedScore = (parseInt(data.score1) * 3) + parseInt(data.score2);
-                            console.log(`Candidat ${data.candidateId}, Jury ${data.juryName}: ${data.score1}×3 + ${data.score2} = ${weightedScore} (DB avait: ${data.totalWeightedScore})`);
+                    // Vérifier si ce jury a bien noté (pas de '-')
+                    if (data.score1 && data.score1 !== '-' && data.score2 && data.score2 !== '-') {
+                        // Ce jury a noté le candidat
+                        
+                        // Règle : si un jury met "EL", toute sa notation = 0
+                        if (data.score1 === 'EL' || data.score2 === 'EL') {
+                            // Ce jury a éliminé le candidat
+                            if (data.score1 === "EL") {
+                                aggregatedData[data.candidateId].elimCount++;
+                            }
+                            // Contribution de ce jury = 0 (mais le jury compte quand même)
+                            aggregatedData[data.candidateId].total += 0;
+                            console.log(`Candidat ${data.candidateId}, Jury ${data.juryName}: ÉLIMINÉ (contribution = 0)`);
+                        } else {
+                            // Note normale : calcul standard
+                            let weightedScore = (parseInt(data.score1) * 3) + parseInt(data.score2);
+                            aggregatedData[data.candidateId].total += weightedScore;
+                            console.log(`Candidat ${data.candidateId}, Jury ${data.juryName}: ${data.score1}×3 + ${data.score2} = ${weightedScore}`);
                         }
-                        aggregatedData[data.candidateId].total += weightedScore;
                     }
                 }
             });
@@ -3410,7 +3440,7 @@
                 const activeRound = ROUNDS.find(r => r.id === activeRoundId);
                 const roundName = activeRound ? activeRound.name : activeRoundId;
                 
-                if (!await customConfirm(`Auto-remplir les notes des candidats actifs du tour "${roundName}" avec '-' et les passer en 'Qualifié' ?`)) {
+                if (!await customConfirm(`Auto-remplir les notes des candidats actifs du tour "${roundName}" avec des notes de test ?\n\n📊 Notes : 5, 10, 15 ou 20\n⚠️ ~15% des candidats seront éliminés (note "EL")`)) {
                     return;
                 }
                 
@@ -3457,6 +3487,7 @@
                 // Charger les jurys
                 await loadJuries();
                 console.log(`👥 Jurys chargés: ${JURIES.length}`);
+                console.log(`👥 Détail des jurys:`, JURIES.map(j => `${j.name} (id=${j.id})`).join(', '));
                 
                 if (JURIES.length === 0) {
                     await customAlert("Aucun jury trouvé. Veuillez d'abord ajouter des jurys dans l'onglet 'Jury'.");
@@ -3485,9 +3516,30 @@
                 let scoresCreated = 0;
                 let scoresSkipped = 0;
                 const qualifiedCandidates = [];
+                let eliminatedCount = 0;
+                
+                // Fonction pour générer une note aléatoire (5, 10, 15 ou 20)
+                const randomScore = () => {
+                    const scores = [5, 10, 15, 20];
+                    return scores[Math.floor(Math.random() * scores.length)];
+                };
+                
+                // Sélectionner environ 15% des candidats pour recevoir des notes "EL"
+                const eliminationRate = 0.15;
+                const eliminatedCandidateIds = new Set();
+                const candidateCount = activeCandidatesInRound.length;
+                const eliminationCount = Math.floor(candidateCount * eliminationRate);
+                
+                // Mélanger et sélectionner aléatoirement les candidats qui recevront des "EL"
+                const shuffledCandidates = [...activeCandidatesInRound].sort(() => Math.random() - 0.5);
+                for (let i = 0; i < eliminationCount && i < shuffledCandidates.length; i++) {
+                    eliminatedCandidateIds.add(shuffledCandidates[i].id);
+                }
+                
+                console.log(`🎲 ${eliminationCount} candidat(s) (${Math.round(eliminationRate * 100)}%) recevront des notes "EL":`, Array.from(eliminatedCandidateIds));
                 
                 for (const candidate of activeCandidatesInRound) {
-                    let candidateFullyScored = true;
+                    let candidateHasAllScores = true;
                     
                     for (const jury of JURIES) {
                         const key = `${candidate.id}_${jury.id}`;
@@ -3495,35 +3547,64 @@
                         // Vérifier si le score existe déjà
                         if (existingScoresSet.has(key)) {
                             scoresSkipped++;
+                            console.log(`⏭️ Score existant ignoré: candidateId=${candidate.id}, juryId=${jury.id}`);
                         } else {
                             // Créer une référence de document avec un nouvel ID auto-généré
                             const newScoreRef = doc(collection(db, "scores"));
-                            batch.set(newScoreRef, {
+                            
+                            // Déterminer si ce candidat fait partie des candidats sélectionnés pour élimination
+                            let score1, score2;
+                            if (eliminatedCandidateIds.has(candidate.id)) {
+                                // Ce candidat reçoit des notes "EL" de ce jury
+                                // 70% du temps : EL pour score1 (Fond) uniquement
+                                // 30% du temps : EL pour les deux scores
+                                if (Math.random() < 0.7) {
+                                    score1 = 'EL';
+                                    score2 = randomScore();
+                                } else {
+                                    score1 = 'EL';
+                                    score2 = 'EL';
+                                }
+                            } else {
+                                // Candidat normal : notes aléatoires
+                                score1 = randomScore();
+                                score2 = randomScore();
+                            }
+                            
+                            const scoreData = {
                                 juryId: jury.id,
                                 juryName: jury.name,
                                 candidateId: candidate.id,
                                 roundId: activeRoundId,
-                                score1: '-',
-                                score2: '-',
+                                score1: score1,
+                                score2: score2,
                                 timestamp: new Date()
-                            });
+                            };
+                            batch.set(newScoreRef, scoreData);
                             scoresCreated++;
-                            console.log(`➕ Ajout au batch: ${candidate.name} - ${jury.name}`);
+                            console.log(`➕ Ajout au batch: ${jury.name} → ${candidate.name} (${score1}, ${score2})`);
+                            candidateHasAllScores = false; // Au moins un nouveau score créé
                         }
                     }
+
+
                     
-                    // Passer le candidat en "Qualifié" seulement s'il a des scores (nouveaux ou existants)
-                    const totalScoresForCandidate = JURIES.length;
-                    let existingScoresForCandidate = 0;
+                    // Vérifier si le candidat a tous ses scores (nouveaux ou existants)
+                    let scoreCount = 0;
+                    
                     for (const jury of JURIES) {
                         const key = `${candidate.id}_${jury.id}`;
                         if (existingScoresSet.has(key)) {
-                            existingScoresForCandidate++;
+                            // Score existant
+                            scoreCount++;
+                        } else {
+                            // Nouveau score créé dans ce batch
+                            scoreCount++;
                         }
                     }
-                    const newScoresForCandidate = totalScoresForCandidate - existingScoresForCandidate;
                     
-                    if (existingScoresForCandidate + newScoresForCandidate === totalScoresForCandidate) {
+                    // Qualifier le candidat seulement si tous les jurys ont noté
+                    if (scoreCount === JURIES.length) {
                         qualifiedCandidates.push(candidate.id);
                         const candidateIndex = allCandidates.findIndex(c => c.id === candidate.id);
                         if (candidateIndex >= 0) {
@@ -3550,18 +3631,15 @@
                 await setDoc(doc(db, "candidats", "liste_actuelle"), { candidates: allCandidates });
                 console.log(`💾 ${qualifiedCandidates.length} candidat(s) mis à jour dans la base`);
                 
-                // Réactiver le listener
-                if (wasListenerActive) {
-                    console.log('▶️ Réactivation du listener...');
-                    isFirstSnapshot = true; // Réinitialiser le flag pour ignorer le premier snapshot
-                    setupScoresListener();
-                }
+                // Compter les candidats éliminés (variable déjà déclarée au début)
+                eliminatedCount = eliminatedCandidateIds.size;
                 
                 let message = `✓ Auto-remplissage terminé !\n\n`;
-                message += `📊 ${scoresCreated} score(s) créé(s)\n`;
-                message += `✅ ${qualifiedCandidates.length} candidat(s) qualifié(s)`;
+                message += `📊 ${scoresCreated} note(s) de test créée(s)\n`;
+                message += `✅ ${qualifiedCandidates.length} candidat(s) qualifié(s)\n`;
+                message += `❌ ${eliminatedCount} candidat(s) avec "EL" (${Math.round((eliminatedCount / activeCandidatesInRound.length) * 100)}%)`;
                 if (scoresSkipped > 0) {
-                    message += `\n⚠️ ${scoresSkipped} score(s) déjà existant(s)`;
+                    message += `\n⚠️ ${scoresSkipped} note(s) déjà existante(s) (conservée(s))`;
                 }
                 
                 // Afficher un résumé détaillé dans la console
@@ -3572,15 +3650,40 @@
    - Scores créés: ${scoresCreated}
    - Scores ignorés (existants): ${scoresSkipped}
    - Candidats qualifiés: ${qualifiedCandidates.length}
+   - Candidats recevant des "EL": ${eliminatedCount} (${Math.round((eliminatedCount / activeCandidatesInRound.length) * 100)}%)
+   - Règle: si un jury met "EL", sa contribution = 0 (les autres jurys comptent normalement)
    - Opération en batch: OUI ✅
                 `);
                 
+                // Attendre un petit délai pour s'assurer que Firestore a propagé les changements
+                console.log('⏳ Attente de la propagation Firestore...');
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Forcer le rechargement complet des candidats depuis Firestore
+                console.log('📥 Rechargement des candidats depuis Firestore...');
+                const refreshedDoc = await getDoc(doc(db, "candidats", "liste_actuelle"));
+                if (refreshedDoc.exists()) {
+                    CANDIDATES = refreshedDoc.data().candidates || [];
+                    console.log(`✅ ${CANDIDATES.length} candidats rechargés`);
+                }
+                
+                // S'assurer que le dropdown des notes affiche le tour actif
+                notesDisplayRound = activeRoundId;
+                populateNotesRoundDropdown();
+                
+                // Rafraîchir l'affichage UNE SEULE FOIS AVANT de réactiver le listener
+                await loadList();
+                console.log('🔄 Rafraîchissement du tableau des notes...');
+                await renderNotesTable();
+                
                 await customAlert(message);
                 
-                // Rafraîchir l'affichage UNE SEULE FOIS
-                CANDIDATES = allCandidates;
-                await loadList();
-                await renderNotesTable();
+                // Réactiver le listener APRÈS avoir rafraîchi l'affichage
+                if (wasListenerActive) {
+                    console.log('▶️ Réactivation du listener...');
+                    isFirstSnapshot = true; // Réinitialiser le flag pour ignorer le premier snapshot
+                    setupScoresListener();
+                }
             } catch (e) {
                 console.error('❌ Erreur:', e);
                 // Réactiver le listener en cas d'erreur
