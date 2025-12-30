@@ -33,6 +33,7 @@ let CANDIDATES = [];
 let repechageQualified = [];
 let repechageEliminated = [];
 let repechageScoresListener = null;
+let roundChangeListener = null;
 
 // Variables pour l'interface Duels
 let duelCandidate1 = null;
@@ -68,6 +69,12 @@ function logout() {
     if (repechageScoresListener) {
         repechageScoresListener();
         repechageScoresListener = null;
+    }
+    
+    // Nettoyer le listener de changement de tour s'il existe
+    if (roundChangeListener) {
+        roundChangeListener();
+        roundChangeListener = null;
     }
     
     // Supprimer uniquement les données de session, garder les préférences de thème
@@ -546,6 +553,56 @@ async function startScoring() {
         // Notation individuelle ou Classement
         showNotationInterface();
     }
+    
+    // Écouter les changements de tour
+    setupRoundChangeListener();
+}
+
+/**
+ * Écouter les changements de tour initiés par l'admin
+ */
+function setupRoundChangeListener() {
+    // Si un listener existe déjà, ne pas en créer un nouveau
+    if (roundChangeListener) {
+        return;
+    }
+    
+    console.log('🔄 Setting up round change listener...');
+    
+    let isFirstSnapshot = true;
+    
+    roundChangeListener = onSnapshot(doc(db, "config", "roundChange"), (docSnap) => {
+        // Ignorer le premier snapshot (état initial)
+        if (isFirstSnapshot) {
+            isFirstSnapshot = false;
+            console.log('⏭️ Skipping initial round change snapshot');
+            return;
+        }
+        
+        if (!docSnap.exists()) return;
+        
+        const data = docSnap.data();
+        const newRoundId = data.newRoundId;
+        const juriesOnNewRound = data.juriesOnNewRound || [];
+        
+        console.log(`🔔 Changement de tour détecté: ${newRoundId}`);
+        console.log(`👥 Jurys présents sur le nouveau tour:`, juriesOnNewRound);
+        
+        // Vérifier si ce jury est présent sur le nouveau tour
+        if (juriesOnNewRound.includes(currentJuryName)) {
+            // Ce jury est présent sur le nouveau tour → recharger la page
+            console.log('✅ Ce jury est présent sur le nouveau tour, rechargement...');
+            location.reload();
+        } else {
+            // Ce jury n'est pas présent sur le nouveau tour → déconnecter
+            console.log('❌ Ce jury n\'est pas présent sur le nouveau tour, déconnexion...');
+            customAlert(`Le tour actif a changé.\n\nVous n'êtes pas autorisé à accéder au nouveau tour.\n\nVous allez être déconnecté.`).then(() => {
+                logout();
+            });
+        }
+    }, (error) => {
+        console.error('❌ Error listening to round changes:', error);
+    });
 }
 
 async function updateCandidateSelect(preserveSelection = null) {
@@ -1133,7 +1190,7 @@ async function showRepechageInterface() {
         </h3>
         
         <p style="text-align: center; color: var(--text-secondary); margin-bottom: 10px;">
-            Cliquez sur un candidat pour choisir entre <strong>Qualifier</strong> et <strong>Éliminer</strong>
+            Cliquez sur un candidat pour choisir entre <strong>Qualifié</strong> et <strong>Éliminé</strong>
         </p>
         <p style="text-align: center; color: var(--text-secondary); font-size: 0.9em; margin-bottom: 20px;">
             <span style="color: #28a745;">■ Vert</span> = Initialement qualifié • 
@@ -1405,7 +1462,9 @@ async function confirmRepechage() {
         // Mettre à jour la variable globale
         CANDIDATES = allCandidates;
         
-        await customAlert(`✓ Votes finalisés avec succès !\n\n✓ ${repechageQualified.length} candidat(s) qualifié(s)\n✗ ${repechageEliminated.length} candidat(s) éliminé(s)\n📊 ${updatedCount} statut(s) mis à jour\n\nℹ️ Les modifications sont automatiquement sauvegardées.`);
+        await customAlert(`✓ Votes finalisés avec succès !\n\n✓ ${repechageQualified.length} candidat(s) qualifié(s)\n✗ ${repechageEliminated.length} candidat(s) éliminé(s)\n📊 ${updatedCount} statut(s) mis à jour\n\nℹ️ Les modifications sont sauvegardées.`);
+        
+        // Note : On ne déconnecte pas le président, il reste connecté
         
     } catch (e) {
         console.error('Erreur lors de la finalisation des votes:', e);

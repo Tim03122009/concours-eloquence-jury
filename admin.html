@@ -1628,6 +1628,35 @@
             await loadJuries();
         };
         
+        window.setJuryPresident = async (juryId) => {
+            // Définir ce jury comme président et retirer le statut des autres
+            const batch = writeBatch(db);
+            const repechageRounds = ROUNDS.filter(r => r.type === 'Repêchage').map(r => r.id);
+            
+            for (const jury of JURIES) {
+                const isNewPresident = jury.id === juryId;
+                
+                // Mettre à jour le statut de président
+                const juryRef = doc(db, "accounts", jury.id);
+                batch.update(juryRef, { isPresident: isNewPresident });
+                
+                if (isNewPresident) {
+                    // Si ce jury devient président, ajouter automatiquement tous les tours de repêchage
+                    const currentRounds = new Set(jury.rounds || []);
+                    repechageRounds.forEach(roundId => currentRounds.add(roundId));
+                    batch.update(juryRef, { rounds: Array.from(currentRounds) });
+                } else if (!isNewPresident && jury.isPresident) {
+                    // Si ce jury n'est plus président, retirer les tours de repêchage
+                    const updatedRounds = (jury.rounds || []).filter(r => !repechageRounds.includes(r));
+                    batch.update(juryRef, { rounds: updatedRounds });
+                }
+            }
+            
+            await batch.commit();
+            await loadJuries();
+        };
+        
+        // Garder l'ancienne fonction pour compatibilité (mais elle n'est plus utilisée)
         window.toggleJuryPresident = async (juryId, isPresident) => {
             await setDoc(doc(db, "accounts", juryId), {
                 isPresident: isPresident
@@ -1710,9 +1739,10 @@
                     <td style="text-align: center; color: var(--text-secondary); font-family: monospace;">${juryNumber}</td>
                     <td><input type="text" value="${jury.name}" onchange="updateJuryName('${jury.id}', this.value)" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px;"></td>
                     <td style="text-align: center;">
-                        <input type="checkbox" 
+                        <input type="radio" 
+                               name="jury-president" 
                                ${jury.isPresident ? 'checked' : ''} 
-                               onchange="toggleJuryPresident('${jury.id}', this.checked)"
+                               onchange="setJuryPresident('${jury.id}')"
                                style="width: 20px; height: 20px; cursor: pointer;"
                                title="Le président peut accéder aux tours de repêchage">
                     </td>
@@ -2147,7 +2177,20 @@
                 await initializeRepechage(activeRound.id, nextRound.id);
             }
             
-            await customAlert(`✓ Tour terminé avec succès !\n\n${movedCount} candidat(s) qualifié(s) sont passés au tour "${nextRound.name}".\n\nLe tour actif est maintenant : "${nextRound.name}"`);
+            // Notifier les jurys connectés du changement de tour
+            await loadJuries();
+            const juriesOnNextRound = JURIES.filter(j => j.rounds && j.rounds.includes(nextRound.id));
+            const juryIdsOnNextRound = new Set(juriesOnNextRound.map(j => j.id));
+            
+            // Créer un signal pour les jurys (timestamp pour forcer la détection)
+            await setDoc(doc(db, "config", "roundChange"), {
+                newRoundId: nextRound.id,
+                newRoundName: nextRound.name,
+                juriesOnNewRound: Array.from(juryIdsOnNextRound),
+                timestamp: new Date()
+            });
+            
+            await customAlert(`✓ Tour terminé avec succès !\n\n${movedCount} candidat(s) qualifié(s) sont passés au tour "${nextRound.name}".\n\nLe tour actif est maintenant : "${nextRound.name}"\n\nℹ️ Les jurys présents sur le tour suivant verront leur page se recharger automatiquement.`);
             
             // Rafraîchir l'affichage
             renderNotesTable();
