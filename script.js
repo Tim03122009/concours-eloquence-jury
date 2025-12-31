@@ -1236,7 +1236,7 @@ async function showRepechageInterface() {
         </h2>
         
         <h3 style="text-align: center; margin-bottom: var(--spacing); color: var(--text-color);">
-            Repêchage
+            Repêchage - Sélectionner exactement ${activeRoundNextCandidates === 'ALL' ? 'tous les' : activeRoundNextCandidates} candidat(s) qualifié(s)
         </h3>
         
         <p style="text-align: center; color: var(--text-secondary); margin-bottom: 10px;">
@@ -1249,7 +1249,7 @@ async function showRepechageInterface() {
         
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing); margin-bottom: var(--spacing);">
             <div style="border: 2px solid var(--success-color); border-radius: var(--radius); padding: var(--spacing); background: var(--card-bg);">
-                <h4 style="text-align: center; color: var(--success-color); margin-bottom: 10px;">✓ Qualifiés - <span id="qualified-count">0</span></h4>
+                <h4 style="text-align: center; color: var(--success-color); margin-bottom: 10px;">✓ Qualifiés - <span id="qualified-count">0</span>/${activeRoundNextCandidates === 'ALL' ? 'Tous' : activeRoundNextCandidates}</h4>
                 <div id="qualified-list" style="min-height: 200px;">
                     <!-- Liste des qualifiés -->
                 </div>
@@ -1267,7 +1267,9 @@ async function showRepechageInterface() {
             ℹ️ Vos votes sont automatiquement sauvegardés. Cliquez ci-dessous pour <strong>finaliser</strong> et mettre à jour les statuts des candidats.
         </p>
         
-        <button id="repechage-validate-button" style="width: 100%; padding: 15px; font-size: 1.1em; background: var(--primary-color); color: white; border: none; border-radius: var(--radius); cursor: pointer;">
+        <p id="repechage-help-text" style="display: none;"></p>
+        
+        <button id="repechage-validate-button" style="width: 100%; padding: 15px; font-size: 1.1em; background: var(--primary-color); color: white; border: none; border-radius: var(--radius); cursor: pointer; opacity: 0.5;" disabled>
             ✓ Finaliser et valider les statuts
         </button>
     `;
@@ -1391,6 +1393,36 @@ function renderRepechageLists() {
     // Mettre à jour les compteurs
     document.getElementById('qualified-count').textContent = repechageQualified.length;
     document.getElementById('eliminated-count').textContent = repechageEliminated.length;
+    
+    // Activer/désactiver le bouton de validation selon le nombre requis
+    const validateBtn = document.getElementById('repechage-validate-button');
+    if (validateBtn) {
+        const expectedCount = activeRoundNextCandidates === 'ALL' 
+            ? (repechageQualified.length + repechageEliminated.length) // Tous les candidats doivent être qualifiés
+            : parseInt(activeRoundNextCandidates) || 0;
+        
+        const isValid = repechageQualified.length === expectedCount;
+        
+        validateBtn.disabled = !isValid;
+        validateBtn.style.opacity = isValid ? '1' : '0.5';
+        validateBtn.style.cursor = isValid ? 'pointer' : 'not-allowed';
+        
+        // Afficher un message d'aide si le nombre n'est pas correct
+        const helpText = document.getElementById('repechage-help-text');
+        if (helpText) {
+            if (isValid) {
+                helpText.textContent = '';
+                helpText.style.display = 'none';
+            } else {
+                helpText.textContent = `⚠️ Vous devez sélectionner exactement ${expectedCount} candidat(s) qualifié(s) pour valider.`;
+                helpText.style.display = 'block';
+                helpText.style.color = 'var(--warning-color)';
+                helpText.style.textAlign = 'center';
+                helpText.style.marginTop = '10px';
+                helpText.style.fontWeight = '600';
+            }
+        }
+    }
 }
 
 /**
@@ -1470,6 +1502,16 @@ async function updateRepechageScore(candidateId, scoreValue) {
  * Confirmer et enregistrer les votes du repêchage
  */
 async function confirmRepechage() {
+    // Vérifier que le nombre de qualifiés correspond exactement au nombre requis
+    const expectedCount = activeRoundNextCandidates === 'ALL' 
+        ? (repechageQualified.length + repechageEliminated.length) // Tous les candidats doivent être qualifiés
+        : parseInt(activeRoundNextCandidates) || 0;
+    
+    if (repechageQualified.length !== expectedCount) {
+        await customAlert(`❌ Impossible de valider.\n\nVous devez sélectionner exactement ${expectedCount} candidat(s) qualifié(s).\n\nActuellement : ${repechageQualified.length} qualifié(s)`);
+        return;
+    }
+    
     if (!await customConfirm(`Confirmer et finaliser vos votes ?\n\n✓ ${repechageQualified.length} candidat(s) qualifié(s)\n✗ ${repechageEliminated.length} candidat(s) éliminé(s)\n\nLe statut des candidats sera mis à jour.`)) {
         return;
     }
