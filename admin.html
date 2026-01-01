@@ -932,7 +932,7 @@
             <div class="table-container">
     <table id="podium-table">
         <thead>
-            <tr><th>Rang</th><th>Candidat</th><th>Score Pondéré</th><th>Statut</th></tr>
+            <tr><th>Rang</th><th>Candidat</th><th>Score</th></tr>
         </thead>
         <tbody id="podium-body"></tbody>
     </table>
@@ -1024,10 +1024,12 @@
         let aggregatedData = {};
         let candidateLocks = {}; // {candidateId: {juryName: boolean}}
         let scoresListener = null; // Pour stocker le listener en temps réel
+        let candidatesListener = null; // Pour stocker le listener sur les candidats
 
         // --- REAL-TIME SCORES LISTENER ---
         let refreshTimeout = null;
         let isFirstSnapshot = true;
+        let isFirstCandidatesSnapshot = true;
         let pendingRefresh = false;
         
         function setupScoresListener() {
@@ -1082,6 +1084,61 @@
             });
             
             console.log('✅ Scores listener setup complete');
+        }
+        
+        function setupCandidatesListener() {
+            // Si un listener existe déjà, ne pas en créer un nouveau
+            if (candidatesListener) {
+                console.log('📡 Candidates listener already active');
+                return;
+            }
+            
+            console.log('🔄 Setting up real-time candidates listener...');
+            
+            // Écouter les changements dans le document des candidats
+            const candidatesDocRef = doc(db, "candidats", "liste_actuelle");
+            candidatesListener = onSnapshot(candidatesDocRef, (snapshot) => {
+                // Ignorer le premier appel (état initial lors du chargement)
+                if (isFirstCandidatesSnapshot) {
+                    console.log('⏭️ Skipping initial candidates snapshot');
+                    isFirstCandidatesSnapshot = false;
+                    return;
+                }
+                
+                if (!snapshot.exists()) {
+                    return;
+                }
+                
+                console.log('✨ Candidates status changes detected');
+                
+                // Recharger les candidats
+                CANDIDATES = snapshot.data().candidates || [];
+                
+                // Marquer qu'il y a un rafraîchissement en attente
+                pendingRefresh = true;
+                
+                // Vérifier si l'onglet Notes est actif
+                const notesTab = document.getElementById('tab-notes');
+                const isNotesActive = notesTab && notesTab.classList.contains('active');
+                
+                if (isNotesActive) {
+                    // Débounce: attendre 300ms avant de rafraîchir
+                    if (refreshTimeout) {
+                        clearTimeout(refreshTimeout);
+                    }
+                    refreshTimeout = setTimeout(() => {
+                        console.log('🔄 Refreshing Notes table after candidate status change...');
+                        renderNotesTable();
+                        pendingRefresh = false;
+                    }, 300);
+                } else {
+                    console.log('📋 Notes tab not active, refresh pending');
+                }
+            }, (error) => {
+                console.error('❌ Error listening to candidates:', error);
+            });
+            
+            console.log('✅ Candidates listener setup complete');
         }
 
         // --- TAB SWITCHING ---
@@ -2198,10 +2255,11 @@
         
         loadRounds();
         
-        // Démarrer le listener en temps réel après le chargement
+        // Démarrer les listeners en temps réel après le chargement
         setTimeout(() => {
-            console.log('🚀 Initializing real-time scores listener...');
+            console.log('🚀 Initializing real-time listeners...');
             setupScoresListener();
+            setupCandidatesListener();
         }, 500);
 
         // --- GESTION NOTES ---
@@ -2997,7 +3055,7 @@
             const juries = new Set();
 
             CANDIDATES.forEach(c => {
-                aggregatedData[c.id] = { name: c.name, total: 0, juryScores: {}, elimCount: 0, hasScores: false };
+                aggregatedData[c.id] = { name: c.name, total: 0, juryScores: {}, hasScores: false };
             });
 
             // Utiliser un Set pour détecter et éviter les doublons
@@ -3049,9 +3107,6 @@
                                     
                                     // Règle : si un jury met "EL", toute sa notation = 0
                                     if (scores.score1 === 'EL' || scores.score2 === 'EL') {
-                                        if (scores.score1 === 'EL') {
-                                            aggregatedData[c.id].elimCount++;
-                                        }
                                         totalScore += 0;
                                     } else {
                                         const s1 = parseFloat(scores.score1) || 0;
@@ -3075,9 +3130,6 @@
                             
                             // Règle : si un jury met "EL", toute sa notation = 0
                             if (data.score1 === 'EL' || data.score2 === 'EL') {
-                                if (data.score1 === "EL") {
-                                    aggregatedData[c.id].elimCount++;
-                                }
                                 totalScore += 0;
                             } else {
                                 const s1 = parseFloat(data.score1) || 0;
@@ -3224,7 +3276,7 @@
             if (!aggregatedData || Object.keys(aggregatedData).length === 0) {
                 const row = body.insertRow();
                 const cell = row.insertCell();
-                cell.colSpan = 4;
+                cell.colSpan = 3;
                 cell.textContent = "Aucune donnée. Les résultats se calculent automatiquement en ouvrant cet onglet.";
                 cell.style.textAlign = "center";
                 cell.style.padding = "20px";
@@ -3232,7 +3284,14 @@
                 return;
             }
             
-            let list = Object.values(aggregatedData).filter(c => c.hasScores).sort((a,b) => b.total - a.total);
+            // Filtrer les candidats : uniquement ceux qui ont des scores ET qui ne sont pas éliminés
+            let list = Object.values(aggregatedData).filter(c => {
+                // Trouver le candidat correspondant dans CANDIDATES pour vérifier son statut
+                const candidate = CANDIDATES.find(cand => cand.name === c.name);
+                
+                // Inclure uniquement si le candidat a des scores ET n'est pas éliminé
+                return c.hasScores && candidate && candidate.status !== 'Elimine';
+            }).sort((a,b) => b.total - a.total);
             
             // Limiter le nombre de résultats affichés
             const limitInput = document.getElementById('result-limit');
@@ -3242,7 +3301,7 @@
             if (list.length === 0) {
                 const row = body.insertRow();
                 const cell = row.insertCell();
-                cell.colSpan = 4;
+                cell.colSpan = 3;
                 cell.textContent = "Aucun résultat disponible.";
                 cell.style.textAlign = "center";
                 cell.style.padding = "20px";
@@ -3251,15 +3310,13 @@
             
             list.forEach((c, i) => {
                 const row = body.insertRow();
-                if (c.elimCount >= 3) row.className = "eliminated-row";
-                else if (i === 0) row.className = "rank-1";
+                if (i === 0) row.className = "rank-1";
                 else if (i === 1) row.className = "rank-2";
                 else if (i === 2) row.className = "rank-3";
 
-                row.insertCell().textContent = c.elimCount >= 3 ? "—" : i + 1;
+                row.insertCell().textContent = i + 1;
                 row.insertCell().textContent = c.name;
                 row.insertCell().textContent = c.total;
-                row.insertCell().textContent = c.elimCount >= 3 ? `ÉLIMINÉ (${c.elimCount} jurys)` : "Qualifié";
             });
         };
 
@@ -4849,7 +4906,7 @@
             const sortedJuries = Array.from(juries).sort();
 
             // Créer l'en-tête CSV
-            let csv = 'Candidat,' + sortedJuries.join(',') + ',Total,Statut\n';
+            let csv = 'Candidat,' + sortedJuries.join(',') + ',Total\n';
 
             // Ajouter les données des candidats
             CANDIDATES.forEach(c => {
@@ -4884,9 +4941,8 @@
                     if (index < sortedJuries.length - 1) row += ',';
                 });
 
-                // Total et statut
+                // Total
                 row += `,${data.total}`;
-                row += data.elimCount >= 3 ? ',ÉLIMINÉ' : ',Qualifié';
                 csv += row + '\n';
             });
 

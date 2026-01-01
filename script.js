@@ -1118,10 +1118,8 @@ async function showRepechageInterface() {
     const docSnap = await getDoc(doc(db, "candidats", "liste_actuelle"));
     if (docSnap.exists()) CANDIDATES = docSnap.data().candidates || [];
     
-    // Filtrer les candidats du tour actif qui sont "Actif" ou "Reset"
-    const activeCandidates = CANDIDATES.filter(c => 
-        c.tour === activeRoundId && (c.status === 'Actif' || c.status === 'Reset')
-    );
+    // Filtrer tous les candidats du tour actif (quel que soit leur statut)
+    const activeCandidates = CANDIDATES.filter(c => c.tour === activeRoundId);
     
     // Charger la configuration des tours pour trouver le tour précédent
     const roundsSnap = await getDoc(doc(db, "config", "rounds"));
@@ -1313,7 +1311,7 @@ function setupRepechageListener() {
     
     let isFirstSnapshot = true;
     
-    repechageScoresListener = onSnapshot(q, (snapshot) => {
+    repechageScoresListener = onSnapshot(q, async (snapshot) => {
         // Ignorer le premier appel (état initial)
         if (isFirstSnapshot) {
             isFirstSnapshot = false;
@@ -1326,22 +1324,40 @@ function setupRepechageListener() {
         
         console.log('🔄 Changements détectés dans les scores de repêchage');
         
-        // Mettre à jour les listes
+        // Charger tous les candidats du tour actif
+        const docSnap = await getDoc(doc(db, "candidats", "liste_actuelle"));
+        if (!docSnap.exists()) return;
+        
+        const allCandidates = docSnap.data().candidates || [];
+        const activeCandidates = allCandidates.filter(c => c.tour === activeRoundId);
+        
+        // Construire un map des scores existants
+        const existingScores = {};
+        snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            existingScores[data.candidateId] = data.score1; // score1 = score2 pour le repêchage
+        });
+        
+        // Récupérer les candidats initialement qualifiés
+        const initiallyQualified = window.repechageInitiallyQualified || new Set();
+        
+        // Réinitialiser les listes
         repechageQualified = [];
         repechageEliminated = [];
         
-        snapshot.forEach(docSnap => {
-            const data = docSnap.data();
-            const score = data.score1; // score1 = score2 pour le repêchage
+        // Répartir tous les candidats selon leur score (ou valeur par défaut)
+        activeCandidates.forEach(c => {
+            let score = existingScores[c.id];
+            
+            // Si pas de score existant, utiliser le classement initial
+            if (score === undefined || score === null) {
+                score = initiallyQualified.has(c.id) ? '1' : '0';
+            }
             
             if (score === '1') {
-                if (!repechageQualified.includes(data.candidateId)) {
-                    repechageQualified.push(data.candidateId);
-                }
-            } else if (score === '0') {
-                if (!repechageEliminated.includes(data.candidateId)) {
-                    repechageEliminated.push(data.candidateId);
-                }
+                repechageQualified.push(c.id);
+            } else {
+                repechageEliminated.push(c.id);
             }
         });
         
@@ -1499,6 +1515,252 @@ async function updateRepechageScore(candidateId, scoreValue) {
 }
 
 /**
+ * Afficher le podium après la validation du repêchage
+ */
+async function showRepechagePodium() {
+    const scoringPage = document.getElementById('scoring-page');
+    
+    // Charger tous les candidats
+    const candidatesDoc = await getDoc(doc(db, "candidats", "liste_actuelle"));
+    if (!candidatesDoc.exists()) {
+        await customAlert('Erreur : Impossible de charger les candidats.');
+        return;
+    }
+    const allCandidates = candidatesDoc.data().candidates || [];
+    
+    // Charger la configuration pour trouver le tour précédent
+    const roundsSnap = await getDoc(doc(db, "config", "rounds"));
+    let previousRoundId = null;
+    if (roundsSnap.exists()) {
+        const rounds = roundsSnap.data().rounds || [];
+        const sortedRounds = [...rounds].sort((a, b) => a.order - b.order);
+        const currentRoundIndex = sortedRounds.findIndex(r => r.id === activeRoundId);
+        if (currentRoundIndex > 0) {
+            previousRoundId = sortedRounds[currentRoundIndex - 1].id;
+        }
+    }
+    
+    // Charger les scores du tour de repêchage (votes du président)
+    const repechageScoresQuery = query(
+        collection(db, "scores"),
+        where("roundId", "==", activeRoundId)
+    );
+    const repechageScoresSnap = await getDocs(repechageScoresQuery);
+    
+    // Charger les jurys pour identifier le président
+    const accountsSnap = await getDocs(collection(db, "accounts"));
+    let president = null;
+    accountsSnap.forEach(docSnap => {
+        const data = docSnap.data();
+        if (data.isPresident) {
+            president = { id: docSnap.id, name: data.name };
+        }
+    });
+    
+    // Construire les données agrégées
+    const aggregatedData = {};
+    allCandidates.forEach(c => {
+        aggregatedData[c.id] = { 
+            id: c.id,
+            name: c.name, 
+            status: c.status,
+            tour: c.tour,
+            total: 0, 
+            juryScores: {}, 
+            hasScores: false 
+        };
+    });
+    
+    // Ajouter les scores de repêchage (votes du président)
+    repechageScoresSnap.forEach(docSnap => {
+        const data = docSnap.data();
+        if (aggregatedData[data.candidateId] && president) {
+            aggregatedData[data.candidateId].juryScores[president.name] = data;
+        }
+    });
+    
+    // Charger les scores du tour précédent
+    let previousRoundScores = {};
+    let previousRoundJuries = [];
+    if (previousRoundId) {
+        const prevQuery = query(
+            collection(db, "scores"),
+            where("roundId", "==", previousRoundId)
+        );
+        const prevQuerySnapshot = await getDocs(prevQuery);
+        
+        const previousRoundJuriesSet = new Set();
+        prevQuerySnapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            const juryId = data.juryId || data.juryName;
+            previousRoundJuriesSet.add(juryId);
+            
+            if (!previousRoundScores[data.candidateId]) {
+                previousRoundScores[data.candidateId] = {};
+            }
+            previousRoundScores[data.candidateId][juryId] = {
+                score1: data.score1,
+                score2: data.score2,
+                juryName: data.juryName
+            };
+        });
+        
+        // Récupérer la liste des jurys du tour précédent
+        accountsSnap.forEach(docSnap => {
+            const juryId = docSnap.id;
+            if (previousRoundJuriesSet.has(juryId)) {
+                previousRoundJuries.push({ 
+                    id: juryId, 
+                    name: docSnap.data().name 
+                });
+            }
+        });
+    }
+    
+    // Calculer les scores pour chaque candidat (même logique que l'admin)
+    allCandidates.forEach(c => {
+        let totalScore = 0;
+        let hasScores = false;
+        
+        if (president) {
+            // Pour le repêchage, vérifier d'abord le vote du président
+            const presidentScore = aggregatedData[c.id].juryScores[president.name];
+            let presidentVote = null;
+            
+            if (presidentScore && presidentScore.score1 !== '-') {
+                presidentVote = presidentScore.score1; // '0' ou '1'
+            }
+            
+            // Si le président a voté "0" (éliminé), le score est 0
+            if (presidentVote === '0') {
+                totalScore = 0;
+                hasScores = true;
+            }
+            // Si le président a voté "1" (qualifié) ou n'a pas encore voté, utiliser le score du tour précédent
+            else {
+                previousRoundJuries.forEach(jury => {
+                    const scores = previousRoundScores[c.id]?.[jury.id];
+                    if (scores) {
+                        if (scores.score1 !== '-' && scores.score2 !== '-') {
+                            hasScores = true;
+                            
+                            // Règle : si un jury met "EL", toute sa notation = 0
+                            if (scores.score1 === 'EL' || scores.score2 === 'EL') {
+                                totalScore += 0;
+                            } else {
+                                const s1 = parseFloat(scores.score1) || 0;
+                                const s2 = parseFloat(scores.score2) || 0;
+                                totalScore += (s1 * 3 + s2);
+                            }
+                        }
+                    }
+                });
+            }
+        }
+        
+        aggregatedData[c.id].total = totalScore;
+        aggregatedData[c.id].hasScores = hasScores;
+    });
+    
+    // Filtrer et trier les candidats (même logique que renderPodium de l'admin)
+    let candidateScores = Object.values(aggregatedData).filter(c => {
+        // Inclure uniquement les candidats du tour de repêchage qui ne sont pas éliminés
+        return c.tour === activeRoundId && c.hasScores && c.status !== 'Elimine';
+    }).sort((a, b) => b.total - a.total);
+    
+    // Afficher le podium
+    scoringPage.innerHTML = `
+        <div class="burger-menu">
+            <div class="burger-icon" onclick="toggleMenu()">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <div class="burger-menu-content" id="menu-content-scoring">
+                <div class="theme-toggle">
+                    <span>Mode sombre</span>
+                    <div class="toggle-switch" id="theme-toggle-scoring" onclick="toggleTheme()">
+                        <div class="toggle-slider"></div>
+                    </div>
+                </div>
+                <div class="menu-item" onclick="logout()">🚪 Déconnexion</div>
+            </div>
+        </div>
+        
+        <h2 style="text-align: center; margin-bottom: var(--spacing); color: var(--text-color);">
+            🏆 Résultats du Repêchage
+        </h2>
+        
+        <p style="text-align: center; color: var(--text-secondary); margin-bottom: var(--spacing);">
+            Tour : ${activeRoundName}
+        </p>
+        
+        <div style="max-width: 800px; margin: 0 auto; background: var(--card-bg); border-radius: var(--radius); padding: var(--spacing); box-shadow: var(--shadow-md);">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: var(--neutral-color); color: white;">
+                        <th style="padding: 15px; text-align: center; border: 1px solid var(--border-color);">Rang</th>
+                        <th style="padding: 15px; text-align: left; border: 1px solid var(--border-color);">Candidat</th>
+                        <th style="padding: 15px; text-align: center; border: 1px solid var(--border-color);">Score</th>
+                    </tr>
+                </thead>
+                <tbody id="podium-body-jury">
+                </tbody>
+            </table>
+        </div>
+        
+        <div style="display: flex; justify-content: center; margin-top: var(--spacing);">
+            <button onclick="logout()" style="max-width: 400px; padding: 15px 40px; font-size: 1.1em; background: var(--danger-color); color: white; border: none; border-radius: var(--radius); cursor: pointer; font-weight: 600;">
+                ✓ Terminer
+            </button>
+        </div>
+    `;
+    
+    // Initialiser le thème
+    initTheme();
+    
+    // Remplir le tableau
+    const tbody = document.getElementById('podium-body-jury');
+    candidateScores.forEach((c, i) => {
+        const row = tbody.insertRow();
+        
+        // Appliquer les styles selon le rang
+        if (i === 0) {
+            row.style.background = 'linear-gradient(135deg, gold 0%, #ffed4e 100%)';
+            row.style.fontWeight = 'bold';
+        } else if (i === 1) {
+            row.style.background = 'linear-gradient(135deg, silver 0%, #e0e0e0 100%)';
+            row.style.fontWeight = 'bold';
+        } else if (i === 2) {
+            row.style.background = 'linear-gradient(135deg, #cd7f32 0%, #b87333 100%)';
+            row.style.fontWeight = 'bold';
+            row.style.color = 'white';
+        }
+        
+        const cellRank = row.insertCell();
+        cellRank.textContent = i + 1;
+        cellRank.style.padding = '15px';
+        cellRank.style.textAlign = 'center';
+        cellRank.style.border = '1px solid var(--border-color)';
+        cellRank.style.color = i <= 1 ? '#212529' : (i === 2 ? 'white' : 'var(--text-color)');
+        
+        const cellName = row.insertCell();
+        cellName.textContent = c.name;
+        cellName.style.padding = '15px';
+        cellName.style.textAlign = 'left';
+        cellName.style.border = '1px solid var(--border-color)';
+        cellName.style.color = i <= 1 ? '#212529' : (i === 2 ? 'white' : 'var(--text-color)');
+        
+        const cellScore = row.insertCell();
+        cellScore.textContent = c.total;
+        cellScore.style.padding = '15px';
+        cellScore.style.textAlign = 'center';
+        cellScore.style.border = '1px solid var(--border-color)';
+        cellScore.style.color = i <= 1 ? '#212529' : (i === 2 ? 'white' : 'var(--text-color)');
+    });
+}
+
+/**
  * Confirmer et enregistrer les votes du repêchage
  */
 async function confirmRepechage() {
@@ -1554,9 +1816,10 @@ async function confirmRepechage() {
         // Mettre à jour la variable globale
         CANDIDATES = allCandidates;
         
-        await customAlert(`✓ Votes finalisés avec succès !\n\n✓ ${repechageQualified.length} candidat(s) qualifié(s)\n✗ ${repechageEliminated.length} candidat(s) éliminé(s)\n📊 ${updatedCount} statut(s) mis à jour\n\nℹ️ Les modifications sont sauvegardées.`);
+        await customAlert(`✓ Votes finalisés avec succès !\n\n✓ ${repechageQualified.length} candidat(s) qualifié(s)\n✗ ${repechageEliminated.length} candidat(s) éliminé(s)\n📊 ${updatedCount} statut(s) mis à jour`);
         
-        // Note : On ne déconnecte pas le président, il reste connecté
+        // Afficher l'écran podium au lieu de déconnecter
+        await showRepechagePodium();
         
     } catch (e) {
         console.error('Erreur lors de la finalisation des votes:', e);
