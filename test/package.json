@@ -1,6 +1,6 @@
 {
   "name": "concours-eloquence-tests",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Tests automatiques pour l'application Concours d'Éloquence",
   "scripts": {
     "test": "jest",
@@ -8,7 +8,10 @@
     "test:coverage": "jest --coverage",
     "test:unit": "jest --testPathPattern=unit",
     "test:integration": "jest --testPathPattern=integration",
-    "test:e2e": "jest --testPathPattern=e2e"
+    "test:e2e": "jest --testPathPattern=e2e",
+    "test:security": "jest --testPathPattern=security",
+    "test:verbose": "jest --verbose",
+    "test:debug": "node --inspect-brk node_modules/.bin/jest --runInBand"
   },
   "devDependencies": {
     "@jest/globals": "^29.7.0",
