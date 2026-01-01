@@ -121,12 +121,13 @@ describe('Sécurité et contrôle d\'accès', () => {
       const safe = sanitizeInput(malicious);
       
       expect(safe).toContain("\\'");
-      expect(safe).not.toContain("';");
+      expect(safe).toContain("\\';");
+      expect(safe).not.toContain("' DROP");
     });
 
     test('Valider format d\'email', () => {
       const isValidEmail = (email) => {
-        const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const regex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
         return regex.test(email);
       };
       

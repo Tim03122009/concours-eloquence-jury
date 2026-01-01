@@ -79,7 +79,7 @@ describe('Flux utilisateur - Jury', () => {
       const selectedScore1 = '15';
       const selectedScore2 = '20';
       
-      const isValid = selectedCandidateId && selectedScore1 && selectedScore2;
+      const isValid = !!(selectedCandidateId && selectedScore1 && selectedScore2);
       expect(isValid).toBe(true);
     });
 
@@ -88,7 +88,7 @@ describe('Flux utilisateur - Jury', () => {
       const selectedScore1 = '15';
       const selectedScore2 = null;
       
-      const isValid = selectedCandidateId && selectedScore1 && selectedScore2;
+      const isValid = !!(selectedCandidateId && selectedScore1 && selectedScore2);
       expect(isValid).toBe(false);
     });
 

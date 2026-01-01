@@ -22,7 +22,7 @@ describe('Validation des données', () => {
 
     test('Rejet de candidat sans nom', () => {
       const isValid = (candidate) => {
-        return candidate.name && candidate.name.trim().length > 0;
+        return !!(candidate.name && candidate.name.trim().length > 0);
       };
 
       expect(isValid({ name: '' })).toBe(false);
@@ -143,7 +143,7 @@ describe('Validation des données', () => {
   describe('Validation des identifiants', () => {
     test('ID non vide', () => {
       const isValidId = (id) => {
-        return id && typeof id === 'string' && id.trim().length > 0;
+        return !!(id && typeof id === 'string' && id.trim().length > 0);
       };
       
       expect(isValidId('123')).toBe(true);

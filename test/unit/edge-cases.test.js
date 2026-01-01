@@ -64,7 +64,7 @@ describe('Cas limites et scénarios exceptionnels', () => {
 
   describe('Chaînes de caractères vides ou invalides', () => {
     test('Nom de candidat avec espaces uniquement', () => {
-      const isValidName = (name) => name && name.trim().length > 0;
+      const isValidName = (name) => !!(name && name.trim().length > 0);
       
       expect(isValidName('   ')).toBe(false);
       expect(isValidName('')).toBe(false);
