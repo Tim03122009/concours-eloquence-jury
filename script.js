@@ -196,13 +196,66 @@ function selectScore(type, value, element) {
     if (type === 1) {
         selectedScore1 = value;
         document.querySelectorAll('.score-btn-1').forEach(b => b.classList.remove('selected'));
+        element.classList.add('selected');
+        
+        // Si "EL" est sélectionné, griser la note 2 et la mettre automatiquement à "EL"
+        if (value === 'EL') {
+            selectedScore2 = 'EL';
+            disableScore2Grid();
+            document.getElementById('display-score-2').textContent = 'Note : 0 (Éliminé)';
+        } else {
+            // Réactiver la grille note 2 si elle était désactivée
+            enableScore2Grid();
+        }
     } else {
         selectedScore2 = value;
         document.querySelectorAll('.score-btn-2').forEach(b => b.classList.remove('selected'));
+        element.classList.add('selected');
     }
-    element.classList.add('selected');
+    
     document.getElementById(`display-score-${type}`).textContent = `Note : ${value}`;
     checkValidation();
+}
+
+// Désactiver la grille de note 2 (quand EL est sélectionné pour note 1)
+function disableScore2Grid() {
+    const gridForme = document.getElementById('grid-forme');
+    if (!gridForme) return;
+    
+    // Griser tous les boutons de la note 2
+    document.querySelectorAll('.score-btn-2').forEach(btn => {
+        btn.disabled = true;
+        btn.style.opacity = '0.4';
+        btn.style.cursor = 'not-allowed';
+        btn.classList.remove('selected');
+    });
+    
+    // Ajouter un style visuel pour indiquer que la section est désactivée
+    gridForme.style.opacity = '0.5';
+    gridForme.style.pointerEvents = 'none';
+}
+
+// Réactiver la grille de note 2
+function enableScore2Grid() {
+    const gridForme = document.getElementById('grid-forme');
+    if (!gridForme) return;
+    
+    // Réactiver tous les boutons de la note 2
+    document.querySelectorAll('.score-btn-2').forEach(btn => {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+    });
+    
+    // Retirer le style de désactivation
+    gridForme.style.opacity = '1';
+    gridForme.style.pointerEvents = 'auto';
+    
+    // Réinitialiser la note 2 si elle était à EL
+    if (selectedScore2 === 'EL') {
+        selectedScore2 = null;
+        document.getElementById('display-score-2').textContent = 'Note Forme : -';
+    }
 }
 
 function displayExistingScoresReadOnly(scores) {
@@ -230,17 +283,28 @@ function displayExistingScoresReadOnly(scores) {
         }
     });
     
-    // Sélectionner visuellement le bouton correspondant pour score2
-    document.querySelectorAll('.score-btn-2').forEach(btn => {
-        if (btn.textContent === String(score2Value)) {
-            btn.classList.add('selected');
-            btn.style.opacity = '0.7'; // Un peu plus visible pour le bouton sélectionné
+    // Si score1 est "EL", griser complètement la grille de note 2
+    const gridForme = document.getElementById('grid-forme');
+    if (score1Value === 'EL') {
+        if (gridForme) {
+            gridForme.style.opacity = '0.3';
+            gridForme.style.pointerEvents = 'none';
         }
-    });
-    
-    // Mettre à jour l'affichage des notes
-    document.getElementById('display-score-1').textContent = `Note Fond : ${score1Value}`;
-    document.getElementById('display-score-2').textContent = `Note Forme : ${score2Value}`;
+        document.getElementById('display-score-1').textContent = `Note Fond : Éliminé`;
+        document.getElementById('display-score-2').textContent = `Note Forme : 0 (Éliminé)`;
+    } else {
+        // Sélectionner visuellement le bouton correspondant pour score2
+        document.querySelectorAll('.score-btn-2').forEach(btn => {
+            if (btn.textContent === String(score2Value)) {
+                btn.classList.add('selected');
+                btn.style.opacity = '0.7'; // Un peu plus visible pour le bouton sélectionné
+            }
+        });
+        
+        // Mettre à jour l'affichage des notes
+        document.getElementById('display-score-1').textContent = `Note Fond : ${score1Value}`;
+        document.getElementById('display-score-2').textContent = `Note Forme : ${score2Value}`;
+    }
 }
 
 function enableScoreButtons() {
@@ -251,6 +315,13 @@ function enableScoreButtons() {
         btn.style.cursor = 'pointer';
         btn.classList.remove('selected');
     });
+    
+    // Réactiver la grille de note 2 (au cas où elle était désactivée par EL)
+    const gridForme = document.getElementById('grid-forme');
+    if (gridForme) {
+        gridForme.style.opacity = '1';
+        gridForme.style.pointerEvents = 'auto';
+    }
     
     // Réinitialiser les affichages
     selectedScore1 = null;
@@ -1818,8 +1889,17 @@ async function confirmRepechage() {
         
         await customAlert(`✓ Votes finalisés avec succès !\n\n✓ ${repechageQualified.length} candidat(s) qualifié(s)\n✗ ${repechageEliminated.length} candidat(s) éliminé(s)\n📊 ${updatedCount} statut(s) mis à jour`);
         
-        // Afficher l'écran podium au lieu de déconnecter
-        await showRepechagePodium();
+        // Vérifier si l'option d'affichage du podium après repêchage est activée
+        const podiumConfigDoc = await getDoc(doc(db, "config", "podiumSettings"));
+        const showPodiumAfterRepechage = podiumConfigDoc.exists() ? podiumConfigDoc.data().showPodiumAfterRepechage : false;
+        
+        if (showPodiumAfterRepechage) {
+            // Afficher l'écran podium
+            await showRepechagePodium();
+        } else {
+            // Déconnecter directement
+            logout();
+        }
         
     } catch (e) {
         console.error('Erreur lors de la finalisation des votes:', e);
