@@ -1524,10 +1524,12 @@
         let JURIES = [];
         
         const loadJuries = async () => {
+            console.log('📋 loadJuries() appelé');
             const accountsSnap = await getDocs(collection(db, "accounts"));
             JURIES = [];
             accountsSnap.forEach(docSnap => {
                 const data = docSnap.data();
+                console.log(`📋 Chargé jury ${docSnap.id}:`, JSON.stringify(data));
                 JURIES.push({
                     id: docSnap.id,  // ID numérique (jury1, jury2, etc.)
                     name: data.name || docSnap.id,  // Nom affiché
@@ -1538,6 +1540,7 @@
                     isPresident: data.isPresident || false  // Président du jury
                 });
             });
+            console.log('📋 Total jurys chargés:', JURIES.length);
             
             // Trier par ID
             JURIES.sort((a, b) => {
@@ -1552,7 +1555,7 @@
                 textarea.value = JURIES.map(j => j.name).join('\n');
             }
             
-            renderJuryTable();
+            await renderJuryTable();
         };
         
         // --- GESTION MOT DE PASSE PAR DÉFAUT JURY ---
@@ -1666,16 +1669,49 @@
             const newJuries = [];
             const duplicates = [];
             
+            // S'assurer que les ROUNDS sont chargés
+            if (ROUNDS.length === 0) {
+                await loadRounds();
+            }
+            
             for (const name of names) {
                 if (existingNames.has(name.toLowerCase())) {
                     duplicates.push(name);
                 } else {
                     const juryId = await getNextJuryId();
+                    
+                    // Déterminer si c'est le premier jury (président)
+                    const isFirstJury = JURIES.length === 0 && newJuries.length === 0;
+                    
+                    // Calculer les tours par défaut (comme dans addJury)
+                    const sortedRounds = [...ROUNDS].sort((a, b) => a.order - b.order);
+                    let defaultRounds = [];
+                    
+                    if (sortedRounds.length > 0) {
+                        let activeIdx = sortedRounds.findIndex(r => r.id === activeRoundId);
+                        if (activeIdx === -1) activeIdx = 0;
+                        
+                        for (let i = activeIdx; i < sortedRounds.length; i++) {
+                            const round = sortedRounds[i];
+                            if (round.type === 'Repêchage' && !isFirstJury) {
+                                continue;
+                            }
+                            defaultRounds.push(round.id);
+                        }
+                    } else {
+                        // Fallback
+                        defaultRounds = isFirstJury 
+                            ? ['round1', 'round2', 'round3', 'round4', 'round5', 'round6']
+                            : ['round1', 'round3', 'round5', 'round6'];
+                    }
+                    
                     await setDoc(doc(db, "accounts", juryId), {
                         name: name,
                         password: DEFAULT_JURY_PASSWORD || '',
                         theme: 'light',
-                        createdAt: new Date()
+                        createdAt: new Date(),
+                        isPresident: isFirstJury,
+                        rounds: defaultRounds
                     });
                     newJuries.push(name);
                     existingNames.add(name.toLowerCase());
@@ -1693,6 +1729,14 @@
         };
         
         window.addJury = async () => {
+            // Toujours recharger les ROUNDS pour avoir les données à jour
+            await loadRounds();
+            
+            // Si toujours pas de rounds, utiliser des IDs par défaut
+            const fallbackRoundIds = ['round1', 'round2', 'round3', 'round4', 'round5', 'round6'];
+            
+            console.log('📊 addJury - ROUNDS:', ROUNDS.length, 'activeRoundId:', activeRoundId);
+            
             // Ajouter un jury avec un nom par défaut unique
             const juryId = await getNextJuryId();
             
@@ -1711,23 +1755,40 @@
             const isFirstJury = JURIES.length === 0;
             
             // Déterminer les tours par défaut
-            // Le jury est présent sur le tour actif et tous les suivants
-            // Sauf pour le repêchage, seul le président accède à ce tour
-            const sortedRounds = [...ROUNDS].sort((a, b) => a.order - b.order);
-            const activeRoundIndex = sortedRounds.findIndex(r => r.id === activeRoundId);
-            const defaultRounds = sortedRounds
-                .filter((r, index) => {
-                    // Inclure le tour actif et tous les suivants
-                    if (index < activeRoundIndex) return false;
+            // Le jury est présent à partir du tour actif et tous les suivants
+            // Sauf pour le repêchage : seul le président y accède (sinon passer au tour suivant)
+            let defaultRounds = [];
+            
+            if (ROUNDS.length > 0) {
+                const sortedRounds = [...ROUNDS].sort((a, b) => a.order - b.order);
+                let activeIdx = sortedRounds.findIndex(r => r.id === activeRoundId);
+                
+                // Si activeRoundId n'est pas trouvé, commencer au premier tour
+                if (activeIdx === -1) activeIdx = 0;
+                
+                for (let i = activeIdx; i < sortedRounds.length; i++) {
+                    const round = sortedRounds[i];
                     
-                    // Si c'est un repêchage, l'inclure seulement si c'est le président
-                    if (r.type === 'Repêchage') {
-                        return isFirstJury;
+                    // Si c'est un repêchage et pas le président, sauter ce tour
+                    if (round.type === 'Repêchage' && !isFirstJury) {
+                        continue;
                     }
                     
-                    return true;
-                })
-                .map(r => r.id);
+                    defaultRounds.push(round.id);
+                }
+                
+                console.log('📊 addJury - activeIdx:', activeIdx, 'isFirstJury:', isFirstJury, 'defaultRounds:', defaultRounds);
+            } else {
+                // Fallback : utiliser tous les IDs par défaut
+                // Pour le président : tous les tours
+                // Pour les autres : tours impairs (pas les repêchages qui sont pairs: round2, round4)
+                if (isFirstJury) {
+                    defaultRounds = fallbackRoundIds;
+                } else {
+                    defaultRounds = ['round1', 'round3', 'round5', 'round6'];
+                }
+                console.log('📊 addJury - FALLBACK - isFirstJury:', isFirstJury, 'defaultRounds:', defaultRounds);
+            }
             
             await setDoc(doc(db, "accounts", juryId), {
                 name: juryName,
@@ -1903,13 +1964,28 @@
             await loadJuries();
         };
         
-        function renderJuryTable() {
+        async function renderJuryTable() {
+            console.log('🎨 renderJuryTable() appelé');
+            console.log('🎨 ROUNDS.length:', ROUNDS.length);
+            console.log('🎨 JURIES.length:', JURIES.length);
+            
             const tbody = document.getElementById('jury-table-body');
             const thead = document.querySelector('#jury-table thead tr');
-            if (!tbody || !thead) return;
+            if (!tbody || !thead) {
+                console.log('🎨 tbody ou thead non trouvé, return');
+                return;
+            }
+            
+            // S'assurer que les ROUNDS sont chargés
+            if (ROUNDS.length === 0) {
+                console.log('🎨 ROUNDS vide, appel de loadRounds()...');
+                await loadRounds();
+                console.log('🎨 Après loadRounds(), ROUNDS.length:', ROUNDS.length);
+            }
             
             // Construire l'en-tête avec les tours
             const sortedRounds = [...ROUNDS].sort((a, b) => a.order - b.order);
+            console.log('🎨 sortedRounds:', sortedRounds.map(r => r.id));
             thead.innerHTML = `
                 <th style="width: 60px; text-align: center;">ID</th>
                 <th style="min-width: 150px;">Nom</th>
@@ -1922,6 +1998,8 @@
             tbody.innerHTML = '';
             
             JURIES.forEach(jury => {
+                console.log(`🎨 Jury ${jury.name}: rounds=${JSON.stringify(jury.rounds)}, isPresident=${jury.isPresident}`);
+                
                 const row = tbody.insertRow();
                 const passwordDisplay = jury.password ? '🔒 Défini' : '🔓 Vide';
                 const juryNumber = jury.id.replace('jury', '');
@@ -1929,6 +2007,7 @@
                 // Créer les checkboxes pour les tours
                 const roundsCheckboxes = sortedRounds.map(round => {
                     const isChecked = jury.rounds && jury.rounds.includes(round.id);
+                    console.log(`🎨   - ${round.id}: isChecked=${isChecked}`);
                     const isRepechage = round.type === 'Repêchage';
                     const disabled = isRepechage && !jury.isPresident ? 'disabled' : '';
                     const title = isRepechage && !jury.isPresident ? 'Seul le président peut accéder aux tours de repêchage' : '';
@@ -1989,10 +2068,14 @@
 
         // --- GESTION TOURS ---
         const loadRounds = async () => {
+            console.log('🔄 loadRounds() appelé');
             const snap = await getDoc(doc(db, "config", "rounds"));
+            console.log('🔄 snap.exists():', snap.exists());
             if (snap.exists()) {
+                console.log('🔄 snap.data():', JSON.stringify(snap.data()));
                 ROUNDS = snap.data().rounds || [];
                 activeRoundId = snap.data().activeRoundId || null;
+                console.log('🔄 ROUNDS chargés:', ROUNDS.length, 'activeRoundId:', activeRoundId);
             }
             
             // Initialiser avec les tours par défaut si aucun n'existe
@@ -5169,10 +5252,24 @@
                 // Réinitialiser les verrous
                 await setDoc(doc(db, "config", "locks"), { locks: {} });
                 
-                // Réinitialiser le tour actif au premier tour
-                const sortedRounds = [...ROUNDS].sort((a, b) => a.order - b.order);
-                const firstRoundId = sortedRounds.length > 0 ? sortedRounds[0].id : 'round1';
-                await setDoc(doc(db, "config", "activeRound"), { roundId: firstRoundId });
+                // Réinitialiser le tour actif au premier tour (round1)
+                // Recharger les ROUNDS pour être sûr d'avoir les données à jour
+                const roundsDoc = await getDoc(doc(db, "config", "rounds"));
+                let firstRoundId = 'round1'; // Valeur par défaut
+                let loadedRounds = [];
+                if (roundsDoc.exists() && roundsDoc.data().rounds) {
+                    loadedRounds = roundsDoc.data().rounds;
+                    const sortedRounds = [...loadedRounds].sort((a, b) => a.order - b.order);
+                    if (sortedRounds.length > 0) {
+                        firstRoundId = sortedRounds[0].id;
+                    }
+                }
+                // Le tour actif est stocké dans config/rounds avec le champ activeRoundId
+                await setDoc(doc(db, "config", "rounds"), { 
+                    rounds: loadedRounds,
+                    activeRoundId: firstRoundId 
+                });
+                console.log(`✅ Tour actif réinitialisé à: ${firstRoundId}`);
                 
                 await customAlert('✓ Réinitialisation complète effectuée\n\n- Tous les jurys supprimés\n- Tous les candidats supprimés\n- Toutes les notations supprimées\n- Tous les verrous supprimés\n- Tour actif remis au premier tour');
                 location.reload();
@@ -5207,8 +5304,8 @@
                 
                 const sortedJuries = Array.from(juries).sort();
                 
-                // Créer l'en-tête CSV
-                let csv = 'CandidatID,CandidatNom';
+                // Créer l'en-tête CSV (avec Tour et Statut)
+                let csv = 'CandidatID,CandidatNom,Tour,Statut';
                 sortedJuries.forEach(jury => {
                     csv += `,${jury}_Note1,${jury}_Note2`;
                 });
@@ -5216,7 +5313,11 @@
                 
                 // Ajouter les données
                 CANDIDATES.forEach(c => {
-                    let row = `${c.id},"${c.name}"`;
+                    // Trouver le nom du tour
+                    const roundObj = ROUNDS.find(r => r.id === c.tour);
+                    const tourName = roundObj ? roundObj.name : (c.tour || '');
+                    
+                    let row = `${c.id},"${c.name}","${tourName}","${c.status || 'Actif'}"`;
                     
                     sortedJuries.forEach(jury => {
                         const scores = scoresByCandidate[c.id]?.[jury];
@@ -5262,12 +5363,31 @@
             const file = event.target.files[0];
             if (!file) return;
             
-            if (!await confirm(`⚠️ ATTENTION ⚠️\n\nImporter depuis CSV va :\n- Vérifier le format du fichier\n- Mettre à jour les notes existantes\n- Créer de nouvelles notes si nécessaire\n\nLes notes actuelles seront modifiées !\n\nContinuer ?`)) {
+            if (!await customConfirm(`⚠️ ATTENTION ⚠️\n\nImporter depuis CSV va :\n- Vérifier le format du fichier\n- Mettre à jour les notes existantes\n- Mettre à jour le tour et statut des candidats\n- Créer de nouvelles notes si nécessaire\n\nLes données actuelles seront modifiées !\n\nContinuer ?`)) {
                 event.target.value = '';
                 return;
             }
             
+            // Afficher un message d'attente
+            const loadingOverlay = document.createElement('div');
+            loadingOverlay.id = 'import-loading-overlay';
+            loadingOverlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 10000;';
+            loadingOverlay.innerHTML = `
+                <div style="background: var(--card-bg, #2a2a4a); padding: 40px; border-radius: 15px; text-align: center; color: var(--text-color, white);">
+                    <div style="font-size: 48px; margin-bottom: 20px;">⏳</div>
+                    <div style="font-size: 18px; font-weight: 600;">Import en cours...</div>
+                    <div id="import-progress" style="margin-top: 15px; font-size: 14px; color: #888;">Préparation...</div>
+                </div>
+            `;
+            document.body.appendChild(loadingOverlay);
+            
+            const updateProgress = (text) => {
+                const progressEl = document.getElementById('import-progress');
+                if (progressEl) progressEl.textContent = text;
+            };
+            
             try {
+                updateProgress('Lecture du fichier...');
                 const text = await file.text();
                 const lines = text.split('\n').filter(l => l.trim());
                 
@@ -5278,17 +5398,21 @@
                 // Parser l'en-tête
                 const header = lines[0].split(',').map(h => h.trim());
                 
-                // Vérifier le format
+                // Vérifier le format de base
                 if (header[0] !== 'CandidatID' || header[1] !== 'CandidatNom') {
                     throw new Error('Format CSV invalide. L\'en-tête doit commencer par: CandidatID,CandidatNom');
                 }
                 
+                // Détecter si les colonnes Tour et Statut sont présentes
+                const hasTourStatut = header[2] === 'Tour' && header[3] === 'Statut';
+                const juryStartIndex = hasTourStatut ? 4 : 2;
+                
                 // Extraire les jurys de l'en-tête et mapper aux IDs
-                await loadJuries();  // S'assurer que JURIES est chargé
+                updateProgress('Chargement des jurys...');
+                await loadJuries();
                 const juries = [];
-                for (let i = 2; i < header.length; i += 2) {
+                for (let i = juryStartIndex; i < header.length; i += 2) {
                     const juryName = header[i].replace('_Note1', '');
-                    // Chercher le juryId correspondant
                     const jury = JURIES.find(j => j.name === juryName);
                     juries.push({
                         name: juryName,
@@ -5301,14 +5425,33 @@
                 }
                 
                 let imported = 0;
+                let candidatesUpdated = 0;
                 let errors = [];
+                const totalLines = lines.length - 1;
                 
                 // Parser chaque ligne
                 for (let i = 1; i < lines.length; i++) {
+                    updateProgress(`Traitement ligne ${i}/${totalLines}...`);
+                    
                     const line = lines[i].trim();
                     if (!line) continue;
                     
-                    const values = line.match(/(".*?"|[^,]+)/g).map(v => v.replace(/^"|"$/g, '').trim());
+                    // Parser les valeurs en gérant les guillemets et les cases vides
+                    const values = [];
+                    let current = '';
+                    let inQuotes = false;
+                    for (let c = 0; c < line.length; c++) {
+                        const char = line[c];
+                        if (char === '"') {
+                            inQuotes = !inQuotes;
+                        } else if (char === ',' && !inQuotes) {
+                            values.push(current.trim());
+                            current = '';
+                        } else {
+                            current += char;
+                        }
+                    }
+                    values.push(current.trim()); // Dernière valeur
                     
                     const candidatId = values[0];
                     
@@ -5319,13 +5462,34 @@
                         continue;
                     }
                     
+                    // Mettre à jour Tour et Statut si présents dans le CSV
+                    if (hasTourStatut) {
+                        const tourName = values[2];
+                        const statut = values[3];
+                        
+                        // Trouver le roundId correspondant au nom du tour
+                        if (tourName) {
+                            const round = ROUNDS.find(r => r.name === tourName);
+                            if (round) {
+                                candidate.tour = round.id;
+                            }
+                        }
+                        
+                        // Mettre à jour le statut
+                        if (statut && ['Actif', 'Qualifie', 'Elimine'].includes(statut)) {
+                            candidate.status = statut;
+                        }
+                        candidatesUpdated++;
+                    }
+                    
                     // Importer les notes pour chaque jury
                     for (let j = 0; j < juries.length; j++) {
                         const jury = juries[j];
                         const juryName = jury.name;
                         const juryId = jury.id;
-                        const note1 = values[2 + j * 2];
-                        const note2 = values[3 + j * 2];
+                        const noteIndex = juryStartIndex + j * 2;
+                        const note1 = values[noteIndex];
+                        const note2 = values[noteIndex + 1];
                         
                         // Vérifier que le jury existe
                         if (!juryId) {
@@ -5334,16 +5498,14 @@
                         }
                         
                         // Transformer les valeurs importées
-                        // Case vide/undefined → '-'
-                        // 0 → 'EL' (sauf pour repêchage où 0 et 1 sont valides)
                         let processedNote1 = note1;
                         let processedNote2 = note2;
                         
                         // Case vide → '-'
-                        if (!processedNote1 || processedNote1 === '' || processedNote1 === undefined) {
+                        if (!processedNote1 || processedNote1 === '') {
                             processedNote1 = '-';
                         }
-                        if (!processedNote2 || processedNote2 === '' || processedNote2 === undefined) {
+                        if (!processedNote2 || processedNote2 === '') {
                             processedNote2 = '-';
                         }
                         
@@ -5358,8 +5520,6 @@
                         }
                         
                         // Valider les notes
-                        // Accepter: '-', '5', '10', '15', '20', 'EL', 'Elimine' pour les tours normaux
-                        // Accepter aussi '0' et '1' pour les tours de repêchage
                         const validValues = ['-', '5', '10', '15', '20', 'EL', 'Elimine', '0', '1'];
                         if (!validValues.includes(processedNote1) || !validValues.includes(processedNote2)) {
                             errors.push(`Ligne ${i + 1}, ${juryName}: Notes invalides (${processedNote1}, ${processedNote2})`);
@@ -5386,10 +5546,8 @@
                         };
                         
                         if (!existingScores.empty) {
-                            // Mettre à jour
                             await setDoc(doc(db, "scores", existingScores.docs[0].id), scoreData);
                         } else {
-                            // Créer
                             await addDoc(collection(db, "scores"), scoreData);
                         }
                         
@@ -5397,9 +5555,23 @@
                     }
                 }
                 
+                // Sauvegarder les candidats si des tours/statuts ont été modifiés
+                if (hasTourStatut && candidatesUpdated > 0) {
+                    updateProgress('Sauvegarde des candidats...');
+                    await saveCandidates();
+                }
+                
+                updateProgress('Mise à jour de l\'affichage...');
+                
+                // Supprimer le message d'attente
+                document.body.removeChild(loadingOverlay);
+                
                 event.target.value = '';
                 
-                let message = `✓ Import terminé !\n\n${imported} note(s) importée(s)`;
+                let message = `✅ Import terminé !\n\n📊 ${imported} note(s) importée(s)`;
+                if (hasTourStatut) {
+                    message += `\n👤 ${candidatesUpdated} candidat(s) mis à jour (tour/statut)`;
+                }
                 if (errors.length > 0) {
                     message += `\n\n⚠️ ${errors.length} erreur(s) :\n${errors.slice(0, 5).join('\n')}`;
                     if (errors.length > 5) {
@@ -5407,16 +5579,20 @@
                     }
                 }
                 
-                alert(message);
+                await customAlert(message);
                 
-                // Rafraîchir l'affichage (les deux fonctions sont async)
+                // Rafraîchir l'affichage
                 await renderNotesTable();
                 await loadResults();
                 
                 console.log('✅ Tableau rechargé après import CSV');
             } catch (e) {
+                // Supprimer le message d'attente en cas d'erreur
+                const overlay = document.getElementById('import-loading-overlay');
+                if (overlay) document.body.removeChild(overlay);
+                
                 console.error('Erreur:', e);
-                alert('Erreur lors de l\'import: ' + e.message);
+                await customAlert('❌ Erreur lors de l\'import:\n' + e.message);
                 event.target.value = '';
             }
         };
