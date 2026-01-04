@@ -200,7 +200,7 @@ function selectScore(type, value, element) {
         
         // Si "EL" est sélectionné, griser la note 2 et la mettre automatiquement à "EL"
         if (value === 'EL') {
-            selectedScore2 = 'EL';
+            selectedScore2 = 'EL'; 
             disableScore2Grid();
             document.getElementById('display-score-2').textContent = 'Note : 0 (Éliminé)';
         } else {
