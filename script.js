@@ -1,5 +1,10 @@
 /**
  * Concours d'Éloquence - Jury Interface
+ *
+ * RÔLES (séparation stricte) :
+ * - Jury : saisie uniquement (notes fond/forme, votes repêchage, notes duels).
+ * - Président : choix (repêchage) + bonus ; pas d’activation ni d’affichage global.
+ * - Admin : activation (tours, bonus, classements) + affichage ; pas de saisie jury.
  * 
  * IMPORTANT - Mot de passe admin de secours:
  * En cas de perte du mot de passe administrateur principal,
@@ -23,10 +28,16 @@ let storedSessionId = localStorage.getItem('sessionId') || '';
 let activeRoundId = null; // Will be loaded from database
 let activeRoundName = ''; // Nom du tour actif
 let activeRoundType = ''; // Type du tour actif (Notation individuelle, Repêchage, Duels, Classement)
+let activeRoundTypeEpreuve = ''; // type_epreuve = duels | classement | notation | repêchage
 let activeRoundNextCandidates = 'ALL'; // Nombre de candidats pour le tour suivant
+let activeRoundClassementId = null; // Si type Classement : id du classement
+let activeRoundClassementCode = null; // Si type Classement : code du classement
 let selectedCandidateId = null;
 let selectedScore1 = null; 
 let selectedScore2 = null;
+let selectedCandidate2Id = null;
+let selectedScore1_c2 = null;
+let selectedScore2_c2 = null;
 let CANDIDATES = [];
 
 // Variables pour l'interface Repêchage
@@ -35,15 +46,32 @@ let repechageEliminated = [];
 let repechageScoresListener = null;
 let roundChangeListener = null;
 
-// Variables pour l'interface Duels
+// Variables pour l'interface Duels (Fond + Forme pour chaque candidat)
 let duelCandidate1 = null;
-let duelScore1 = null;
+let duelScore1Fond = null;
+let duelScore1Forme = null;
 let duelCandidate2 = null;
-let duelScore2 = null;
+let duelScore2Fond = null;
+let duelScore2Forme = null;
+
+// Variables pour l'interface Classement (lecture seule, sync temps réel)
+let classementListener = null;
+let isCurrentUserPresident = false;
+
+// Listeners temps réel (admin → jury : mise à jour sans recharger la page)
+let roundsRealtimeListener = null;
+let candidatesRealtimeListener = null;
+let duelResultsRealtimeListener = null;
+let juryAccountRealtimeListener = null;
+let scoresRealtimeListener = null;
+let previousClassementEntriesForOvertake = null; // Entrées avant mise à jour (pour animation dépassement)
 
 // Variables pour la configuration des tours
 let ROUNDS = [];
 let JURIES = [];
+
+/** Positions pour "Mon classement" : 5 premières positions (1 à 5). */
+const MON_CLASSEMENT_POSITIONS = ['1', '2', '3', '4', '5'];
 
 /**
  * Charge les tours depuis Firebase
@@ -243,16 +271,46 @@ async function checkSessionAndStart() {
         if (currentJuryName) {
             startScoring();
         } else {
-            document.getElementById('identification-page').classList.add('active');
+            showIdentificationOnly();
             await displayActiveRoundOnLogin(); // Afficher le tour en cours
         }
     } catch (e) {
-        document.getElementById('identification-page').classList.add('active');
+        showIdentificationOnly();
         await displayActiveRoundOnLogin(); // Afficher le tour en cours
     }
 }
 
+/** Affiche uniquement la page identification et masque la page jury (évite les deux en même temps). */
+function showIdentificationOnly() {
+    const scoringPage = document.getElementById('scoring-page');
+    const identificationPage = document.getElementById('identification-page');
+    if (scoringPage) {
+        scoringPage.classList.remove('active');
+        scoringPage.style.display = 'none';
+    }
+    if (identificationPage) {
+        identificationPage.classList.add('active');
+        identificationPage.style.display = '';
+    }
+}
+
 function logout() {
+    const identificationPage = document.getElementById('identification-page');
+    const scoringPage = document.getElementById('scoring-page');
+
+    // Masquer la page jury immédiatement (classe + style pour forcer)
+    if (scoringPage) {
+        scoringPage.classList.remove('active');
+        scoringPage.style.display = 'none';
+        scoringPage.style.visibility = 'hidden';
+    }
+    // Afficher uniquement la page identification
+    if (identificationPage) {
+        identificationPage.classList.add('active');
+        identificationPage.style.display = '';
+        identificationPage.style.visibility = '';
+    }
+
     // Nettoyer le listener de repêchage s'il existe
     if (repechageScoresListener) {
         repechageScoresListener();
@@ -263,6 +321,30 @@ function logout() {
     if (roundChangeListener) {
         roundChangeListener();
         roundChangeListener = null;
+    }
+    if (classementListener) {
+        classementListener();
+        classementListener = null;
+    }
+    if (roundsRealtimeListener) {
+        roundsRealtimeListener();
+        roundsRealtimeListener = null;
+    }
+    if (candidatesRealtimeListener) {
+        candidatesRealtimeListener();
+        candidatesRealtimeListener = null;
+    }
+    if (duelResultsRealtimeListener) {
+        duelResultsRealtimeListener();
+        duelResultsRealtimeListener = null;
+    }
+    if (juryAccountRealtimeListener) {
+        juryAccountRealtimeListener();
+        juryAccountRealtimeListener = null;
+    }
+    if (scoresRealtimeListener) {
+        scoresRealtimeListener();
+        scoresRealtimeListener = null;
     }
     
     // Supprimer uniquement les données de session, garder les préférences de thème
@@ -285,6 +367,27 @@ window.refreshCandidateList = async function() {
     const menuContent = document.getElementById('menu-content-scoring');
     if (menuContent) {
         menuContent.classList.remove('show');
+    }
+};
+
+/** Forcer la synchronisation avec les données admin (tours, candidats, duels) sans recharger la page. */
+window.syncWithAdmin = async function() {
+    try {
+        const snapRounds = await getDoc(doc(db, "config", "rounds"));
+        if (snapRounds.exists()) applyRoundsData(snapRounds.data());
+        const snapCandidates = await getDoc(doc(db, "candidats", "liste_actuelle"));
+        if (snapCandidates.exists()) CANDIDATES = snapCandidates.data().candidates || [];
+        const roundDisplay = document.getElementById('scoring-round-display');
+        if (roundDisplay) roundDisplay.textContent = activeRoundName ? `Tour en cours : ${activeRoundName}` : '';
+        refreshCurrentJuryPanel();
+        const menuContent = document.getElementById('menu-content-scoring');
+        if (menuContent) menuContent.classList.remove('show');
+        if (typeof customAlert === 'function') await customAlert('✓ Données synchronisées avec l\'admin.');
+        else alert('✓ Données synchronisées avec l\'admin.');
+    } catch (e) {
+        console.error('syncWithAdmin', e);
+        if (typeof customAlert === 'function') await customAlert('Erreur de synchronisation : ' + e.message);
+        else alert('Erreur : ' + e.message);
     }
 };
 
@@ -354,30 +457,151 @@ document.getElementById('logout-button').onclick = logout;
 function createGrids() {
     const gridFond = document.getElementById('grid-fond');
     const gridForme = document.getElementById('grid-forme');
+    if (!gridFond || !gridForme) return;
     const values = [5, 10, 15, 20];
-    
     gridFond.innerHTML = ''; gridForme.innerHTML = '';
-
     values.forEach(val => {
         const btn1 = document.createElement('button');
         btn1.className = 'score-btn score-btn-1';
         btn1.textContent = val;
         btn1.onclick = () => selectScore(1, val, btn1);
         gridFond.appendChild(btn1);
-
         const btn2 = document.createElement('button');
         btn2.className = 'score-btn score-btn-2';
         btn2.textContent = val;
         btn2.onclick = () => selectScore(2, val, btn2);
         gridForme.appendChild(btn2);
     });
-
-    // Ajout bouton Elimine seulement pour Fond/Argumentation
     const elim1 = document.createElement('button');
     elim1.className = 'score-btn score-btn-1 eliminated';
     elim1.textContent = 'Éliminé';
     elim1.onclick = () => selectScore(1, 'EL', elim1);
     gridFond.appendChild(elim1);
+}
+
+function createGridsNotationTwo() {
+    const values = [5, 10, 15, 20];
+    [1, 2].forEach(candNum => {
+        const gridFond = document.getElementById('grid-fond-' + candNum);
+        const gridForme = document.getElementById('grid-forme-' + candNum);
+        if (!gridFond || !gridForme) return;
+        gridFond.innerHTML = '';
+        gridForme.innerHTML = '';
+        values.forEach(val => {
+            const bf = document.createElement('button');
+            bf.className = 'score-btn notation-cand' + candNum + ' notation-fond';
+            bf.textContent = val;
+            bf.onclick = () => selectScoreNotation(candNum, 1, val, bf);
+            gridFond.appendChild(bf);
+            const bm = document.createElement('button');
+            bm.className = 'score-btn notation-cand' + candNum + ' notation-forme';
+            bm.textContent = val;
+            bm.onclick = () => selectScoreNotation(candNum, 2, val, bm);
+            gridForme.appendChild(bm);
+        });
+        const elim = document.createElement('button');
+        elim.className = 'score-btn notation-cand' + candNum + ' notation-fond eliminated';
+        elim.textContent = 'Éliminé';
+        elim.onclick = () => selectScoreNotation(candNum, 1, 'EL', elim);
+        gridFond.appendChild(elim);
+    });
+}
+
+/** Crée les 4 contrôles Fond + Forme pour l'interface Duels : saisie manuelle (0-20) + slider 0 — 10 — 20. */
+function createDuelGridsTwo() {
+    const pairs = [
+        { candNum: 1, type: 1, typeKey: 'fond' },
+        { candNum: 1, type: 2, typeKey: 'forme' },
+        { candNum: 2, type: 1, typeKey: 'fond' },
+        { candNum: 2, type: 2, typeKey: 'forme' }
+    ];
+    pairs.forEach(({ candNum, type, typeKey }) => {
+        const container = document.getElementById('duel-grid-' + typeKey + '-' + candNum);
+        if (!container) return;
+        container.innerHTML = '';
+        const wrap = document.createElement('div');
+        wrap.className = 'duel-score-input-wrap';
+        const numId = 'duel-num-' + candNum + '-' + typeKey;
+        const sliderId = 'duel-slider-' + candNum + '-' + typeKey;
+        wrap.innerHTML = `
+            <div class="duel-slider-row">
+                <span class="duel-slider-endcap">0</span>
+                <input type="range" id="${sliderId}" min="0" max="20" value="0" class="duel-range-input">
+                <span class="duel-slider-endcap">20</span>
+                <input type="number" id="${numId}" min="0" max="20" step="1" value="" placeholder="0" class="duel-num-input" inputmode="numeric">
+            </div>
+        `;
+        container.appendChild(wrap);
+        const numEl = document.getElementById(numId);
+        const sliderEl = document.getElementById(sliderId);
+        const displayEl = document.getElementById('duel-display-' + candNum + '-' + typeKey);
+        function setDuelValue(v) {
+            const n = Math.min(20, Math.max(0, typeof v === 'number' ? v : parseInt(v, 10)));
+            if (isNaN(n)) return;
+            if (candNum === 1 && type === 1) duelScore1Fond = n;
+            if (candNum === 1 && type === 2) duelScore1Forme = n;
+            if (candNum === 2 && type === 1) duelScore2Fond = n;
+            if (candNum === 2 && type === 2) duelScore2Forme = n;
+            numEl.value = n;
+            sliderEl.value = n;
+            if (displayEl) displayEl.textContent = (typeKey === 'fond' ? 'Note Fond : ' : 'Note Forme : ') + n;
+            checkDuelValidation();
+        }
+        numEl.addEventListener('input', () => setDuelValue(numEl.value));
+        numEl.addEventListener('change', () => setDuelValue(numEl.value));
+        sliderEl.addEventListener('input', () => setDuelValue(sliderEl.value));
+    });
+}
+
+function selectScoreNotation(candNum, type, value, element) {
+    if (candNum === 1) {
+        if (type === 1) {
+            selectedScore1 = value;
+            document.querySelectorAll('#grid-fond-1 .score-btn').forEach(b => b.classList.remove('selected'));
+            element.classList.add('selected');
+            document.getElementById('display-score-1-fond').textContent = value === 'EL' ? 'Note Fond : Éliminé' : 'Note Fond : ' + value;
+            if (value === 'EL') {
+                selectedScore2 = 'EL';
+                document.querySelectorAll('#grid-forme-1 .score-btn').forEach(b => { b.classList.remove('selected'); b.disabled = true; b.style.opacity = '0.4'; });
+                document.getElementById('grid-forme-1').style.opacity = '0.5';
+                document.getElementById('grid-forme-1').style.pointerEvents = 'none';
+                document.getElementById('display-score-1-forme').textContent = 'Note Forme : 0 (Éliminé)';
+            } else {
+                document.querySelectorAll('#grid-forme-1 .score-btn').forEach(b => { b.disabled = false; b.style.opacity = '1'; });
+                document.getElementById('grid-forme-1').style.opacity = '1';
+                document.getElementById('grid-forme-1').style.pointerEvents = 'auto';
+            }
+        } else {
+            selectedScore2 = value;
+            document.querySelectorAll('#grid-forme-1 .score-btn').forEach(b => b.classList.remove('selected'));
+            element.classList.add('selected');
+            document.getElementById('display-score-1-forme').textContent = 'Note Forme : ' + value;
+        }
+    } else {
+        if (type === 1) {
+            selectedScore1_c2 = value;
+            document.querySelectorAll('#grid-fond-2 .score-btn').forEach(b => b.classList.remove('selected'));
+            element.classList.add('selected');
+            document.getElementById('display-score-2-fond').textContent = value === 'EL' ? 'Note Fond : Éliminé' : 'Note Fond : ' + value;
+            if (value === 'EL') {
+                selectedScore2_c2 = 'EL';
+                document.querySelectorAll('#grid-forme-2 .score-btn').forEach(b => { b.classList.remove('selected'); b.disabled = true; b.style.opacity = '0.4'; });
+                document.getElementById('grid-forme-2').style.opacity = '0.5';
+                document.getElementById('grid-forme-2').style.pointerEvents = 'none';
+                document.getElementById('display-score-2-forme').textContent = 'Note Forme : 0 (Éliminé)';
+            } else {
+                document.querySelectorAll('#grid-forme-2 .score-btn').forEach(b => { b.disabled = false; b.style.opacity = '1'; });
+                document.getElementById('grid-forme-2').style.opacity = '1';
+                document.getElementById('grid-forme-2').style.pointerEvents = 'auto';
+            }
+        } else {
+            selectedScore2_c2 = value;
+            document.querySelectorAll('#grid-forme-2 .score-btn').forEach(b => b.classList.remove('selected'));
+            element.classList.add('selected');
+            document.getElementById('display-score-2-forme').textContent = 'Note Forme : ' + value;
+        }
+    }
+    checkValidationNotationTwo();
 }
 
 function selectScore(type, value, element) {
@@ -532,6 +756,22 @@ document.getElementById('start-scoring-button').onclick = async () => {
     }
 
     try {
+        // Vérification mode classement (vue unique, accès par identifiant + mot de passe sur page d'accueil)
+        if (name.toLowerCase() === 'classement') {
+            const classementDoc = await getDoc(doc(db, "config", "classement"));
+            const storedPassword = classementDoc.exists() ? (classementDoc.data().password || 'classement') : 'classement';
+            if (!password) {
+                alert('Veuillez entrer le mot de passe pour accéder au classement.');
+                return;
+            }
+            if (password === storedPassword) {
+                window.location.href = 'classement.html';
+            } else {
+                alert('Mot de passe incorrect');
+            }
+            return;
+        }
+
         // Vérification mode admin
         if (name.toLowerCase() === 'admin') {
             const adminDoc = await getDoc(doc(db, "config", "admin"));
@@ -727,37 +967,54 @@ async function loadActiveRound() {
             activeRoundName = activeRound.name;
             activeRoundType = activeRound.type || 'Notation individuelle';
             activeRoundNextCandidates = activeRound.nextRoundCandidates || 'ALL';
+            // type_epreuve = duels | classement | notation | repêchage (identifiant explicite)
+            activeRoundTypeEpreuve = activeRound.type_epreuve || (activeRound.type === 'Duels' ? 'duels' : activeRound.type === 'Classement' ? 'classement' : activeRound.type === 'Repêchage' ? 'repechage' : 'notation');
+            activeRoundClassementId = activeRound.classementId || null;
+            activeRoundClassementCode = activeRound.codeClassement || activeRound.code || null;
         } else {
             activeRoundName = '';
             activeRoundType = 'Notation individuelle';
+            activeRoundTypeEpreuve = 'notation';
             activeRoundNextCandidates = 'ALL';
+            activeRoundClassementId = null;
+            activeRoundClassementCode = null;
         }
         
         // Fallback: if no active round, use the first round or create default
         if (!activeRoundId) {
             if (rounds.length > 0) {
-                activeRoundId = rounds[0].id;
-                activeRoundName = rounds[0].name;
-                activeRoundType = rounds[0].type || 'Notation individuelle';
-                activeRoundNextCandidates = rounds[0].nextRoundCandidates || 'ALL';
+                const r0 = rounds[0];
+                activeRoundId = r0.id;
+                activeRoundName = r0.name;
+                activeRoundType = r0.type || 'Notation individuelle';
+                activeRoundTypeEpreuve = r0.type_epreuve || 'notation';
+                activeRoundNextCandidates = r0.nextRoundCandidates || 'ALL';
+                activeRoundClassementId = r0.classementId || null;
+                activeRoundClassementCode = r0.codeClassement || r0.code || null;
             } else {
-                // Create default round if none exists
                 activeRoundId = 'round1';
                 activeRoundName = '1er tour';
                 activeRoundType = 'Notation individuelle';
+                activeRoundTypeEpreuve = 'notation';
                 activeRoundNextCandidates = 'ALL';
+                activeRoundClassementId = null;
+                activeRoundClassementCode = null;
             }
         }
     } else {
-        // Create default round configuration with 6 rounds
+        // Create default round configuration with 6 rounds (type_epreuve = duels pour Duels)
         activeRoundId = 'round1';
         activeRoundName = '1er tour';
+        activeRoundTypeEpreuve = 'notation';
+        activeRoundClassementId = null;
+        activeRoundClassementCode = null;
         const defaultRounds = [
             {
                 id: 'round1',
                 order: 1,
                 name: '1er tour',
                 type: 'Notation individuelle',
+                type_epreuve: 'notation',
                 nextRoundCandidates: 'ALL',
                 active: true
             },
@@ -766,6 +1023,7 @@ async function loadActiveRound() {
                 order: 2,
                 name: 'Repechage 1er tour',
                 type: 'Repêchage',
+                type_epreuve: 'repechage',
                 nextRoundCandidates: 18,
                 active: false
             },
@@ -774,6 +1032,7 @@ async function loadActiveRound() {
                 order: 3,
                 name: '2eme tour',
                 type: 'Duels',
+                type_epreuve: 'duels',
                 nextRoundCandidates: 'ALL',
                 active: false
             },
@@ -782,6 +1041,7 @@ async function loadActiveRound() {
                 order: 4,
                 name: 'Repechage 2eme tour',
                 type: 'Repêchage',
+                type_epreuve: 'repechage',
                 nextRoundCandidates: 7,
                 active: false
             },
@@ -790,6 +1050,7 @@ async function loadActiveRound() {
                 order: 5,
                 name: 'Demi-finale',
                 type: 'Duels',
+                type_epreuve: 'duels',
                 nextRoundCandidates: 3,
                 active: false
             },
@@ -798,6 +1059,7 @@ async function loadActiveRound() {
                 order: 6,
                 name: 'Finale',
                 type: 'Duels',
+                type_epreuve: 'duels',
                 nextRoundCandidates: 1,
                 active: false
             }
@@ -809,11 +1071,79 @@ async function loadActiveRound() {
     }
 }
 
+/**
+ * Applique les données rounds (config/rounds) en mémoire sans écrire en base.
+ * Utilisé par le listener temps réel pour mettre à jour l'interface jury quand l'admin modifie les tours.
+ */
+function applyRoundsData(data) {
+    if (!data) return;
+    const rounds = data.rounds || [];
+    ROUNDS = rounds;
+    let newActiveId = data.activeRoundId || null;
+    const activeRound = rounds.find(r => r.id === newActiveId);
+    if (activeRound) {
+        activeRoundId = newActiveId;
+        activeRoundName = activeRound.name;
+        activeRoundType = activeRound.type || 'Notation individuelle';
+        activeRoundNextCandidates = activeRound.nextRoundCandidates || 'ALL';
+        activeRoundTypeEpreuve = activeRound.type_epreuve || (activeRound.type === 'Duels' ? 'duels' : activeRound.type === 'Classement' ? 'classement' : activeRound.type === 'Repêchage' ? 'repechage' : 'notation');
+        activeRoundClassementId = activeRound.classementId || null;
+        activeRoundClassementCode = activeRound.codeClassement || activeRound.code || null;
+    } else if (rounds.length > 0) {
+        const r0 = rounds[0];
+        ROUNDS = rounds;
+        activeRoundId = r0.id;
+        activeRoundName = r0.name;
+        activeRoundType = r0.type || 'Notation individuelle';
+        activeRoundTypeEpreuve = r0.type_epreuve || 'notation';
+        activeRoundNextCandidates = r0.nextRoundCandidates || 'ALL';
+        activeRoundClassementId = r0.classementId || null;
+        activeRoundClassementCode = r0.codeClassement || r0.code || null;
+    } else {
+        activeRoundId = 'round1';
+        activeRoundName = '1er tour';
+        activeRoundType = 'Notation individuelle';
+        activeRoundTypeEpreuve = 'notation';
+        activeRoundNextCandidates = 'ALL';
+        activeRoundClassementId = null;
+        activeRoundClassementCode = null;
+    }
+}
+
+/**
+ * Rafraîchit le panneau jury visible (liste candidats, duels, repêchage, etc.) sans recharger la page.
+ */
+function refreshCurrentJuryPanel() {
+    const roundDisplay = document.getElementById('scoring-round-display');
+    if (roundDisplay) {
+        roundDisplay.textContent = activeRoundName ? `Tour en cours : ${activeRoundName}` : '';
+    }
+    const tabNotation = document.getElementById('jury-tab-notation');
+    const tabDuels = document.getElementById('jury-tab-duels');
+    const tabMonClassement = document.getElementById('jury-tab-mon-classement');
+    const juryDuelsList = document.getElementById('jury-duels-list');
+    const qualifiedList = document.getElementById('qualified-list');
+    if (tabNotation && tabNotation.classList.contains('active')) {
+        if (typeof updateNotationTwoSelects === 'function') updateNotationTwoSelects();
+    }
+    const duelsPanelVisible = (tabDuels && tabDuels.classList.contains('active')) || (juryDuelsList && !tabNotation);
+    if (duelsPanelVisible && typeof renderJuryDuelsPanel === 'function') {
+        renderJuryDuelsPanel();
+    }
+    if (tabMonClassement && tabMonClassement.classList.contains('active')) {
+        if (typeof renderJuryMonClassementPanel === 'function') renderJuryMonClassementPanel();
+    }
+    if (qualifiedList && typeof renderRepechageLists === 'function') {
+        renderRepechageLists();
+    }
+}
+
 async function startScoring() {
     await loadActiveRound(); // Load active round before starting
     
-    // Vérifier que le jury a accès au tour actif
+    // Vérifier que le jury a accès au tour actif et si c'est le président (bonus victoire)
     const juryDoc = await getDoc(doc(db, "accounts", currentJuryName));
+    isCurrentUserPresident = juryDoc.exists() && juryDoc.data().isPresident === true;
     if (juryDoc.exists()) {
         const juryData = juryDoc.data();
         const juryRounds = juryData.rounds || [];
@@ -854,21 +1184,142 @@ async function startScoring() {
     if (roundDisplay) {
         roundDisplay.textContent = activeRoundName ? `Tour en cours : ${activeRoundName}` : '';
     }
-    document.getElementById('identification-page').classList.remove('active');
-    document.getElementById('scoring-page').classList.add('active');
-    
-    // Afficher l'interface appropriée selon le type de tour
-    if (activeRoundType === 'Repêchage') {
+    const identificationPage = document.getElementById('identification-page');
+    const scoringPage = document.getElementById('scoring-page');
+    identificationPage.classList.remove('active');
+    scoringPage.classList.add('active');
+    // Réinitialiser les styles inline (évite que la page jury reste cachée après showIdentificationOnly)
+    identificationPage.style.display = '';
+    identificationPage.style.visibility = '';
+    scoringPage.style.display = '';
+    scoringPage.style.visibility = '';
+
+    // Afficher l'interface appropriée selon le type de tour (le classement est en vue unique via identifiant "classement" sur la page d'accueil)
+    if (activeRoundType === 'Repêchage' || activeRoundTypeEpreuve === 'repechage') {
         showRepechageInterface();
-    } else if (activeRoundType === 'Duels') {
+    } else if (activeRoundType === 'Duels' || activeRoundTypeEpreuve === 'duels') {
         showDuelsInterface();
     } else {
-        // Notation individuelle ou Classement
         showNotationInterface();
     }
     
     // Écouter les changements de tour
     setupRoundChangeListener();
+    // Mise à jour temps réel quand l'admin modifie tours, candidats, duels ou compte jury
+    setupRealtimeListeners();
+}
+
+/**
+ * Listeners temps réel : quand l'admin modifie config/rounds, candidats, duel_results ou accounts,
+ * l'interface jury se met à jour sans recharger la page.
+ */
+function setupRealtimeListeners() {
+    if (roundsRealtimeListener) return;
+    const roundId = () => activeRoundId || 'round1';
+
+    roundsRealtimeListener = onSnapshot(doc(db, "config", "rounds"), (snap) => {
+        if (!snap.exists()) return;
+        try {
+            if (duelResultsRealtimeListener) {
+                duelResultsRealtimeListener();
+                duelResultsRealtimeListener = null;
+            }
+            if (scoresRealtimeListener) {
+                scoresRealtimeListener();
+                scoresRealtimeListener = null;
+            }
+            const data = snap.data();
+            const prevType = activeRoundTypeEpreuve;
+            applyRoundsData(data);
+            const roundDisplay = document.getElementById('scoring-round-display');
+            if (roundDisplay) roundDisplay.textContent = activeRoundName ? `Tour en cours : ${activeRoundName}` : '';
+            if (prevType !== activeRoundTypeEpreuve) {
+                if (activeRoundTypeEpreuve === 'repechage') showRepechageInterface();
+                else if (activeRoundTypeEpreuve === 'duels') showDuelsInterface();
+                else showNotationInterface();
+            } else {
+                refreshCurrentJuryPanel();
+            }
+            const qScores = query(
+                collection(db, "scores"),
+                where("juryId", "==", currentJuryName),
+                where("roundId", "==", roundId())
+            );
+            scoresRealtimeListener = onSnapshot(qScores, () => {
+                try { refreshCurrentJuryPanel(); } catch (e) { console.error('scoresRealtime', e); }
+            });
+            if (activeRoundTypeEpreuve === 'duels') {
+                duelResultsRealtimeListener = onSnapshot(doc(db, "duel_results", roundId()), () => {
+                    try { if (typeof renderJuryDuelsPanel === 'function') renderJuryDuelsPanel(); } catch (e) { console.error('duelResultsRealtime', e); }
+                });
+            }
+        } catch (e) {
+            console.error('roundsRealtime listener', e);
+        }
+    });
+
+    let candidatesFirst = true;
+    candidatesRealtimeListener = onSnapshot(doc(db, "candidats", "liste_actuelle"), (snap) => {
+        if (!snap.exists()) return;
+        if (candidatesFirst) {
+            candidatesFirst = false;
+            return;
+        }
+        try {
+            CANDIDATES = snap.data().candidates || [];
+            refreshCurrentJuryPanel();
+        } catch (e) {
+            console.error('candidatesRealtime listener', e);
+        }
+    });
+
+    let accountFirst = true;
+    juryAccountRealtimeListener = onSnapshot(doc(db, "accounts", currentJuryName), (snap) => {
+        if (!snap.exists()) return;
+        if (accountFirst) {
+            accountFirst = false;
+            return;
+        }
+        try {
+            isCurrentUserPresident = snap.data().isPresident === true;
+            refreshCurrentJuryPanel();
+        } catch (e) {
+            console.error('juryAccountRealtime listener', e);
+        }
+    });
+
+    if (activeRoundTypeEpreuve === 'duels') {
+        let duelFirst = true;
+        duelResultsRealtimeListener = onSnapshot(doc(db, "duel_results", roundId()), (snap) => {
+            if (duelFirst) {
+                duelFirst = false;
+                return;
+            }
+            try {
+                if (typeof renderJuryDuelsPanel === 'function') renderJuryDuelsPanel();
+            } catch (e) {
+                console.error('duelResultsRealtime listener', e);
+            }
+        });
+    }
+
+    const qScores = query(
+        collection(db, "scores"),
+        where("juryId", "==", currentJuryName),
+        where("roundId", "==", roundId())
+    );
+    let scoresFirst = true;
+    scoresRealtimeListener = onSnapshot(qScores, () => {
+        if (scoresFirst) {
+            scoresFirst = false;
+            return;
+        }
+        try {
+            refreshCurrentJuryPanel();
+        } catch (e) {
+            console.error('scoresRealtime listener', e);
+        }
+    });
 }
 
 /**
@@ -1158,12 +1609,7 @@ document.getElementById('confirm-send-button').onclick = async () => {
         // Rafraîchir la liste des candidats pour montrer l'état à jour
         await updateCandidateSelect();
         
-        // Vérifier si tous les candidats ont leurs notes et qualifier/éliminer
-        const savedCandidateId = scoreData.candidateId;
-        setTimeout(async () => {
-            await checkAndQualifyCandidateFromJury(savedCandidateId);
-        }, 500); // Petit délai pour laisser Firebase se synchroniser
-        
+        // Aucun recalcul automatique : la qualification se fait uniquement par action humaine (Admin / Président)
         alert("✓ Notation enregistrée avec succès !");
     } catch (e) { 
         alert("Erreur d'envoi : " + e.message); 
@@ -1175,12 +1621,11 @@ document.getElementById('confirm-send-button').onclick = async () => {
 // ========================================
 
 /**
- * Interface pour Notation Individuelle (standard)
+ * Interface pour Notation Individuelle (standard) — avec onglets Notation | Duels | Mon classement
  */
 function showNotationInterface() {
     const scoringPage = document.getElementById('scoring-page');
     
-    // Afficher les contrôles standard
     scoringPage.innerHTML = `
         <div class="burger-menu">
             <div class="burger-icon" onclick="toggleMenu()">
@@ -1196,43 +1641,75 @@ function showNotationInterface() {
                     </div>
                 </div>
                 <div class="menu-item" onclick="refreshCandidateList()">🔄 Rafraîchir la liste</div>
+                <div class="menu-item" onclick="syncWithAdmin()">📡 Synchroniser avec l'admin</div>
                 <div class="menu-item" onclick="changePassword()">🔑 Changer le mot de passe</div>
                 <div class="menu-item" onclick="logout()">🚪 Déconnexion</div>
             </div>
         </div>
-        
         <p id="scoring-round-display" style="text-align: center; color: var(--text-secondary); margin-bottom: var(--spacing);"></p>
-        
-        <h2 style="text-align: center; margin-bottom: var(--spacing);">
-            Jury: <span id="current-jury-display"></span>
-        </h2>
-        
-        <div class="control-group">
-            <label for="candidate-select">1. Sélectionner un candidat</label>
-            <select id="candidate-select">
-                <option value="" disabled selected>-- Choisir un candidat --</option>
+        <h2 style="text-align: center; margin-bottom: var(--spacing);">Jury: <span id="current-jury-display"></span></h2>
+        <div class="jury-tabs-bar">
+            <button type="button" class="jury-tab-btn active" data-jury-tab="notation">Notation</button>
+            <button type="button" class="jury-tab-btn" data-jury-tab="duels">Gagnants de duel</button>
+            <button type="button" class="jury-tab-btn" data-jury-tab="mon-classement">Mon classement</button>
+        </div>
+        <div id="jury-tab-notation" class="jury-tab-content active">
+            <p class="jury-notation-intro">Noter deux candidats : Fond (×3) et Forme (×1) pour chacun.</p>
+            <div class="jury-notation-cols">
+                <div class="jury-notation-card">
+                    <label for="candidate-select-1" class="card-title">Candidat 1</label>
+                    <select id="candidate-select-1">
+                        <option value="">-- Choisir --</option>
             </select>
-            <p id="selected-candidate-display" class="selection-info">Aucun candidat sélectionné</p>
+                    <p id="selected-candidate-display-1" class="selection-info">Aucun</p>
+                    <hr class="jury-notation-sep">
+                    <div class="control-group">
+                        <label>Fond / Argumentation (Coefficient ×3)</label>
+                        <div class="score-grid" id="grid-fond-1"></div>
+                        <p id="display-score-1-fond" class="selection-info">Note Fond : -</p>
         </div>
-
-        <hr>
-
+                    <hr class="jury-notation-sep">
         <div class="control-group">
-            <label>2. Première Note</label>
-            <div class="score-grid" id="grid-fond"></div>
-            <p id="display-score-1" class="selection-info">Note Fond : -</p>
+                        <label>Forme / Éloquence (Coefficient ×1)</label>
+                        <div class="score-grid" id="grid-forme-1"></div>
+                        <p id="display-score-1-forme" class="selection-info">Note Forme : -</p>
         </div>
-
-        <hr>
-
+                </div>
+                <div class="jury-notation-card">
+                    <label for="candidate-select-2" class="card-title">Candidat 2</label>
+                    <select id="candidate-select-2">
+                        <option value="">-- Choisir --</option>
+                    </select>
+                    <p id="selected-candidate-display-2" class="selection-info">Aucun</p>
+                    <hr class="jury-notation-sep">
         <div class="control-group">
-            <label>3. Deuxième Note</label>
-            <div class="score-grid" id="grid-forme"></div>
-            <p id="display-score-2" class="selection-info">Note Forme : -</p>
+                        <label>Fond / Argumentation (Coefficient ×3)</label>
+                        <div class="score-grid" id="grid-fond-2"></div>
+                        <p id="display-score-2-fond" class="selection-info">Note Fond : -</p>
         </div>
-
-        <button id="validate-button" disabled>Valider la notation</button>
+                    <hr class="jury-notation-sep">
+                    <div class="control-group">
+                        <label>Forme / Éloquence (Coefficient ×1)</label>
+                        <div class="score-grid" id="grid-forme-2"></div>
+                        <p id="display-score-2-forme" class="selection-info">Note Forme : -</p>
+                    </div>
+                </div>
+            </div>
+            <button id="validate-button" class="jury-notation-validate" disabled>Valider les deux notations</button>
+        </div>
+        <div id="jury-tab-duels" class="jury-tab-content">
+            <p id="jury-duels-message" style="text-align: center; color: var(--text-secondary);">Chargement des duels…</p>
+            <div id="jury-duels-list" style="display: none;"></div>
+        </div>
+        <div id="jury-tab-mon-classement" class="jury-tab-content">
+            <p style="text-align: center; color: var(--text-secondary); margin-bottom: 15px;">Votre classement personnel : 5 premières positions (1 à 5). Chaque menu propose tous les candidats ; si vous placez un candidat à une autre position, son ancienne position se vide.</p>
+            <table id="jury-mon-classement-table" style="width: 100%; border-collapse: collapse;">
+                <thead><tr style="background: var(--neutral-color); color: white;"><th style="padding: 12px; text-align: center;">Position</th><th style="padding: 12px; text-align: left;">Candidat</th></tr></thead>
+                <tbody id="jury-mon-classement-body"></tbody>
+            </table>
+        </div>
     `;
+    setupJuryTabs();
     
     // Mettre à jour les informations affichées
     document.getElementById('current-jury-display').textContent = currentJuryDisplayName;
@@ -1241,142 +1718,627 @@ function showNotationInterface() {
         roundDisplay.textContent = activeRoundName ? `Tour en cours : ${activeRoundName}` : '';
     }
     
-    // Initialiser le thème
     initTheme();
-    
-    // Créer les grilles et mettre à jour la liste
-    createGrids();
-    updateCandidateSelect();
-    
-    // Réattacher l'event listener pour la sélection de candidat
-    document.getElementById('candidate-select').onchange = async function() {
-        const candidateId = this.value;
-        if (!candidateId) return;
-        
-        // Charger le candidat sélectionné
-        const c = CANDIDATES.find(c => c.id === candidateId);
+    createGridsNotationTwo();
+    updateNotationTwoSelects();
+
+    async function loadCandidateNotationSide(candNum, candidateId) {
+        const c = CANDIDATES.find(x => x.id === candidateId);
         if (!c) return;
-        
-        selectedCandidateId = candidateId;
-        
-        // Vérifier si le candidat a déjà des notes
-        const q = query(
-            collection(db, "scores"), 
-            where("candidateId", "==", candidateId),
-            where("juryId", "==", currentJuryName),
-            where("roundId", "==", activeRoundId || 'round1')
-        );
-        const snap = await getDocs(q);
-        const scores = snap.docs[0]?.data();
-        
-        // Vérifier si le candidat est verrouillé
         const lockSnap = await getDoc(doc(db, "config", "locks"));
         const locks = lockSnap.exists() ? lockSnap.data().locks || {} : {};
         const isLocked = locks[candidateId]?.[currentJuryName] || false;
-        
         if (isLocked) {
-            await customAlert(`❌ Ce candidat est verrouillé.\nVous ne pouvez plus modifier cette notation.`);
-            selectedCandidateId = null;
-            document.getElementById('candidate-select').value = '';
-            document.getElementById('selected-candidate-display').textContent = '';
-            checkValidation();
-            await updateCandidateSelect();
+            await customAlert(`❌ Ce candidat est verrouillé.`);
+            if (candNum === 1) { selectedCandidateId = null; document.getElementById('candidate-select-1').value = ''; document.getElementById('selected-candidate-display-1').textContent = 'Aucun'; }
+            else { selectedCandidate2Id = null; document.getElementById('candidate-select-2').value = ''; document.getElementById('selected-candidate-display-2').textContent = 'Aucun'; }
+            updateNotationTwoSelects();
+            checkValidationNotationTwo();
             return;
         }
-        
-        const bothScoresSet = scores && scores.score1 && scores.score1 !== '-' && scores.score2 && scores.score2 !== '-';
-        
-        if (bothScoresSet) {
-            // Afficher les notes existantes en lecture seule
-            document.getElementById('selected-candidate-display').innerHTML = 
-                `Candidat : ${c.name}<br><span style="color: var(--danger-color); font-size: 0.9em;">✓ Candidat déjà noté - Affichage en lecture seule</span>`;
-            displayExistingScoresReadOnly(scores);
-            selectedCandidateId = null; // Empêcher la validation
-            checkValidation();
-            await updateCandidateSelect(candidateId);
-            return;
+        const q = query(collection(db, "scores"), where("candidateId", "==", candidateId), where("juryId", "==", currentJuryName), where("roundId", "==", activeRoundId || 'round1'));
+        const snap = await getDocs(q);
+        const scores = snap.docs[0]?.data();
+        const bothSet = scores && scores.score1 !== '-' && scores.score2 !== '-';
+        if (candNum === 1) {
+            selectedCandidateId = candidateId;
+            document.getElementById('selected-candidate-display-1').textContent = bothSet ? c.name + ' (déjà noté)' : 'Candidat : ' + c.name;
+            if (bothSet) {
+                selectedScore1 = scores.score1; selectedScore2 = scores.score2;
+                document.querySelectorAll('#grid-fond-1 .score-btn').forEach(b => { b.classList.remove('selected'); if (b.textContent === String(scores.score1) || (scores.score1 === 'EL' && b.textContent === 'Éliminé')) b.classList.add('selected'); });
+                document.querySelectorAll('#grid-forme-1 .score-btn').forEach(b => { b.classList.remove('selected'); b.disabled = scores.score1 === 'EL'; if (b.textContent === String(scores.score2)) b.classList.add('selected'); });
+                document.getElementById('display-score-1-fond').textContent = scores.score1 === 'EL' ? 'Note Fond : Éliminé' : 'Note Fond : ' + scores.score1;
+                document.getElementById('display-score-1-forme').textContent = scores.score2 === 'EL' ? 'Note Forme : 0 (Éliminé)' : 'Note Forme : ' + scores.score2;
+                if (scores.score1 === 'EL') document.getElementById('grid-forme-1').style.opacity = '0.5';
+            } else {
+                selectedScore1 = null; selectedScore2 = null;
+                document.querySelectorAll('#grid-fond-1 .score-btn, #grid-forme-1 .score-btn').forEach(b => { b.classList.remove('selected'); b.disabled = false; b.style.opacity = '1'; });
+                document.getElementById('grid-forme-1').style.opacity = '1'; document.getElementById('grid-forme-1').style.pointerEvents = 'auto';
+                document.getElementById('display-score-1-fond').textContent = 'Note Fond : -';
+                document.getElementById('display-score-1-forme').textContent = 'Note Forme : -';
+            }
+        } else {
+            selectedCandidate2Id = candidateId;
+            document.getElementById('selected-candidate-display-2').textContent = bothSet ? c.name + ' (déjà noté)' : 'Candidat : ' + c.name;
+            if (bothSet) {
+                selectedScore1_c2 = scores.score1; selectedScore2_c2 = scores.score2;
+                document.querySelectorAll('#grid-fond-2 .score-btn').forEach(b => { b.classList.remove('selected'); if (b.textContent === String(scores.score1) || (scores.score1 === 'EL' && b.textContent === 'Éliminé')) b.classList.add('selected'); });
+                document.querySelectorAll('#grid-forme-2 .score-btn').forEach(b => { b.classList.remove('selected'); b.disabled = scores.score1 === 'EL'; if (b.textContent === String(scores.score2)) b.classList.add('selected'); });
+                document.getElementById('display-score-2-fond').textContent = scores.score1 === 'EL' ? 'Note Fond : Éliminé' : 'Note Fond : ' + scores.score1;
+                document.getElementById('display-score-2-forme').textContent = scores.score2 === 'EL' ? 'Note Forme : 0 (Éliminé)' : 'Note Forme : ' + scores.score2;
+                if (scores.score1 === 'EL') document.getElementById('grid-forme-2').style.opacity = '0.5';
+            } else {
+                selectedScore1_c2 = null; selectedScore2_c2 = null;
+                document.querySelectorAll('#grid-fond-2 .score-btn, #grid-forme-2 .score-btn').forEach(b => { b.classList.remove('selected'); b.disabled = false; b.style.opacity = '1'; });
+                document.getElementById('grid-forme-2').style.opacity = '1'; document.getElementById('grid-forme-2').style.pointerEvents = 'auto';
+                document.getElementById('display-score-2-fond').textContent = 'Note Fond : -';
+                document.getElementById('display-score-2-forme').textContent = 'Note Forme : -';
+            }
         }
-        
-        // Réactiver les boutons pour un nouveau candidat ou candidat non noté
-        enableScoreButtons();
-        document.getElementById('selected-candidate-display').textContent = `Candidat : ${c.name}`;
-        checkValidation();
-        await updateCandidateSelect(selectedCandidateId);
+        updateNotationTwoSelects();
+        checkValidationNotationTwo();
+    }
+
+    document.getElementById('candidate-select-1').onchange = async function() {
+        const candidateId = this.value;
+        if (!candidateId) { selectedCandidateId = null; document.getElementById('selected-candidate-display-1').textContent = 'Aucun'; checkValidationNotationTwo(); updateNotationTwoSelects(); return; }
+        await loadCandidateNotationSide(1, candidateId);
     };
-    
-    // Réattacher l'event listener pour le bouton de validation
+    document.getElementById('candidate-select-2').onchange = async function() {
+        const candidateId = this.value;
+        if (!candidateId) { selectedCandidate2Id = null; document.getElementById('selected-candidate-display-2').textContent = 'Aucun'; checkValidationNotationTwo(); updateNotationTwoSelects(); return; }
+        await loadCandidateNotationSide(2, candidateId);
+    };
+
     document.getElementById('validate-button').onclick = async () => {
-        // Sanity check: Re-vérifier le statut avant d'ouvrir la modale
         const lockSnap = await getDoc(doc(db, "config", "locks"));
         const locks = lockSnap.exists() ? lockSnap.data().locks || {} : {};
-        const isLocked = locks[selectedCandidateId]?.[currentJuryName] || false;
-        
-        if (isLocked) {
-            await customAlert(`❌ Ce candidat est maintenant verrouillé.\nVous ne pouvez plus modifier cette notation.`);
-            location.reload();
+        if (locks[selectedCandidateId]?.[currentJuryName] || locks[selectedCandidate2Id]?.[currentJuryName]) {
+            await customAlert(`❌ Un candidat est verrouillé.`);
             return;
         }
-        
-        // Récupérer le nom du candidat et du jury pour l'affichage
-        const candidate = CANDIDATES.find(c => c.id === selectedCandidateId);
         const juryDoc = await getDoc(doc(db, "accounts", currentJuryName));
         const juryName = juryDoc.exists() ? juryDoc.data().name : currentJuryName;
-        
-        // Vérifier si un score existe déjà
-        const q = query(
-            collection(db, "scores"), 
-            where("candidateId", "==", selectedCandidateId),
-            where("juryId", "==", currentJuryName),
-            where("roundId", "==", activeRoundId || 'round1')
-        );
-        const existingScores = await getDocs(q);
-        
-        const scoreData = {
-            juryId: currentJuryName,
-            juryName: juryName,
-            candidateId: selectedCandidateId,
-            roundId: activeRoundId || 'round1',
-            score1: selectedScore1,
-            score2: selectedScore2,
-            timestamp: new Date()
-        };
-        
-        if (!existingScores.empty) {
-            // Sanity check: Nettoyer les doublons s'ils existent
-            if (existingScores.docs.length > 1) {
-                console.warn(`⚠️ ${existingScores.docs.length} doublons détectés, nettoyage...`);
-                for (let i = 1; i < existingScores.docs.length; i++) {
-                    await deleteDoc(doc(db, "scores", existingScores.docs[i].id));
+        const roundId = activeRoundId || 'round1';
+
+        async function saveOneScore(candidateId, score1, score2) {
+            const q = query(collection(db, "scores"), where("candidateId", "==", candidateId), where("juryId", "==", currentJuryName), where("roundId", "==", roundId));
+            const existing = await getDocs(q);
+            const data = { juryId: currentJuryName, juryName, candidateId, roundId, score1, score2, timestamp: new Date() };
+            if (!existing.empty) {
+                if (existing.docs.length > 1) { for (let i = 1; i < existing.docs.length; i++) await deleteDoc(doc(db, "scores", existing.docs[i].id)); }
+                await setDoc(doc(db, "scores", existing.docs[0].id), data);
+            } else {
+                await addDoc(collection(db, "scores"), data);
+            }
+        }
+
+        await saveOneScore(selectedCandidateId, selectedScore1, selectedScore2);
+        await saveOneScore(selectedCandidate2Id, selectedScore1_c2, selectedScore2_c2);
+
+        selectedCandidateId = null; selectedScore1 = null; selectedScore2 = null;
+        selectedCandidate2Id = null; selectedScore1_c2 = null; selectedScore2_c2 = null;
+        document.getElementById('candidate-select-1').value = ''; document.getElementById('candidate-select-2').value = '';
+        document.getElementById('selected-candidate-display-1').textContent = 'Aucun'; document.getElementById('selected-candidate-display-2').textContent = 'Aucun';
+        document.querySelectorAll('#grid-fond-1 .score-btn, #grid-forme-1 .score-btn, #grid-fond-2 .score-btn, #grid-forme-2 .score-btn').forEach(b => { b.classList.remove('selected'); b.disabled = false; b.style.opacity = '1'; });
+        document.getElementById('grid-forme-1').style.opacity = '1'; document.getElementById('grid-forme-1').style.pointerEvents = 'auto';
+        document.getElementById('grid-forme-2').style.opacity = '1'; document.getElementById('grid-forme-2').style.pointerEvents = 'auto';
+        document.getElementById('display-score-1-fond').textContent = 'Note Fond : -'; document.getElementById('display-score-1-forme').textContent = 'Note Forme : -';
+        document.getElementById('display-score-2-fond').textContent = 'Note Fond : -'; document.getElementById('display-score-2-forme').textContent = 'Note Forme : -';
+        updateNotationTwoSelects();
+        checkValidationNotationTwo();
+        await customAlert("✓ Les deux notations ont été enregistrées.");
+    };
+}
+
+async function updateNotationTwoSelects() {
+    const filtered = CANDIDATES.filter(c => c.tour === (activeRoundId || 'round1'));
+    const sorted = [...filtered].sort((a, b) => (parseInt(a.id, 10) || 0) - (parseInt(b.id, 10) || 0));
+    const opts = (excludeId) => sorted.filter(c => c.id !== excludeId).map(c => ({ value: c.id, text: c.id + ' - ' + (c.name || c.id) }));
+    const sel1 = document.getElementById('candidate-select-1');
+    const sel2 = document.getElementById('candidate-select-2');
+    if (!sel1 || !sel2) return;
+    const cur1 = sel1.value;
+    const cur2 = sel2.value;
+    sel1.innerHTML = '<option value="">-- Choisir --</option>' + opts(cur2).map(o => `<option value="${o.value}">${o.text}</option>`).join('');
+    sel2.innerHTML = '<option value="">-- Choisir --</option>' + opts(cur1).map(o => `<option value="${o.value}">${o.text}</option>`).join('');
+    if (cur1) sel1.value = cur1;
+    if (cur2) sel2.value = cur2;
+}
+
+function checkValidationNotationTwo() {
+    const btn = document.getElementById('validate-button');
+    if (!btn) return;
+    const ok = selectedCandidateId && selectedScore1 != null && selectedScore2 != null &&
+               selectedCandidate2Id && selectedScore1_c2 != null && selectedScore2_c2 != null &&
+               selectedCandidateId !== selectedCandidate2Id;
+    btn.disabled = !ok;
+}
+
+/** Gestion des onglets jury : Notation | Duels | Mon classement */
+function setupJuryTabs() {
+    const btns = document.querySelectorAll('.jury-tab-btn');
+    const contents = document.querySelectorAll('.jury-tab-content');
+    btns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tab = btn.getAttribute('data-jury-tab');
+            btns.forEach(b => { b.classList.remove('active'); });
+            contents.forEach(c => { c.classList.remove('active'); });
+            btn.classList.add('active');
+            const panel = document.getElementById('jury-tab-' + tab);
+            if (panel) panel.classList.add('active');
+            if (tab === 'duels') renderJuryDuelsPanel();
+            if (tab === 'mon-classement') renderJuryMonClassementPanel();
+        });
+    });
+}
+
+/** Onglet Duels : liste des gagnants ; président peut sélectionner le gagnant, autres en lecture seule */
+async function renderJuryDuelsPanel() {
+    const messageEl = document.getElementById('jury-duels-message');
+    const listEl = document.getElementById('jury-duels-list');
+    if (!messageEl || !listEl) return;
+    const roundId = activeRoundId || 'round1';
+    if (CANDIDATES.length === 0) {
+        const candSnap = await getDoc(doc(db, "candidats", "liste_actuelle"));
+        if (candSnap.exists()) CANDIDATES = candSnap.data().candidates || [];
+    }
+    try {
+        const snap = await getDoc(doc(db, "duel_results", roundId));
+        const duels = (snap.exists() && snap.data().duels) ? [...snap.data().duels] : [];
+        messageEl.style.display = duels.length === 0 ? 'block' : 'none';
+        messageEl.textContent = duels.length === 0 ? 'Aucun duel pour ce tour.' : '';
+        listEl.style.display = duels.length > 0 ? 'block' : 'none';
+        listEl.innerHTML = '';
+        duels.forEach((duel, i) => {
+            const c1 = CANDIDATES.find(c => c.id === duel.candidate1Id);
+            const c2 = CANDIDATES.find(c => c.id === duel.candidate2Id);
+            const name1 = (c1 ? c1.name : duel.candidate1Id) || duel.candidate1Id;
+            const name2 = (c2 ? c2.name : duel.candidate2Id) || duel.candidate2Id;
+            const is1Winner = duel.winnerId === duel.candidate1Id;
+            const is2Winner = duel.winnerId === duel.candidate2Id;
+            const color1 = duel.winnerId ? (is1Winner ? 'var(--success-color)' : 'var(--danger-color)') : 'var(--text-color)';
+            const color2 = duel.winnerId ? (is2Winner ? 'var(--success-color)' : 'var(--danger-color)') : 'var(--text-color)';
+            const card = document.createElement('div');
+            card.style.cssText = 'display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 14px; margin-bottom: 10px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--input-bg);';
+            const winnerSpan = document.createElement('span');
+            winnerSpan.style.color = 'var(--text-color);';
+            if (duel.winnerId) {
+                const winnerName = duel.winnerId === duel.candidate1Id ? name1 : name2;
+                winnerSpan.innerHTML = 'Gagnant : <span style="color: var(--success-color); font-weight: 600;">' + winnerName.replace(/</g, '&lt;') + '</span>';
+        } else {
+                winnerSpan.textContent = 'Gagnant : —';
+            }
+            const vsSpan = document.createElement('span');
+            vsSpan.innerHTML = '<span style="color: ' + color1 + '; font-weight: 600;">' + name1.replace(/</g, '&lt;') + '</span> <strong>vs</strong> <span style="color: ' + color2 + '; font-weight: 600;">' + name2.replace(/</g, '&lt;') + '</span>';
+            card.innerHTML = '<span style="font-weight: 600; color: var(--text-color);">Duel ' + (i + 1) + '</span>';
+            card.appendChild(vsSpan);
+            card.appendChild(winnerSpan);
+            if (isCurrentUserPresident) {
+                const wrap = document.createElement('span');
+                wrap.style.display = 'flex'; wrap.style.gap = '10px'; wrap.style.alignItems = 'center';
+                const btn1 = document.createElement('button');
+                btn1.type = 'button';
+                btn1.textContent = name1;
+                btn1.style.cssText = 'padding: 8px 14px; border-radius: 6px; border: 2px solid var(--border-color); cursor: pointer; font-weight: 600; background: ' + (is1Winner ? 'var(--success-color)' : (duel.winnerId ? 'var(--danger-color)' : 'var(--input-bg)')) + '; color: ' + (is1Winner || (duel.winnerId && !is1Winner) ? 'white' : 'var(--text-color)') + ';';
+                const btn2 = document.createElement('button');
+                btn2.type = 'button';
+                btn2.textContent = name2;
+                btn2.style.cssText = 'padding: 8px 14px; border-radius: 6px; border: 2px solid var(--border-color); cursor: pointer; font-weight: 600; background: ' + (is2Winner ? 'var(--success-color)' : (duel.winnerId ? 'var(--danger-color)' : 'var(--input-bg)')) + '; color: ' + (is2Winner || (duel.winnerId && !is2Winner) ? 'white' : 'var(--text-color)') + ';';
+                btn1.onclick = () => jurySetDuelWinner(roundId, duels, i, duel.candidate1Id);
+                btn2.onclick = () => jurySetDuelWinner(roundId, duels, i, duel.candidate2Id);
+                wrap.appendChild(btn1); wrap.appendChild(btn2);
+                card.appendChild(wrap);
+            }
+            listEl.appendChild(card);
+        });
+    } catch (err) {
+        console.error(err);
+        messageEl.style.display = 'block';
+        messageEl.textContent = 'Erreur de chargement des duels.';
+        listEl.style.display = 'none';
+    }
+}
+
+/** Enregistrer le gagnant d'un duel (président uniquement, appelé depuis l'onglet jury). */
+async function jurySetDuelWinner(roundId, duelsList, duelIndex, winnerId) {
+    if (!isCurrentUserPresident || duelIndex < 0 || duelIndex >= duelsList.length) return;
+    const d = duelsList[duelIndex];
+    if (winnerId !== d.candidate1Id && winnerId !== d.candidate2Id) return;
+    d.winnerId = winnerId;
+    try {
+        await setDoc(doc(db, "duel_results", roundId), { duels: duelsList, updatedAt: new Date() });
+        renderJuryDuelsPanel();
+    } catch (err) {
+        console.error(err);
+        if (typeof customAlert === 'function') customAlert('Erreur lors de l\'enregistrement du gagnant.');
+    }
+}
+
+/** Onglet Mon classement : 5 premières positions (1 à 5), un menu déroulant par position avec tous les candidats ; si un candidat est resélectionné à une autre position, l'ancienne se vide. */
+async function renderJuryMonClassementPanel() {
+    const tbody = document.getElementById('jury-mon-classement-body');
+    if (!tbody) return;
+    const roundId = activeRoundId || 'round1';
+    let candidates = CANDIDATES.filter(c => c.tour === roundId);
+    if (candidates.length === 0) {
+        const candSnap = await getDoc(doc(db, "candidats", "liste_actuelle"));
+        if (candSnap.exists()) {
+            CANDIDATES = candSnap.data().candidates || [];
+            candidates = CANDIDATES.filter(c => c.tour === roundId);
+        }
+    }
+    const docId = `${currentJuryName}_${roundId}`;
+    const rankingSnap = await getDoc(doc(db, "jury_rankings", docId));
+    const positions = rankingSnap.exists() ? { ...(rankingSnap.data().positions || {}) } : {};
+    MON_CLASSEMENT_POSITIONS.forEach(p => { if (positions[p] === undefined) positions[p] = null; });
+
+    tbody.innerHTML = '';
+    MON_CLASSEMENT_POSITIONS.forEach(positionLabel => {
+        const row = tbody.insertRow();
+        const cellPos = row.insertCell();
+        cellPos.textContent = positionLabel;
+        cellPos.style.padding = '12px';
+        cellPos.style.textAlign = 'center';
+        cellPos.style.fontWeight = '600';
+        const cellSelect = row.insertCell();
+        cellSelect.style.padding = '12px';
+        const select = document.createElement('select');
+        select.dataset.position = positionLabel;
+        select.style.width = '100%';
+        select.style.padding = '8px';
+        const emptyOpt = document.createElement('option');
+        emptyOpt.value = '';
+        emptyOpt.textContent = '— Aucun —';
+        select.appendChild(emptyOpt);
+        candidates.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = (c.id || '') + ' - ' + (c.name || c.id);
+            select.appendChild(opt);
+        });
+        const currentVal = positions[positionLabel];
+        select.value = currentVal || '';
+        cellSelect.appendChild(select);
+
+        select.addEventListener('change', async () => {
+            const chosenId = select.value || null;
+            const newPositions = {};
+            document.querySelectorAll('#jury-mon-classement-body select[data-position]').forEach(sel => {
+                newPositions[sel.getAttribute('data-position')] = sel.value || null;
+            });
+            newPositions[positionLabel] = chosenId;
+            if (chosenId) {
+                MON_CLASSEMENT_POSITIONS.forEach(p => {
+                    if (p === positionLabel) return;
+                    if (newPositions[p] === chosenId) {
+                        newPositions[p] = null;
+                        const otherSel = tbody.querySelector('select[data-position="' + p + '"]');
+                        if (otherSel) otherSel.value = '';
+                    }
+                });
+            }
+            try {
+                await setDoc(doc(db, "jury_rankings", docId), {
+                    juryId: currentJuryName,
+                    roundId,
+                    positions: newPositions,
+                    updatedAt: new Date()
+                });
+            } catch (err) {
+                console.error(err);
+                if (typeof customAlert === 'function') customAlert('Erreur sauvegarde : ' + err.message);
+            }
+        });
+    });
+}
+
+/**
+ * Session "Classement" : identifiant classement, code classement, lecture seule, synchronisation temps réel.
+ * Onglets : Classement (global) | Mon classement (5 positions par juré, sans application de points).
+ * Stockage : classements/{classementId} ; jury_rankings/{juryId_roundId} pour Mon classement.
+ */
+async function showClassementInterface() {
+    const scoringPage = document.getElementById('scoring-page');
+    let classementId = activeRoundClassementId;
+    if (!classementId) {
+        const activationsSnap = await getDoc(doc(db, "config", "activations"));
+        if (activationsSnap.exists()) classementId = activationsSnap.data().classementIdActif || null;
+    }
+    const codeDisplay = activeRoundClassementCode || (classementId ? classementId : '—');
+
+    scoringPage.innerHTML = `
+        <div class="burger-menu">
+            <div class="burger-icon" onclick="toggleMenu()"><span></span><span></span><span></span></div>
+            <div class="burger-menu-content" id="menu-content-scoring">
+                <div class="theme-toggle"><span>Mode sombre</span><div class="toggle-switch" id="theme-toggle-scoring" onclick="toggleTheme()"><div class="toggle-slider"></div></div></div>
+                <div class="menu-item" onclick="syncWithAdmin()">📡 Synchroniser avec l'admin</div>
+                <div class="menu-item" onclick="changePassword()">🔑 Changer le mot de passe</div>
+                <div class="menu-item" onclick="logout()">🚪 Déconnexion</div>
+            </div>
+        </div>
+        <p id="scoring-round-display" style="text-align: center; color: var(--text-secondary); margin-bottom: var(--spacing);"></p>
+        <h2 style="text-align: center; margin-bottom: var(--spacing);">Jury: <span id="current-jury-display"></span></h2>
+        <h3 style="text-align: center; margin-bottom: var(--spacing); color: var(--text-color);">Classement — ${activeRoundName}</h3>
+        <div class="classement-tabs" style="display: flex; gap: 0; margin-bottom: 15px; max-width: 800px; margin-left: auto; margin-right: auto;">
+            <button type="button" class="classement-tab active" data-tab="classement" style="flex: 1; padding: 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm) 0 0 var(--radius-sm); background: var(--primary-color); color: white; cursor: pointer; font-weight: 600;">Classement</button>
+            <button type="button" class="classement-tab" data-tab="mon-classement" style="flex: 1; padding: 12px; border: 1px solid var(--border-color); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; background: var(--card-bg); color: var(--text-color); cursor: pointer;">Mon classement</button>
+        </div>
+        <div id="classement-tab-panel" class="classement-tab-panel" style="max-width: 800px; margin: 0 auto;">
+            <p style="text-align: center; color: var(--text-secondary); margin-bottom: 15px;">Code : <strong>${codeDisplay}</strong> · Lecture seule · Mise à jour en temps réel</p>
+            <div id="classement-container" style="max-width: 800px; margin: 0 auto; background: var(--card-bg); border-radius: var(--radius); padding: var(--spacing); box-shadow: var(--shadow-md);">
+            <p id="classement-loading" style="text-align: center; color: var(--text-secondary);">Chargement du classement…</p>
+            <table id="classement-table" style="width: 100%; border-collapse: collapse; display: none;">
+                <thead><tr id="classement-thead-row" style="background: var(--neutral-color); color: white;"><th style="padding: 12px; text-align: center;">Rang</th><th style="padding: 12px; text-align: left;">Candidat</th><th style="padding: 12px; text-align: center;">Score</th></tr></thead>
+                <tbody id="classement-body"></tbody>
+            </table>
+            <p id="classement-empty" style="text-align: center; color: var(--text-secondary); display: none;">Aucun classement pour l’instant.</p>
+            </div>
+        </div>
+        <div id="mon-classement-tab-panel" class="classement-tab-panel" style="display: none; max-width: 800px; margin: 0 auto; background: var(--card-bg); border-radius: var(--radius); padding: var(--spacing); box-shadow: var(--shadow-md);">
+            <p style="text-align: center; color: var(--text-secondary); margin-bottom: 15px;">Votre classement personnel : 5 premières positions (1 à 5). Chaque menu propose tous les candidats ; si vous placez un candidat à une autre position, son ancienne position se vide.</p>
+            <table id="mon-classement-table" style="width: 100%; border-collapse: collapse;">
+                <thead><tr style="background: var(--neutral-color); color: white;"><th style="padding: 12px; text-align: center;">Position</th><th style="padding: 12px; text-align: left;">Candidat</th></tr></thead>
+                <tbody id="mon-classement-body"></tbody>
+            </table>
+        </div>
+    `;
+
+    document.getElementById('current-jury-display').textContent = currentJuryDisplayName;
+    const roundDisplay = document.getElementById('scoring-round-display');
+    if (roundDisplay) roundDisplay.textContent = activeRoundName ? `Tour : ${activeRoundName}` : '';
+    if (typeof initTheme === 'function') initTheme();
+
+    // Onglets Classement / Mon classement
+    const tabButtons = scoringPage.querySelectorAll('.classement-tab');
+    const panelClassement = document.getElementById('classement-tab-panel');
+    const panelMonClassement = document.getElementById('mon-classement-tab-panel');
+    tabButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tab = btn.getAttribute('data-tab');
+            tabButtons.forEach(b => {
+                b.classList.remove('active');
+                b.style.background = b.getAttribute('data-tab') === 'classement' ? 'var(--card-bg)' : 'var(--card-bg)';
+                b.style.color = 'var(--text-color)';
+                b.style.fontWeight = 'normal';
+            });
+            btn.classList.add('active');
+            btn.style.background = 'var(--primary-color)';
+            btn.style.color = 'white';
+            btn.style.fontWeight = '600';
+            if (tab === 'classement') {
+                if (panelClassement) panelClassement.style.display = 'block';
+                if (panelMonClassement) panelMonClassement.style.display = 'none';
+            } else {
+                if (panelClassement) panelClassement.style.display = 'none';
+                if (panelMonClassement) {
+                    panelMonClassement.style.display = 'block';
+                    renderMonClassementPanel();
                 }
             }
-            
-            // Mettre à jour le score existant
-            const existingDoc = existingScores.docs[0];
-            await setDoc(doc(db, "scores", existingDoc.id), scoreData);
-        } else {
-            // Créer un nouveau score
-            await addDoc(collection(db, "scores"), scoreData);
+        });
+    });
+
+    const BONUS_VICTOIRE_FACTOR = 1.10;
+    let lastRenderedClassementEntries = null;
+
+    function getEntryDisplayScore(entry) {
+        return entry.score_affiché != null ? entry.score_affiché : (entry.score_appliqué != null ? entry.score_appliqué : (entry.score_base != null ? entry.score_base : (entry.score != null ? entry.score : 0)));
+    }
+
+    /** Score final uniquement (score_affiché puis score_appliqué) — pour le tri. Mise à jour du classement uniquement par activation. */
+    function getScoreFinal(entry) {
+        const v = entry.score_affiché != null ? entry.score_affiché : (entry.score_appliqué != null ? entry.score_appliqué : 0);
+        return typeof v === 'number' ? v : parseFloat(v) || 0;
+    }
+
+    function renderClassement(data, opts) {
+        const fromAdmin = opts && opts.fromAdmin === true;
+        const tbody = document.getElementById('classement-body');
+        const theadRow = document.getElementById('classement-thead-row');
+        const loadingEl = document.getElementById('classement-loading');
+        const tableEl = document.getElementById('classement-table');
+        const emptyEl = document.getElementById('classement-empty');
+        if (!tbody) return;
+        if (!data || !data.entries || data.entries.length === 0) {
+            if (loadingEl) loadingEl.style.display = 'none';
+            if (tableEl) tableEl.style.display = 'none';
+            if (emptyEl) { emptyEl.style.display = 'block'; emptyEl.textContent = 'Aucun classement pour l’instant.'; }
+            previousClassementEntriesForOvertake = null;
+            lastRenderedClassementEntries = null;
+            return;
         }
-        
-        // Réinitialiser le formulaire et rafraîchir la liste
-        selectedCandidateId = null;
-        selectedScore1 = null;
-        selectedScore2 = null;
-        document.getElementById('selected-candidate-display').textContent = '';
-        document.querySelectorAll('.score-btn').forEach(btn => btn.classList.remove('selected'));
-        document.querySelectorAll('.elim-btn').forEach(btn => btn.classList.remove('eliminated'));
-        checkValidation();
-        
-        await updateCandidateSelect();
-        
-        // Vérifier si tous les candidats ont leurs notes et qualifier/éliminer
-        const savedCandidateId = scoreData.candidateId;
-        setTimeout(async () => {
-            await checkAndQualifyCandidateFromJury(savedCandidateId);
-        }, 500);
-        
-        await customAlert("✓ Notation enregistrée avec succès !");
+        if (loadingEl) loadingEl.style.display = 'none';
+        if (emptyEl) emptyEl.style.display = 'none';
+        if (tableEl) tableEl.style.display = 'table';
+        const oldRankByCandidate = {};
+        if (previousClassementEntriesForOvertake) {
+            previousClassementEntriesForOvertake.forEach(e => { oldRankByCandidate[e.candidateId] = e.rank != null ? e.rank : 0; });
+        }
+        if (theadRow && isCurrentUserPresident) {
+            if (!theadRow.querySelector('th.classement-bonus-header')) {
+                const th = document.createElement('th');
+                th.className = 'classement-bonus-header';
+                th.style.cssText = 'padding: 12px; text-align: center;';
+                th.textContent = 'Bonus';
+                theadRow.appendChild(th);
+            }
+        } else if (theadRow) {
+            const bonusTh = theadRow.querySelector('th.classement-bonus-header');
+            if (bonusTh) bonusTh.remove();
+        }
+        tbody.innerHTML = '';
+        const sortedEntries = [...data.entries].sort((a, b) => getScoreFinal(b) - getScoreFinal(a));
+        const numQualified = activeRoundNextCandidates === 'ALL' ? sortedEntries.length : (parseInt(activeRoundNextCandidates, 10) || 0);
+        sortedEntries.forEach((entry, i) => {
+            const row = tbody.insertRow();
+            const newRank = i + 1;
+            if (previousClassementEntriesForOvertake && oldRankByCandidate[entry.candidateId] != null && newRank < oldRankByCandidate[entry.candidateId]) {
+                row.classList.add('row-overtake');
+            }
+            if (fromAdmin && previousClassementEntriesForOvertake && oldRankByCandidate[entry.candidateId] != null && newRank > oldRankByCandidate[entry.candidateId]) {
+                row.classList.add('classement-row-overtaken');
+            }
+            if (i < numQualified) row.classList.add('classement-row-qualified');
+            const rankCell = row.insertCell();
+            rankCell.textContent = newRank;
+            rankCell.style.padding = '12px';
+            rankCell.style.textAlign = 'center';
+            const nameCell = row.insertCell();
+            nameCell.textContent = entry.name || entry.candidateId || '—';
+            nameCell.style.padding = '12px';
+            const scoreCell = row.insertCell();
+            const scoreAffiche = getEntryDisplayScore(entry);
+            scoreCell.textContent = scoreAffiche != null ? scoreAffiche : '—';
+            scoreCell.style.padding = '12px';
+            scoreCell.style.textAlign = 'center';
+            if (isCurrentUserPresident) {
+                const bonusCell = row.insertCell();
+                bonusCell.style.padding = '12px';
+                bonusCell.style.textAlign = 'center';
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.textContent = '+ Bonus victoire';
+                btn.className = 'bonus-victoire-btn';
+                btn.onclick = () => applyBonusVictoire(classementId, entry.candidateId);
+                bonusCell.appendChild(btn);
+            }
+        });
+        lastRenderedClassementEntries = sortedEntries.map((e, i) => ({ ...e, rank: i + 1 }));
+        previousClassementEntriesForOvertake = null;
+    }
+
+    function getEntryScore(e) {
+        return e.score_affiché != null ? e.score_affiché : (e.score_appliqué != null ? e.score_appliqué : (e.score_base != null ? e.score_base : (e.score != null ? e.score : 0)));
+    }
+
+    window.applyBonusVictoire = async function(cId, candidateId) {
+        if (!cId || !candidateId) return;
+        try {
+            const snap = await getDoc(doc(db, "classements", cId));
+            if (!snap.exists()) return;
+            const data = snap.data();
+            const entries = [...(data.entries || [])];
+            const entry = entries.find(e => e.candidateId === candidateId);
+            if (!entry) return;
+            const currentScore = getEntryScore(entry);
+            const numScore = typeof currentScore === 'number' ? currentScore : parseFloat(currentScore) || 0;
+            const newScore = Math.round(numScore * BONUS_VICTOIRE_FACTOR * 100) / 100;
+            entry.score_appliqué = newScore;
+            entry.score_affiché = newScore;
+            entries.sort((a, b) => getEntryScore(b) - getEntryScore(a));
+            entries.forEach((e, i) => { e.rank = i + 1; });
+            previousClassementEntriesForOvertake = snap.data().entries || [];
+            await setDoc(doc(db, "classements", cId), { ...data, entries, lastUpdateSource: 'president_bonus', updatedAt: new Date() });
+        } catch (err) {
+            console.error(err);
+            if (typeof customAlert === 'function') customAlert('Erreur lors de l\'application du bonus : ' + err.message);
+            else alert('Erreur : ' + err.message);
+        }
     };
+
+    /** Collection jury_rankings : document id = juryId_roundId, champs juryId, roundId, positions { "10": candidateId|null, ... }, updatedAt. */
+    async function renderMonClassementPanel() {
+        const tbody = document.getElementById('mon-classement-body');
+        if (!tbody) return;
+        const roundId = activeRoundId || 'round1';
+        let candidates = CANDIDATES.filter(c => c.tour === roundId);
+        if (candidates.length === 0) {
+            const candSnap = await getDoc(doc(db, "candidats", "liste_actuelle"));
+            if (candSnap.exists()) {
+                CANDIDATES = candSnap.data().candidates || [];
+                candidates = CANDIDATES.filter(c => c.tour === roundId);
+            }
+        }
+        const docId = `${currentJuryName}_${roundId}`;
+        const rankingSnap = await getDoc(doc(db, "jury_rankings", docId));
+        const positions = rankingSnap.exists() ? { ...(rankingSnap.data().positions || {}) } : {};
+        MON_CLASSEMENT_POSITIONS.forEach(p => { if (positions[p] === undefined) positions[p] = null; });
+
+        tbody.innerHTML = '';
+        MON_CLASSEMENT_POSITIONS.forEach(positionLabel => {
+            const row = tbody.insertRow();
+            const cellPos = row.insertCell();
+            cellPos.textContent = positionLabel;
+            cellPos.style.padding = '12px';
+            cellPos.style.textAlign = 'center';
+            cellPos.style.fontWeight = '600';
+            const cellSelect = row.insertCell();
+            cellSelect.style.padding = '12px';
+            const select = document.createElement('select');
+            select.dataset.position = positionLabel;
+            select.style.width = '100%';
+            select.style.padding = '8px';
+            const emptyOpt = document.createElement('option');
+            emptyOpt.value = '';
+            emptyOpt.textContent = '— Aucun —';
+            select.appendChild(emptyOpt);
+            candidates.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = `${c.id} - ${c.name || c.id}`;
+                select.appendChild(opt);
+            });
+            const currentVal = positions[positionLabel];
+            select.value = currentVal || '';
+            cellSelect.appendChild(select);
+
+            select.addEventListener('change', async () => {
+                const chosenId = select.value || null;
+                const newPositions = {};
+                MON_CLASSEMENT_POSITIONS.forEach(p => {
+                    const sel = tbody.closest('table').querySelector(`select[data-position="${p}"]`);
+                    newPositions[p] = (sel && sel.value) ? sel.value : null;
+                });
+                newPositions[positionLabel] = chosenId;
+                if (chosenId) {
+                    MON_CLASSEMENT_POSITIONS.forEach(p => {
+                        if (p === positionLabel) return;
+                        if (newPositions[p] === chosenId) {
+                            newPositions[p] = null;
+                            const otherSel = tbody.closest('table').querySelector(`select[data-position="${p}"]`);
+                            if (otherSel) otherSel.value = '';
+                        }
+                    });
+                }
+                try {
+                    await setDoc(doc(db, "jury_rankings", docId), {
+                        juryId: currentJuryName,
+                        roundId,
+                        positions: newPositions,
+                        updatedAt: new Date()
+                    });
+                } catch (err) {
+                    console.error(err);
+                    if (typeof customAlert === 'function') customAlert('Erreur sauvegarde : ' + err.message);
+                    else alert('Erreur : ' + err.message);
+                }
+            });
+        });
+    }
+
+    if (!classementId) {
+        renderClassement(null);
+        return;
+    }
+
+    if (classementListener) {
+        classementListener();
+        classementListener = null;
+    }
+    classementListener = onSnapshot(doc(db, "classements", classementId), (snap) => {
+        if (!snap.exists()) {
+            renderClassement(null);
+            return;
+        }
+        previousClassementEntriesForOvertake = lastRenderedClassementEntries;
+        const data = snap.data();
+        const fromAdmin = data.lastUpdateSource === 'admin_activation';
+        renderClassement(data, { fromAdmin });
+    }, (err) => {
+        console.error('Erreur classement:', err);
+        document.getElementById('classement-loading').textContent = 'Erreur de chargement du classement.';
+    });
 }
 
 /**
@@ -1494,6 +2456,7 @@ async function showRepechageInterface() {
                         <div class="toggle-slider"></div>
                     </div>
                 </div>
+                <div class="menu-item" onclick="syncWithAdmin()">📡 Synchroniser avec l'admin</div>
                 <div class="menu-item" onclick="changePassword()">🔑 Changer le mot de passe</div>
                 <div class="menu-item" onclick="logout()">🚪 Déconnexion</div>
             </div>
@@ -1761,6 +2724,7 @@ async function updateRepechageScore(candidateId, scoreValue) {
         );
         const existingScores = await getDocs(q);
         
+        const v = scoreValue === 'EL' || scoreValue === '-' ? 0 : (Number(scoreValue) * 3) + Number(scoreValue);
         const scoreData = {
             juryId: currentJuryName,
             juryName: juryName,
@@ -1768,6 +2732,7 @@ async function updateRepechageScore(candidateId, scoreValue) {
             roundId: activeRoundId,
             score1: scoreValue,
             score2: scoreValue, // Les deux scores sont identiques pour le repêchage
+            score_base: v,
             timestamp: new Date()
         };
         
@@ -2125,11 +3090,13 @@ async function showDuelsInterface() {
     
     // Réinitialiser les sélections
     duelCandidate1 = null;
-    duelScore1 = null;
+    duelScore1Fond = null;
+    duelScore1Forme = null;
     duelCandidate2 = null;
-    duelScore2 = null;
+    duelScore2Fond = null;
+    duelScore2Forme = null;
     
-    // Afficher l'interface
+    // Afficher l'interface avec onglets Notation | Duels | Mon classement (Fond + Forme pour chaque candidat)
     scoringPage.innerHTML = `
         <div class="burger-menu">
             <div class="burger-icon" onclick="toggleMenu()">
@@ -2144,227 +3111,145 @@ async function showDuelsInterface() {
                         <div class="toggle-slider"></div>
                     </div>
                 </div>
+                <div class="menu-item" onclick="syncWithAdmin()">📡 Synchroniser avec l'admin</div>
                 <div class="menu-item" onclick="changePassword()">🔑 Changer le mot de passe</div>
                 <div class="menu-item" onclick="logout()">🚪 Déconnexion</div>
             </div>
         </div>
-        
         <p id="scoring-round-display" style="text-align: center; color: var(--text-secondary); margin-bottom: var(--spacing);"></p>
-        
-        <h2 style="text-align: center; margin-bottom: var(--spacing);">
-            Jury: <span id="current-jury-display"></span>
-        </h2>
-        
-        <h3 style="text-align: center; margin-bottom: var(--spacing); color: var(--text-color);">
-            Duel - Notez les deux candidats
-        </h3>
-        
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing); margin-bottom: var(--spacing);">
-            <!-- Candidat 1 -->
-            <div style="border: 2px solid var(--primary-color); border-radius: var(--radius); padding: var(--spacing); background: var(--card-bg);">
-                <h4 style="text-align: center; color: var(--primary-color); margin-bottom: 10px;">Candidat 1</h4>
-                
-                <div class="control-group">
-                    <label for="duel-candidate-1">Sélectionner</label>
-                    <select id="duel-candidate-1" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius); background: var(--input-bg); color: var(--text-color); font-size: 1em;">
-                        <option value="">-- Choisir --</option>
-                        ${activeCandidates.map(c => `<option value="${c.id}">${c.id} - ${c.name}</option>`).join('')}
-                    </select>
-                </div>
-                
-                <div class="control-group" style="margin-top: 15px;">
-                    <label>Note</label>
-                    <div id="duel-grid-1" class="score-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(60px, 1fr)); gap: 8px; margin-top: 10px;">
-                        ${[5, 10, 15, 20].map(score => `
-                            <button class="score-btn" data-candidate="1" data-score="${score}" style="padding: 15px; font-size: 1.2em; background: var(--input-bg); color: var(--text-color); border: 2px solid var(--border-color); border-radius: var(--radius); cursor: pointer;">
-                                ${score}
-                            </button>
-                        `).join('')}
-                    </div>
-                    <p id="duel-display-1" class="selection-info" style="margin-top: 10px; text-align: center; color: var(--text-secondary);">Note : -</p>
-                </div>
-            </div>
-            
-            <!-- Candidat 2 -->
-            <div style="border: 2px solid var(--secondary-color); border-radius: var(--radius); padding: var(--spacing); background: var(--card-bg);">
-                <h4 style="text-align: center; color: var(--secondary-color); margin-bottom: 10px;">Candidat 2</h4>
-                
-                <div class="control-group">
-                    <label for="duel-candidate-2">Sélectionner</label>
-                    <select id="duel-candidate-2" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius); background: var(--input-bg); color: var(--text-color); font-size: 1em;">
-                        <option value="">-- Choisir --</option>
-                        ${activeCandidates.map(c => `<option value="${c.id}">${c.id} - ${c.name}</option>`).join('')}
-                    </select>
-                </div>
-                
-                <div class="control-group" style="margin-top: 15px;">
-                    <label>Note</label>
-                    <div id="duel-grid-2" class="score-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(60px, 1fr)); gap: 8px; margin-top: 10px;">
-                        ${[5, 10, 15, 20].map(score => `
-                            <button class="score-btn" data-candidate="2" data-score="${score}" style="padding: 15px; font-size: 1.2em; background: var(--input-bg); color: var(--text-color); border: 2px solid var(--border-color); border-radius: var(--radius); cursor: pointer;">
-                                ${score}
-                            </button>
-                        `).join('')}
-                    </div>
-                    <p id="duel-display-2" class="selection-info" style="margin-top: 10px; text-align: center; color: var(--text-secondary);">Note : -</p>
-                </div>
-            </div>
+        <h2 style="text-align: center; margin-bottom: var(--spacing);">Jury: <span id="current-jury-display"></span></h2>
+        <div class="jury-tabs-bar">
+            <button type="button" class="jury-tab-btn active" data-jury-tab="notation">Notation</button>
+            <button type="button" class="jury-tab-btn" data-jury-tab="duels">Gagnants de duel</button>
+            <button type="button" class="jury-tab-btn" data-jury-tab="mon-classement">Mon classement</button>
         </div>
-        
-        <button id="duel-validate-button" disabled style="width: 100%; padding: 15px; font-size: 1.1em; background: var(--primary-color); color: white; border: none; border-radius: var(--radius); cursor: pointer; opacity: 0.5;">
-            Valider le duel
-        </button>
+        <div id="jury-tab-notation" class="jury-tab-content active">
+            <p class="jury-notation-intro">Duel - Notez les deux candidats : Fond (×3) et Forme (×1) pour chacun. Note de 0 à 20 pour chaque critère.</p>
+            <div class="jury-notation-cols">
+                <div class="jury-notation-card">
+                    <label for="duel-candidate-1" class="card-title">Candidat 1</label>
+                    <select id="duel-candidate-1">
+                        <option value="">-- Choisir --</option>
+                        ${activeCandidates.map(c => `<option value="${c.id}">${c.id} - ${c.name}</option>`).join('')}
+                    </select>
+                    <hr class="jury-notation-sep">
+                    <div class="control-group">
+                        <label>Fond / Argumentation (Coefficient ×3)</label>
+                        <div class="score-grid" id="duel-grid-fond-1"></div>
+                        <p id="duel-display-1-fond" class="selection-info">Note Fond : -</p>
+                </div>
+                    <hr class="jury-notation-sep">
+                    <div class="control-group">
+                        <label>Forme / Éloquence (Coefficient ×1)</label>
+                        <div class="score-grid" id="duel-grid-forme-1"></div>
+                        <p id="duel-display-1-forme" class="selection-info">Note Forme : -</p>
+                    </div>
+                </div>
+                <div class="jury-notation-card">
+                    <label for="duel-candidate-2" class="card-title">Candidat 2</label>
+                    <select id="duel-candidate-2">
+                        <option value="">-- Choisir --</option>
+                        ${activeCandidates.map(c => `<option value="${c.id}">${c.id} - ${c.name}</option>`).join('')}
+                    </select>
+                    <hr class="jury-notation-sep">
+                    <div class="control-group">
+                        <label>Fond / Argumentation (Coefficient ×3)</label>
+                        <div class="score-grid" id="duel-grid-fond-2"></div>
+                        <p id="duel-display-2-fond" class="selection-info">Note Fond : -</p>
+                </div>
+                    <hr class="jury-notation-sep">
+                    <div class="control-group">
+                        <label>Forme / Éloquence (Coefficient ×1)</label>
+                        <div class="score-grid" id="duel-grid-forme-2"></div>
+                        <p id="duel-display-2-forme" class="selection-info">Note Forme : -</p>
+                    </div>
+                </div>
+            </div>
+            <button id="duel-validate-button" class="jury-notation-validate" disabled>Valider le duel</button>
+        </div>
+        <div id="jury-tab-duels" class="jury-tab-content">
+            <p id="jury-duels-message" style="text-align: center; color: var(--text-secondary);">Chargement des duels…</p>
+            <div id="jury-duels-list" style="display: none;"></div>
+        </div>
+        <div id="jury-tab-mon-classement" class="jury-tab-content">
+            <p style="text-align: center; color: var(--text-secondary); margin-bottom: 15px;">Votre classement personnel : 5 premières positions (1 à 5). Chaque menu propose tous les candidats ; si vous placez un candidat à une autre position, son ancienne position se vide.</p>
+            <table id="jury-mon-classement-table" style="width: 100%; border-collapse: collapse;">
+                <thead><tr style="background: var(--neutral-color); color: white;"><th style="padding: 12px; text-align: center;">Position</th><th style="padding: 12px; text-align: left;">Candidat</th></tr></thead>
+                <tbody id="jury-mon-classement-body"></tbody>
+            </table>
+        </div>
     `;
-    
-    // Mettre à jour les informations affichées
+    setupJuryTabs();
     document.getElementById('current-jury-display').textContent = currentJuryDisplayName;
     const roundDisplay = document.getElementById('scoring-round-display');
     if (roundDisplay) {
         roundDisplay.textContent = activeRoundName ? `Tour en cours : ${activeRoundName}` : '';
     }
-    
-    // Initialiser le thème
     initTheme();
+    createDuelGridsTwo();
     
-    // Event listeners pour les dropdowns
     document.getElementById('duel-candidate-1').addEventListener('change', (e) => {
-        duelCandidate1 = e.target.value;
+        duelCandidate1 = e.target.value || null;
         checkDuelValidation();
     });
-    
     document.getElementById('duel-candidate-2').addEventListener('change', (e) => {
-        duelCandidate2 = e.target.value;
+        duelCandidate2 = e.target.value || null;
         checkDuelValidation();
     });
-    
-    // Event listeners pour les boutons de score
-    document.getElementById('duel-grid-1').querySelectorAll('.score-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const candidateNum = parseInt(this.dataset.candidate);
-            const score = parseInt(this.dataset.score);
-            selectDuelScore(candidateNum, score, this);
-        });
-    });
-    
-    document.getElementById('duel-grid-2').querySelectorAll('.score-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const candidateNum = parseInt(this.dataset.candidate);
-            const score = parseInt(this.dataset.score);
-            selectDuelScore(candidateNum, score, this);
-        });
-    });
-    
-    // Event listener pour le bouton de validation
     document.getElementById('duel-validate-button').addEventListener('click', confirmDuel);
 }
 
 /**
- * Sélectionner une note pour un candidat de duel
- */
-function selectDuelScore(candidateNum, score, button) {
-    // Désélectionner les autres boutons de la même grille
-    const gridId = `duel-grid-${candidateNum}`;
-    const grid = document.getElementById(gridId);
-    grid.querySelectorAll('.score-btn').forEach(btn => btn.classList.remove('selected'));
-    
-    // Sélectionner ce bouton
-    button.classList.add('selected');
-    
-    // Enregistrer le score
-    if (candidateNum === 1) {
-        duelScore1 = score;
-    } else {
-        duelScore2 = score;
-    }
-    
-    // Afficher le score
-    document.getElementById(`duel-display-${candidateNum}`).textContent = `Note : ${score}`;
-    
-    // Vérifier la validation
-    checkDuelValidation();
-}
-
-/**
- * Vérifier si le duel peut être validé
+ * Vérifier si le duel peut être validé (Fond + Forme 0-20 pour les deux candidats).
  */
 function checkDuelValidation() {
     const validateBtn = document.getElementById('duel-validate-button');
-    
-    if (duelCandidate1 && duelCandidate2 && duelScore1 && duelScore2 && duelCandidate1 !== duelCandidate2) {
-        validateBtn.disabled = false;
-        validateBtn.style.opacity = '1';
-    } else {
-        validateBtn.disabled = true;
-        validateBtn.style.opacity = '0.5';
-    }
+    if (!validateBtn) return;
+    const c1Ok = duelCandidate1 && duelCandidate1 !== duelCandidate2 &&
+        duelScore1Fond != null && duelScore1Forme != null;
+    const c2Ok = duelCandidate2 &&
+        duelScore2Fond != null && duelScore2Forme != null;
+    const ok = c1Ok && c2Ok;
+    validateBtn.disabled = !ok;
+    validateBtn.style.opacity = ok ? '1' : '0.6';
 }
 
 /**
- * Confirmer le duel
+ * Confirmer le duel (Fond + Forme 0-20 pour chaque candidat).
  */
 async function confirmDuel() {
     const candidate1 = CANDIDATES.find(c => c.id === duelCandidate1);
     const candidate2 = CANDIDATES.find(c => c.id === duelCandidate2);
-    
-    if (!await customConfirm(`Confirmer ce duel ?\n\n${candidate1.name} : ${duelScore1}\n${candidate2.name} : ${duelScore2}`)) {
+    const msg = `Confirmer ce duel ?\n\n${candidate1?.name || duelCandidate1} : Fond ${duelScore1Fond} / Forme ${duelScore1Forme}\n${candidate2?.name || duelCandidate2} : Fond ${duelScore2Fond} / Forme ${duelScore2Forme}`;
+    if (!await customConfirm(msg)) {
         return;
     }
-    
     try {
-        // Récupérer le nom du jury pour la dénormalisation
         const juryDoc = await getDoc(doc(db, "accounts", currentJuryName));
         const juryName = juryDoc.exists() ? juryDoc.data().name : currentJuryName;
-        
-        // Enregistrer les deux scores
+        const s1 = Number(duelScore1Fond);
+        const s2 = Number(duelScore1Forme);
+        const s3 = Number(duelScore2Fond);
+        const s4 = Number(duelScore2Forme);
+        const scoreBase = (s1, s2) => ((s1 === 'EL' || s2 === 'EL') ? 0 : (Number(s1) * 3) + Number(s2));
         const scores = [
-            {
-                juryId: currentJuryName,
-                juryName: juryName,
-                candidateId: duelCandidate1,
-                roundId: activeRoundId,
-                score1: duelScore1,
-                score2: 0, // Pas de deuxième note pour les duels
-                timestamp: new Date()
-            },
-            {
-                juryId: currentJuryName,
-                juryName: juryName,
-                candidateId: duelCandidate2,
-                roundId: activeRoundId,
-                score1: duelScore2,
-                score2: 0, // Pas de deuxième note pour les duels
-                timestamp: new Date()
-            }
+            { juryId: currentJuryName, juryName, candidateId: duelCandidate1, roundId: activeRoundId, score1: s1, score2: s2, score_base: scoreBase(s1, s2), timestamp: new Date() },
+            { juryId: currentJuryName, juryName, candidateId: duelCandidate2, roundId: activeRoundId, score1: s3, score2: s4, score_base: scoreBase(s3, s4), timestamp: new Date() }
         ];
-        
         for (const scoreData of scores) {
-            // Vérifier si un score existe déjà
-            const q = query(
-                collection(db, "scores"),
-                where("candidateId", "==", scoreData.candidateId),
-                where("juryId", "==", currentJuryName),
-                where("roundId", "==", activeRoundId)
-            );
+            const q = query(collection(db, "scores"), where("candidateId", "==", scoreData.candidateId), where("juryId", "==", currentJuryName), where("roundId", "==", activeRoundId));
             const existingScores = await getDocs(q);
-            
             if (!existingScores.empty) {
-                // Mettre à jour
                 await setDoc(doc(db, "scores", existingScores.docs[0].id), scoreData);
             } else {
-                // Créer
                 await addDoc(collection(db, "scores"), scoreData);
             }
         }
-        
         await customAlert("✓ Duel enregistré avec succès !");
-        
-        // Vérifier si tous les candidats ont leurs notes et qualifier/éliminer
         setTimeout(async () => {
             await checkAndQualifyCandidateFromJury(duelCandidate1);
             await checkAndQualifyCandidateFromJury(duelCandidate2);
         }, 500);
-        
-        // Rafraîchir l'interface
         showDuelsInterface();
     } catch (e) {
         await customAlert("Erreur lors de l'enregistrement : " + e.message);

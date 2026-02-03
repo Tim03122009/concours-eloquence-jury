@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <meta name="description" content="Tableau de bord administrateur - Gestion des résultats du concours">
     <meta name="theme-color" content="#667eea">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <title>🏆 Administration - Résultats Concours</title>
     <style>
@@ -20,6 +20,8 @@
             --danger-dark: #c82333;
             --neutral: #6c757d;
             --neutral-color: #6c757d;
+            --success-color: #28a745;
+            --bg-secondary: #e9ecef;
             --white: #ffffff;
             --text-color: #333;
             --text-secondary: #666;
@@ -47,6 +49,8 @@
             --danger-dark: #d32f2f;
             --neutral: #9e9e9e;
             --neutral-color: #9e9e9e;
+            --success-color: #4caf50;
+            --bg-secondary: #3a3a4a;
             --white: #ffffff;
             --text-color: #e0e0e0;
             --text-secondary: #b0b0b0;
@@ -771,6 +775,8 @@
             <button class="tab-btn" onclick="switchTab('tours')">Tours</button>
             <button class="tab-btn" onclick="switchTab('notes')">Notes</button>
             <button class="tab-btn" onclick="switchTab('podium')">Podium</button>
+            <button class="tab-btn" onclick="switchTab('duels')">Duels</button>
+            <button class="tab-btn" onclick="switchTab('activation-classements')">Activation classements</button>
             <button class="tab-btn" onclick="switchTab('reinitialiser')">Réinitialiser</button>
         </div>
 
@@ -806,6 +812,11 @@
 
         <!-- TAB 2: JURY -->
         <div id="tab-jury" class="tab-content">
+            <div class="candidate-zone" style="background: var(--warning-color); background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); border: 2px solid var(--warning-dark, #e65100); padding: 16px; border-radius: 8px; margin-bottom: 20px;">
+                <h3 style="color: var(--warning-dark, #e65100);">🔒 Verrouillage des sessions jury</h3>
+                <p style="color: var(--text-color); font-size: 0.9em; margin: 5px 0;">En verrouillant, tous les jurys connectés sont déconnectés et ne peuvent plus accéder à l'interface (comme un changement de tour sans accès). Idéal pour figer les saisies après coup.</p>
+                <button id="jury-session-lock-btn" type="button" class="action-button" onclick="toggleJurySessionLock()" style="margin-top: 10px; padding: 10px 20px;">Chargement…</button>
+            </div>
             <div class="candidate-zone" style="background: var(--primary-light, #e3f2fd); border: 2px solid var(--primary-color, #2196f3); padding: 20px; border-radius: 8px; margin-bottom: 20px;">
                 <h3 style="color: var(--primary-color, #1565c0);">🔑 Mot de passe par défaut</h3>
                 <p style="color: var(--text-color); font-size: 0.9em; margin: 5px 0;">Ce mot de passe sera requis pour créer un nouveau compte jury et sera défini par défaut lors de la création.</p>
@@ -879,10 +890,12 @@
 
         <!-- TAB 4: NOTES -->
         <div id="tab-notes" class="tab-content">
-            <p style="color: var(--text-secondary); margin-bottom: 20px;">
-                Modifiez les notes directement dans le tableau. Les modifications sont sauvegardées automatiquement.
+            <p style="color: var(--text-secondary); margin-bottom: 10px;">
+                Saisie <strong>Fond</strong> et <strong>Forme</strong> (5, 10, 15, 20 ou Éliminé). Les notes peuvent être identiques (Fond = Forme). Modifications sauvegardées automatiquement.
             </p>
-            
+            <p id="notes-validated-message" style="display: none; margin-bottom: 15px; padding: 12px; background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border: 1px solid var(--success); border-radius: 8px; color: #1e7e34; font-weight: 600;">
+                ✓ Tour validé — verrouillage définitif (plus de modification possible).
+            </p>
             <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 15px;">
                 <div style="display: flex; flex-direction: column; gap: 10px;">
                     <div style="display: flex; align-items: center; gap: 10px;">
@@ -894,6 +907,9 @@
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <input type="checkbox" id="notes-filter-current-round" checked style="width: 18px; height: 18px; cursor: pointer;">
                         <label for="notes-filter-current-round" style="color: var(--text-color); cursor: pointer;">Candidats en cours sur ce tour</label>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                        <button id="notes-validate-round-btn" onclick="validateRoundGlobally()" class="action-button" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white;">✓ Valider tout le tour</button>
                     </div>
                 </div>
                 
@@ -957,6 +973,47 @@
             </div>
         </div>
 
+        <!-- TAB 6: DUELS -->
+        <div id="tab-duels" class="tab-content">
+            <h2>Duels</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 20px;">
+                Sélectionnez un tour de type Duels, puis ajoutez des duels un par un. Pour chaque duel, choisissez manuellement les deux candidats et le gagnant. Vous pouvez supprimer un duel individuellement.
+            </p>
+            <div style="margin-bottom: 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 15px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <label for="duels-round-select" style="color: var(--text-color); font-weight: 600;">Tour (Duels) :</label>
+                    <select id="duels-round-select" onchange="changeDuelsRound(this.value)" style="padding: 8px 12px; border: 2px solid var(--border-color); border-radius: 6px; background: var(--input-bg); color: var(--text-color); font-size: 1em; min-width: 200px;">
+                        <option value="">-- Sélectionner un tour --</option>
+                    </select>
+                </div>
+                <button id="duels-add-btn" onclick="addDuel()" class="action-button" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white;">Ajouter un duel</button>
+            </div>
+            <div id="duels-list-container" style="margin-top: 20px;">
+                <p id="duels-empty-msg" style="color: var(--text-secondary);">Sélectionnez un tour de type Duels puis cliquez sur "Ajouter un duel".</p>
+                <div id="duels-list" style="display: none;"></div>
+            </div>
+        </div>
+
+        <!-- TAB: ACTIVATION CLASSEMENTS -->
+        <div id="tab-activation-classements" class="tab-content">
+            <h2>Activation classements</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 20px;">
+                Pour chaque juré et chaque candidat qu'il a classé (Mon classement), vous pouvez activer l'ajout des points au score du classement. Chaque activation est indépendante. Bouton grisé si le juré n'a pas attribué de points à ce candidat ; désactivé après activation.
+            </p>
+            <div style="margin-bottom: 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 15px;">
+                <label for="activation-classement-round" style="color: var(--text-color); font-weight: 600;">Tour (pour les jurys à afficher) :</label>
+                <select id="activation-classement-round" onchange="changeActivationClassementRound(this.value)" style="padding: 8px 12px; border: 2px solid var(--border-color); border-radius: 6px; background: var(--input-bg); color: var(--text-color); font-size: 1em; min-width: 220px;"></select>
+            </div>
+            <div id="activation-classements-loading" style="display: none; text-align: center; color: var(--text-secondary); padding: 20px;">Chargement…</div>
+            <div id="activation-classements-empty" style="display: none; text-align: center; color: var(--text-secondary); padding: 20px;">Sélectionnez un tour.</div>
+            <div class="table-container" id="activation-classements-container" style="display: none;">
+                <table class="notes-table" id="activation-classements-table" style="table-layout: auto;">
+                    <thead><tr id="activation-classements-thead"></tr></thead>
+                    <tbody id="activation-classements-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- TAB 7: REINITIALISER -->
         <div id="tab-reinitialiser" class="tab-content">
         <h2>Zone de Danger</h2>
@@ -979,6 +1036,8 @@
                 <p style="color: #212529; margin-top: 15px;">Auto-remplir les notes des candidats actifs du tour en cours avec des <strong>notes aléatoires de test (5, 10, 15 ou 20)</strong>.</p>
                 <p style="font-weight: 600; color: #856404; margin-top: 10px;">⚠️ Les candidats seront <strong>qualifiés ou éliminés</strong> selon leur classement et la limite "Candidats suivants" du tour actif.</p>
                 <button onclick="autoFillActiveRound()" class="action-button" style="background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); color: #212529;">✓ Auto-remplir et qualifier le tour actif</button>
+                <p style="color: #212529; margin-top: 15px;">Remplir <strong>tous les scores</strong> (tous tours, tous jurys, tous candidats) et <strong>bonus</strong> des classements avec des valeurs aléatoires — pour tests uniquement.</p>
+                <button onclick="fillAllScoresAndBonusesRandomly()" class="action-button" style="background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%); color: white; margin-top: 8px;">🎲 Remplir tous les scores et bonus aléatoirement (tests)</button>
             </div>
 
             <div class="reset-zone" style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border: 2px solid #28a745;">
@@ -1001,6 +1060,24 @@
                 <h3 style="color: var(--text-color);">Réinitialiser les scores</h3>
                 <p>Remet toutes les notations à "-" mais conserve la structure (jurys et candidats).</p>
                 <button onclick="confirmResetScores()" class="action-button">Réinitialiser les scores uniquement</button>
+            </div>
+
+            <div class="reset-zone" style="margin-top: 30px;">
+                <h3 style="color: var(--text-color);">Supprimer tous les duels</h3>
+                <p>Supprime tous les duels créés pour tous les tours (2ème tour, Demi-finale, Finale, etc.). Les jurys, candidats et notes sont conservés.</p>
+                <button onclick="confirmDeleteAllDuels()" class="action-button" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white;">Supprimer tous les duels</button>
+            </div>
+
+            <div class="reset-zone" style="margin-top: 30px;">
+                <h3 style="color: var(--text-color);">Supprimer tous les points de classement</h3>
+                <p>Supprime tous les classements des jurys (Mon classement) et les points activés dans les classements. Les jurys, candidats, notes et duels sont conservés.</p>
+                <button onclick="confirmDeleteAllClassementPoints()" class="action-button" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white;">Supprimer tous les points de classement</button>
+            </div>
+
+            <div class="reset-zone" style="margin-top: 30px;">
+                <h3 style="color: var(--text-color);">Supprimer les gagnants des duels</h3>
+                <p>Remet tous les gagnants des duels à « non renseigné » (boutons repassent en blanc). Les duels et candidats restent en place, seuls les gagnants sont effacés.</p>
+                <button onclick="confirmResetDuelWinners()" class="action-button" style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); color: white;">Supprimer les gagnants des duels</button>
             </div>
             
             <div class="reset-zone" style="margin-top: 30px;">
@@ -1032,8 +1109,8 @@
 
             <div class="reset-zone" style="margin-top: 30px;">
                 <h3 style="color: var(--text-color);">Réinitialisation complète</h3>
-                <p>Supprime TOUS les jurys, TOUS les candidats ET toutes les notations. Remet l'application à zéro.</p>
-                <button onclick="confirmResetAll()" class="action-button">RÉINITIALISER TOUT (Jurys + Candidats + Scores)</button>
+                <p>Supprime TOUS les jurys, TOUS les candidats, toutes les notations, tous les duels ET tous les points de classement. Remet l'application à zéro.</p>
+                <button onclick="confirmResetAll()" class="action-button">RÉINITIALISER TOUT (Jurys + Candidats + Scores + Duels + Classements)</button>
             </div>
         </div>
     </div>
@@ -1047,9 +1124,12 @@
         let ROUNDS = [];
         let activeRoundId = null;
         let aggregatedData = {};
-        let candidateLocks = {}; // {candidateId: {juryName: boolean}}
+        let candidateLocks = {}; // {candidateId: {juryId: boolean}}
+        let validatedRounds = {}; // {roundId: true} — verrouillage définitif après validation globale
         let scoresListener = null; // Pour stocker le listener en temps réel
         let candidatesListener = null; // Pour stocker le listener sur les candidats
+        let duelsListener = null; // Listener temps réel sur duel_results (mise à jour auto quand un juré enregistre un gagnant)
+        let activationClassementUnsubscribes = []; // Unsubscribe des listeners Activation classements (mise à jour auto)
 
         // --- REAL-TIME SCORES LISTENER ---
         let refreshTimeout = null;
@@ -1058,6 +1138,15 @@
         let pendingRefresh = false;
         let isManualChange = false; // Flag pour ignorer les listeners pendant un changement manuel
         let isRenderingNotesTable = false; // Flag pour éviter les appels multiples à renderNotesTable
+
+        /** Score base = fond×3 + forme ; EL ou - = 0. Utilisé partout (notes, classement, auto-remplissage). */
+        function computeScoreBase(score1, score2) {
+            if (score1 === 'EL' || score2 === 'EL' || score1 === '-' || score2 === '-') return 0;
+            const s1 = parseInt(score1, 10);
+            const s2 = parseInt(score2, 10);
+            if (isNaN(s1) || isNaN(s2)) return 0;
+            return (s1 * 3) + s2;
+        }
         
         function setupScoresListener() {
             // Si un listener existe déjà, ne pas en créer un nouveau
@@ -1084,58 +1173,57 @@
                     return;
                 }
                 
-                // Vérifier les changements réels
+                // Vérifier les changements réels (ignorer les snapshots sans changement réel, ex. reconnexion)
                 const changes = snapshot.docChanges();
                 if (changes.length === 0) {
                     return;
                 }
+                const hasRelevantChange = changes.some(c => c.type === 'added' || c.type === 'modified' || c.type === 'removed');
+                if (!hasRelevantChange) {
+                    return;
+                }
                 
-                console.log('✨ Score changes detected (from jury interface):', changes.map(c => `${c.type} ${c.doc.id}`).join(', '));
+                console.log('[CLASSEMENT] Listener scores: changements', changes.length, changes.map(c => `${c.type}:${c.doc.id}`).join(', '));
                 
-                // Extraire les candidateIds des scores modifiés pour vérifier la qualification
-                const affectedCandidateIds = new Set();
-                changes.forEach(change => {
-                    const data = change.doc.data();
-                    if (data.candidateId && data.roundId === activeRoundId) {
-                        affectedCandidateIds.add(data.candidateId);
-                    }
-                });
-                
-                // Marquer qu'il y a un rafraîchissement en attente
-                pendingRefresh = true;
-                
-                // Vérifier si l'onglet Notes est actif
                 const notesTab = document.getElementById('tab-notes');
                 const isNotesActive = notesTab && notesTab.classList.contains('active');
-                
+                console.log('[CLASSEMENT] Listener scores: onglet Notes actif ?', isNotesActive);
+                // Ne jamais mettre à jour le classement depuis le listener quand l'onglet Notes est affiché : sinon on écrase les points d'activation (bonus). Les changements de notes dans l'admin sont gérés par handleScoreChange qui appelle updateClassementFromScoresForRound.
                 if (isNotesActive) {
-                    // Débounce: attendre 300ms avant de rafraîchir
-                    if (refreshTimeout) {
-                        clearTimeout(refreshTimeout);
-                    }
+                    console.log('[CLASSEMENT] Listener scores: SKIP updateClassementFromScoresForRound (onglet Notes actif), refresh tableau Notes uniquement');
+                    pendingRefresh = true;
+                    if (refreshTimeout) clearTimeout(refreshTimeout);
                     refreshTimeout = setTimeout(async () => {
-                        console.log('🔄 Refreshing Notes table...');
-                        
-                        // Vérifier la qualification pour chaque candidat affecté
-                        for (const candidateId of affectedCandidateIds) {
-                            console.log(`🔍 Checking qualification for candidate ${candidateId} (from jury interface)`);
-                            await checkAndQualifyCandidate(candidateId);
-                        }
-                        
+                        console.log('[CLASSEMENT] Refreshing Notes table...');
                         await renderNotesTable();
                         await loadResults();
                         pendingRefresh = false;
                     }, 300);
-                } else {
-                    console.log('📋 Notes tab not active, refresh pending');
-                    // Même si l'onglet n'est pas actif, vérifier la qualification
-                    for (const candidateId of affectedCandidateIds) {
-                        console.log(`🔍 Checking qualification for candidate ${candidateId} (background)`);
-                        await checkAndQualifyCandidate(candidateId);
-                    }
+                    return;
                 }
+                
+                const affectedRoundIds = new Set();
+                const affectedCandidateIds = new Set();
+                changes.forEach(change => {
+                    const data = change.doc.data();
+                    if (data && data.roundId) affectedRoundIds.add(data.roundId);
+                    if (data && data.candidateId && data.roundId === activeRoundId) {
+                        affectedCandidateIds.add(data.candidateId);
+                    }
+                });
+                // Debounce : éviter plusieurs écritures en rafale
+                if (window._scoreChangeDebounceTimer) clearTimeout(window._scoreChangeDebounceTimer);
+                console.log('[CLASSEMENT] Listener scores: planification updateClassementFromScoresForRound pour rounds', [...affectedRoundIds]);
+                window._scoreChangeDebounceTimer = setTimeout(() => {
+                    window._scoreChangeDebounceTimer = null;
+                    affectedRoundIds.forEach(roundId => {
+                        updateClassementFromScoresForRound(roundId);
+                    });
+                }, 400);
+                
+                pendingRefresh = true;
             }, (error) => {
-                console.error('❌ Error listening to scores:', error);
+                console.error('[CLASSEMENT] ❌ Error listening to scores:', error);
             });
             
             console.log('✅ Scores listener setup complete');
@@ -1206,6 +1294,15 @@
 
         // --- TAB SWITCHING ---
         window.switchTab = function(tabName) {
+            console.log('[CLASSEMENT] switchTab →', tabName);
+            // En quittant l'onglet Activation classements, désabonner les listeners pour éviter des rechargements en arrière-plan qui pourraient interférer avec les données
+            if (tabName !== 'activation-classements') {
+                if (activationClassementUnsubscribes.length > 0) {
+                    console.log('[CLASSEMENT] switchTab: désabonnement de', activationClassementUnsubscribes.length, 'listener(s) Activation');
+                }
+                activationClassementUnsubscribes.forEach(fn => { if (typeof fn === 'function') fn(); });
+                activationClassementUnsubscribes = [];
+            }
             // Hide all tabs
             document.querySelectorAll('.tab-content').forEach(tab => {
                 tab.classList.remove('active');
@@ -1223,10 +1320,15 @@
                 renderCandidateTable();
             } else if (tabName === 'jury') {
                 renderJuryTable();
+                loadJurySessionLockState();
             } else if (tabName === 'tours') {
                 renderRoundsTable();
             } else if (tabName === 'notes') {
                 populateNotesRoundDropdown();
+                const notesSelect = document.getElementById('notes-round-select');
+                if (notesSelect && notesSelect.value) {
+                    notesDisplayRound = notesSelect.value;
+                }
                 renderNotesTable();
                 // Rafraîchir si des changements sont en attente
                 if (pendingRefresh) {
@@ -1236,6 +1338,12 @@
             } else if (tabName === 'podium') {
                 populatePodiumRoundDropdown();
                 loadResults();
+            } else if (tabName === 'duels') {
+                populateDuelsRoundDropdown();
+                loadDuelsData();
+            } else if (tabName === 'activation-classements') {
+                populateActivationClassementRoundDropdown();
+                loadActivationClassementsData();
             }
         };
 
@@ -1509,8 +1617,8 @@
             sortedCandidates.forEach(candidate => {
                 const row = tbody.insertRow();
                 row.innerHTML = `
-                    <td><input type="text" value="${candidate.id}" onchange="updateCandidateId('${candidate.id}', this.value)" style="width: 70px; padding: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px; text-align: center; font-family: monospace;"></td>
-                    <td><input type="text" value="${candidate.name}" onchange="updateCandidateName('${candidate.id}', this.value)" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px;"></td>
+                    <td><input type="text" id="candidate-id-${candidate.id}" name="candidate-id-${candidate.id}" value="${candidate.id}" onchange="updateCandidateId('${candidate.id}', this.value)" style="width: 70px; padding: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px; text-align: center; font-family: monospace;"></td>
+                    <td><input type="text" id="candidate-name-${candidate.id}" name="candidate-name-${candidate.id}" value="${(candidate.name || '').replace(/"/g, '&quot;')}" onchange="updateCandidateName('${candidate.id}', this.value)" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px;"></td>
                     <td class="actions">
                         <button class="icon-btn delete" onclick="deleteCandidate('${candidate.id}')" title="Supprimer">🗑️</button>
                     </td>
@@ -1964,6 +2072,37 @@
             await loadJuries();
         };
         
+        async function loadJurySessionLockState() {
+            const btn = document.getElementById('jury-session-lock-btn');
+            if (!btn) return;
+            try {
+                const snap = await getDoc(doc(db, "config", "session"));
+                const locked = snap.exists() && snap.data().jurySessionLocked === true;
+                btn.textContent = locked ? '🔓 Déverrouiller les sessions jury' : '🔒 Verrouiller les sessions jury';
+                btn.style.background = locked ? 'linear-gradient(135deg, #28a745 0%, #1e7e34 100%)' : 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)';
+                btn.style.color = 'white';
+            } catch (e) {
+                console.warn('loadJurySessionLockState:', e);
+                btn.textContent = 'Erreur de chargement';
+            }
+        }
+
+        window.toggleJurySessionLock = async function() {
+            const btn = document.getElementById('jury-session-lock-btn');
+            if (!btn) return;
+            try {
+                const snap = await getDoc(doc(db, "config", "session"));
+                const data = snap.exists() ? snap.data() : {};
+                const nextLocked = !(data.jurySessionLocked === true);
+                await setDoc(doc(db, "config", "session"), { ...data, jurySessionLocked: nextLocked, lastUpdateSource: 'admin_jury_lock', updatedAt: new Date() }, { merge: true });
+                await loadJurySessionLockState();
+                await customAlert(nextLocked ? '✓ Sessions jury verrouillées.\n\nLes jurys connectés sont déconnectés et n\'ont plus accès.' : '✓ Sessions jury déverrouillées.\n\nLes jurys peuvent à nouveau se connecter.');
+            } catch (e) {
+                console.error(e);
+                await customAlert('Erreur : ' + (e.message || e));
+            }
+        };
+
         async function renderJuryTable() {
             console.log('🎨 renderJuryTable() appelé');
             console.log('🎨 ROUNDS.length:', ROUNDS.length);
@@ -2011,9 +2150,10 @@
                     const isRepechage = round.type === 'Repêchage';
                     const disabled = isRepechage && !jury.isPresident ? 'disabled' : '';
                     const title = isRepechage && !jury.isPresident ? 'Seul le président peut accéder aux tours de repêchage' : '';
+                    const cbId = 'jury-round-' + jury.id + '-' + round.id;
                     return `
-                        <label style="display: inline-flex; align-items: center; gap: 4px; margin: 2px 4px; padding: 4px 8px; background: ${isChecked ? 'var(--success-color)' : 'var(--bg-secondary)'}; color: ${isChecked ? 'white' : 'var(--text-color)'}; border-radius: 4px; cursor: ${disabled ? 'not-allowed' : 'pointer'}; opacity: ${disabled ? '0.5' : '1'}; font-size: 0.85em; white-space: nowrap;" title="${title}">
-                            <input type="checkbox" 
+                        <label for="${cbId}" style="display: inline-flex; align-items: center; gap: 4px; margin: 2px 4px; padding: 4px 8px; background: var(--bg-secondary); color: var(--text-color); border-radius: 4px; cursor: ${disabled ? 'not-allowed' : 'pointer'}; opacity: ${disabled ? '0.5' : '1'}; font-size: 0.85em; white-space: nowrap;" title="${title}">
+                            <input type="checkbox" id="${cbId}" name="${cbId}"
                                    ${isChecked ? 'checked' : ''} 
                                    ${disabled}
                                    onchange="toggleJuryRound('${jury.id}', '${round.id}', this.checked)"
@@ -2025,9 +2165,9 @@
                 
                 row.innerHTML = `
                     <td style="text-align: center; color: var(--text-secondary); font-family: monospace;">${juryNumber}</td>
-                    <td><input type="text" value="${jury.name}" onchange="updateJuryName('${jury.id}', this.value)" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px;"></td>
+                    <td><input type="text" id="jury-name-${jury.id}" name="jury-name-${jury.id}" value="${(jury.name || '').replace(/"/g, '&quot;')}" onchange="updateJuryName('${jury.id}', this.value)" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px;"></td>
                     <td style="text-align: center;">
-                        <input type="radio" 
+                        <input type="radio" id="jury-president-${jury.id}"
                                name="jury-president" 
                                ${jury.isPresident ? 'checked' : ''} 
                                onchange="setJuryPresident('${jury.id}')"
@@ -2073,7 +2213,10 @@
             console.log('🔄 snap.exists():', snap.exists());
             if (snap.exists()) {
                 console.log('🔄 snap.data():', JSON.stringify(snap.data()));
-                ROUNDS = snap.data().rounds || [];
+                ROUNDS = (snap.data().rounds || []).map(r => ({
+                    ...r,
+                    type_epreuve: r.type_epreuve != null ? r.type_epreuve : getTypeEpreuveFromType(r.type)
+                }));
                 activeRoundId = snap.data().activeRoundId || null;
                 console.log('🔄 ROUNDS chargés:', ROUNDS.length, 'activeRoundId:', activeRoundId);
             }
@@ -2081,54 +2224,12 @@
             // Initialiser avec les tours par défaut si aucun n'existe
             if (ROUNDS.length === 0) {
                 ROUNDS = [
-                    {
-                        id: 'round1',
-                        order: 1,
-                        name: '1er tour',
-                        type: 'Notation individuelle',
-                        nextRoundCandidates: 'ALL',
-                        active: true
-                    },
-                    {
-                        id: 'round2',
-                        order: 2,
-                        name: 'Repechage 1er tour',
-                        type: 'Repêchage',
-                        nextRoundCandidates: 18,
-                        active: false
-                    },
-                    {
-                        id: 'round3',
-                        order: 3,
-                        name: '2eme tour',
-                        type: 'Duels',
-                        nextRoundCandidates: 'ALL',
-                        active: false
-                    },
-                    {
-                        id: 'round4',
-                        order: 4,
-                        name: 'Repechage 2eme tour',
-                        type: 'Repêchage',
-                        nextRoundCandidates: 7,
-                        active: false
-                    },
-                    {
-                        id: 'round5',
-                        order: 5,
-                        name: 'Demi-finale',
-                        type: 'Duels',
-                        nextRoundCandidates: 3,
-                        active: false
-                    },
-                    {
-                        id: 'round6',
-                        order: 6,
-                        name: 'Finale',
-                        type: 'Duels',
-                        nextRoundCandidates: 1,
-                        active: false
-                    }
+                    { id: 'round1', order: 1, name: '1er tour', type: 'Notation individuelle', type_epreuve: 'notation', nextRoundCandidates: 'ALL', active: true },
+                    { id: 'round2', order: 2, name: 'Repechage 1er tour', type: 'Repêchage', type_epreuve: 'repechage', nextRoundCandidates: 18, active: false },
+                    { id: 'round3', order: 3, name: '2eme tour', type: 'Duels', type_epreuve: 'duels', nextRoundCandidates: 'ALL', active: false },
+                    { id: 'round4', order: 4, name: 'Repechage 2eme tour', type: 'Repêchage', type_epreuve: 'repechage', nextRoundCandidates: 7, active: false },
+                    { id: 'round5', order: 5, name: 'Demi-finale', type: 'Duels', type_epreuve: 'duels', nextRoundCandidates: 3, active: false },
+                    { id: 'round6', order: 6, name: 'Finale', type: 'Duels', type_epreuve: 'duels', nextRoundCandidates: 1, active: false }
                 ];
                 activeRoundId = 'round1';
                 await saveRounds();
@@ -2136,20 +2237,38 @@
             
             renderRoundsTable();
         };
-        
-        async function saveRounds() {
-            await setDoc(doc(db, "config", "rounds"), { 
-                rounds: ROUNDS,
-                activeRoundId: activeRoundId
-            });
-            renderRoundsTable();
+
+        // Map type affiché -> type_epreuve (stockage identifiant duels, classement, etc.)
+        function getTypeEpreuveFromType(type) {
+            if (!type) return 'notation';
+            if (type === 'Duels') return 'duels';
+            if (type === 'Classement') return 'classement';
+            if (type === 'Repêchage') return 'repechage';
+            return 'notation';
         }
         
+        async function saveRounds() {
+            // S'assurer que chaque tour a type_epreuve (duels, classement, notation, repêchage)
+            const roundsToSave = ROUNDS.map(r => ({
+                ...r,
+                type_epreuve: r.type_epreuve != null ? r.type_epreuve : getTypeEpreuveFromType(r.type)
+            }));
+            await setDoc(doc(db, "config", "rounds"), { 
+                rounds: roundsToSave,
+                activeRoundId: activeRoundId
+            });
+            ROUNDS = roundsToSave;
+            renderRoundsTable();
+        }
+
         // Fonction pour mettre à jour un champ d'un tour
         window.updateRoundField = async (roundId, field, value) => {
             const round = ROUNDS.find(r => r.id === roundId);
             if (round) {
                 round[field] = value;
+                if (field === 'type') {
+                    round.type_epreuve = getTypeEpreuveFromType(value);
+                }
                 console.log(`🔄 Mise à jour du tour ${roundId}: ${field} = ${value}`);
                 await saveRounds();
             }
@@ -2171,17 +2290,16 @@
                     <td class="actions">
                         <button class="icon-btn delete" onclick="deleteRound('${round.id}')" title="Supprimer">🗑️</button>
                     </td>
-                    <td><input type="number" value="${round.order}" onchange="updateRoundField('${round.id}', 'order', parseInt(this.value))" style="width: 60px; padding: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px;"></td>
-                    <td><input type="text" value="${round.name}" onchange="updateRoundField('${round.id}', 'name', this.value)" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px;"></td>
+                    <td><input type="number" id="round-order-${round.id}" name="round-order-${round.id}" value="${round.order}" onchange="updateRoundField('${round.id}', 'order', parseInt(this.value))" style="width: 60px; padding: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px;"></td>
+                    <td><input type="text" id="round-name-${round.id}" name="round-name-${round.id}" value="${(round.name || '').replace(/"/g, '&quot;')}" onchange="updateRoundField('${round.id}', 'name', this.value)" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px;"></td>
                     <td>
-                        <select onchange="updateRoundField('${round.id}', 'type', this.value)" style="width: 100%; min-width: 200px; padding: 6px 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px; font-size: 13px;">
-                            <option value="Notation individuelle" ${round.type === 'Notation individuelle' ? 'selected' : ''}>Notation individuelle</option>
+                        <select id="round-type-${round.id}" name="round-type-${round.id}" onchange="updateRoundField('${round.id}', 'type', this.value)" style="width: 100%; min-width: 200px; padding: 6px 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px; font-size: 13px;">
+                            <option value="Notation individuelle" ${round.type === 'Notation individuelle' || round.type === 'Classement' ? 'selected' : ''}>Notation individuelle</option>
                             <option value="Repêchage" ${round.type === 'Repêchage' ? 'selected' : ''}>Repêchage</option>
                             <option value="Duels" ${round.type === 'Duels' ? 'selected' : ''}>Duels</option>
-                            <option value="Classement" ${round.type === 'Classement' ? 'selected' : ''}>Classement</option>
                         </select>
                     </td>
-                    <td><input type="text" value="${round.nextRoundCandidates}" onchange="updateRoundField('${round.id}', 'nextRoundCandidates', this.value)" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px;" placeholder="ALL ou nombre"></td>
+                    <td><input type="text" id="round-next-${round.id}" name="round-next-${round.id}" value="${String(round.nextRoundCandidates ?? '').replace(/"/g, '&quot;')}" onchange="updateRoundField('${round.id}', 'nextRoundCandidates', this.value)" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px;" placeholder="ALL ou nombre"></td>
                 `;
             });
             
@@ -2227,16 +2345,14 @@
             const typeNum = {
                 'Notation individuelle': '1',
                 'Repêchage': '2',
-                'Duels': '3',
-                'Classement': '4'
+                'Duels': '3'
             }[round.type] || '1';
             
-            const type = await prompt(`Type du tour:\n1 - Notation individuelle\n2 - Repêchage\n3 - Duels\n4 - Classement\n\nEntrez le numéro:`, typeNum);
+            const type = await prompt(`Type du tour:\n1 - Notation individuelle\n2 - Repêchage\n3 - Duels\n\nEntrez le numéro:`, typeNum);
             const types = {
                 '1': 'Notation individuelle',
                 '2': 'Repêchage',
-                '3': 'Duels',
-                '4': 'Classement'
+                '3': 'Duels'
             };
             
             if (!types[type]) {
@@ -2488,14 +2604,15 @@
             renderNotesTable();
         };
         
-        loadRounds();
-        
-        // Démarrer les listeners en temps réel après le chargement
-        setTimeout(() => {
-            console.log('🚀 Initializing real-time listeners...');
+        // Charger tours et candidats au démarrage pour que tous les onglets et le classement soient cohérents (listener met à jour le classement même si on n'est pas sur l'onglet Notes)
+        (async function initAdminData() {
+            await loadRounds();
+            await loadList();
+            console.log('🚀 Données admin chargées (ROUNDS, CANDIDATES). Initialisation des listeners...');
             setupScoresListener();
             setupCandidatesListener();
-        }, 500);
+            console.log('%c[CLASSEMENT] Pour déboguer le bonus: filtrez la console par "CLASSEMENT". Puis: Activation classements → activer +5 pour un candidat → Notes → revenir Activation. Copiez toutes les lignes [CLASSEMENT].', 'color: #0a0; font-weight: bold;');
+        })();
 
         // --- GESTION NOTES ---
         // Variables globales pour le tri du tableau Notes et l'affichage des tours
@@ -2503,11 +2620,16 @@
         let notesSortAscending = true;
         let notesDisplayRound = null; // Tour affiché dans le tableau Notes
         let podiumDisplayRound = null; // Tour affiché dans le podium
+        let duelDisplayRound = null; // Tour affiché dans l'onglet Duels
+        let duelsList = []; // Liste des duels : [ { duelId, candidate1Id, candidate2Id, winnerId } ]
+        let activationClassementRoundId = null; // Tour (Classement) pour l'onglet Activation classements
+        let activationClassementId = null; // ID du document classement
         
         async function renderNotesTable() {
+            console.log('[CLASSEMENT] renderNotesTable ENTRÉE (lecture seule, n\'écrit pas au classement)');
             // Éviter les appels multiples en parallèle
             if (isRenderingNotesTable) {
-                console.log('⏭️ renderNotesTable already in progress, skipping');
+                console.log('[CLASSEMENT] renderNotesTable déjà en cours, skip');
                 return;
             }
             isRenderingNotesTable = true;
@@ -2551,6 +2673,21 @@
             
             console.log(`🔍 [renderNotesTable] Jurys présents sur le tour ${displayRound}:`, juriesOnRound.map(j => j.name));
             
+            // Charger les tours validés (verrouillage définitif)
+            const validatedSnap = await getDoc(doc(db, "config", "validated_rounds"));
+            validatedRounds = validatedSnap.exists() ? (validatedSnap.data().rounds || {}) : {};
+            const isRoundValidated = !!validatedRounds[displayRound];
+            
+            const validatedMsg = document.getElementById('notes-validated-message');
+            const validateBtn = document.getElementById('notes-validate-round-btn');
+            if (validatedMsg) validatedMsg.style.display = isRoundValidated ? 'block' : 'none';
+            if (validateBtn) {
+                validateBtn.style.display = 'inline-block';
+                validateBtn.textContent = isRoundValidated ? 'Déverrouiller le tour' : '✓ Valider tout le tour';
+                validateBtn.onclick = isRoundValidated ? unlockRoundGlobally : validateRoundGlobally;
+                validateBtn.style.background = isRoundValidated ? 'linear-gradient(135deg, #fd7e14 0%, #e8590c 100%)' : 'linear-gradient(135deg, #28a745 0%, #1e7e34 100%)';
+            }
+            
             // Charger les scores du tour sélectionné
             const q = query(
                 collection(db, "scores"),
@@ -2572,7 +2709,8 @@
                 scoresByCandidate[data.candidateId][juryId] = {
                     id: docSnap.id,
                     score1: data.score1,
-                    score2: data.score2
+                    score2: data.score2,
+                    score_base: data.score_base != null ? data.score_base : computeScoreBase(data.score1, data.score2)
                 };
             });
             
@@ -2680,9 +2818,20 @@
                     });
                 }
                 
+                let totalScoreBase = 0;
+                if (!isRepechage) {
+                    sortedJuries.forEach(jury => {
+                        const scores = scoresByCandidate[candidate.id]?.[jury.id];
+                        if (scores && scores.score1 !== '-' && scores.score2 !== '-') {
+                            totalScoreBase += (scores.score_base != null ? scores.score_base : computeScoreBase(scores.score1, scores.score2));
+                        }
+                    });
+                }
+                
                 return {
                     candidate,
                     totalScore: hasScores ? totalScore : null,
+                    totalScoreBase: !isRepechage && totalScoreBase > 0 ? totalScoreBase : null,
                     scoresByJury: scoresByCandidate[candidate.id] || {},
                     previousRoundScoresByJury: isRepechage ? (previousRoundScores[candidate.id] || {}) : {}
                 };
@@ -2739,12 +2888,13 @@
                 ? sortedJuries.map(j => `<th class="col-score" style="min-width: 90px;">${j.name}<br><small>(0 ou 1)</small></th>`).join('')
                 : sortedJuries.map(j => `<th colspan="2" class="col-score" style="min-width: 180px;">${j.name}<br><small>(Fond | Forme)</small></th>`).join('');
             
-            const scoreLabel = isRepechage ? 'Score<br><small>(tour précédent)</small>' : 'Score';
+            const scoreLabel = isRepechage ? 'Score<br><small>(tour précédent)</small>' : 'Score<br><small>(pondéré)</small>';
             
             thead.innerHTML = `
                 <th style="width: 60px; cursor: pointer;" onclick="sortNotesTable('id')">ID${sortIcon('id')}</th>
                 <th class="col-candidate" style="cursor: pointer;" onclick="sortNotesTable('candidat')">Candidat${sortIcon('candidat')}</th>
                 <th style="width: 100px; cursor: pointer;" onclick="sortNotesTable('score')">${scoreLabel}${sortIcon('score')}</th>
+                ${isRepechage ? '' : '<th style="width: 90px; text-align: center;">Score base</th>'}
                 <th style="min-width: 200px; width: 200px; cursor: pointer;" onclick="sortNotesTable('tour')">Dernier Tour${sortIcon('tour')}</th>
                 <th style="width: 150px; cursor: pointer;" onclick="sortNotesTable('statut')">Statut${sortIcon('statut')}</th>
                 ${juryHeaders}
@@ -2765,9 +2915,8 @@
                 nameCell.className = 'candidate-name col-candidate';
                 nameCell.textContent = candidate.name;
                 
-                // Score total
+                // Score total (pondéré)
                 const scoreCell = row.insertCell();
-                // Pour le repêchage, afficher 0 au lieu de "-" pour les éliminés
                 if (isRepechage && item.totalScore === null) {
                     scoreCell.textContent = '0';
                 } else {
@@ -2775,6 +2924,13 @@
                 }
                 scoreCell.style.textAlign = 'center';
                 scoreCell.style.fontWeight = 'bold';
+                
+                // Score base (Fond+Forme) — uniquement pour tours non repêchage
+                if (!isRepechage) {
+                    const scoreBaseCell = row.insertCell();
+                    scoreBaseCell.textContent = item.totalScoreBase != null ? item.totalScoreBase : '-';
+                    scoreBaseCell.style.textAlign = 'center';
+                }
                 
                 // Tour
                 const tourCell = row.insertCell();
@@ -2796,8 +2952,8 @@
                         cell.style.width = '90px';
                         cell.style.textAlign = 'center';
                         
-                        // Si le statut est "Elimine" ou "Qualifie", les notes ne sont pas éditables
-                        const readonly = (candidate.status === 'Elimine' || candidate.status === 'Qualifie');
+                        // Lecture seule si tour validé (verrouillage définitif) ou statut Qualifie/Elimine
+                        const readonly = isRoundValidated || (candidate.status === 'Elimine' || candidate.status === 'Qualifie');
                         
                         if (scores) {
                             cell.innerHTML = createRepechageScoreDropdown(scores.id, scores.score1, candidate.id, jury.id, readonly);
@@ -2815,8 +2971,8 @@
                         cell2.style.minWidth = '90px';
                         cell2.style.width = '90px';
                         
-                        // Si le statut est "Elimine" ou "Qualifie", les notes ne sont pas éditables
-                        const readonly = (candidate.status === 'Elimine' || candidate.status === 'Qualifie');
+                        // Lecture seule si tour validé (verrouillage définitif) ou statut Qualifie/Elimine
+                        const readonly = isRoundValidated || (candidate.status === 'Elimine' || candidate.status === 'Qualifie');
                         
                         if (scores) {
                             cell1.innerHTML = createScoreDropdown(scores.id, 'score1', scores.score1, candidate.id, jury.id, readonly);
@@ -2828,11 +2984,130 @@
                     }
                 });
             });
+
             } finally {
                 isRenderingNotesTable = false;
             }
         }
-        
+
+        /** Met à jour le classement pour un tour donné à partir des scores (fond/forme), en préservant les points d'activation et duelBonusEnabled. Appelé à chaque changement de notes (listener ou admin), quel que soit l'onglet affiché. Charge toujours candidats et tours depuis Firestore pour ne pas dépendre de l'onglet ouvert. */
+        async function updateClassementFromScoresForRound(roundId) {
+            if (!roundId) return;
+            console.log('[CLASSEMENT] updateClassementFromScoresForRound ENTRÉE roundId=', roundId);
+            try {
+                const scoresQuery = query(collection(db, "scores"), where("roundId", "==", roundId));
+                const scoresSnap = await getDocs(scoresQuery);
+                const totalBaseByCandidate = {};
+                scoresSnap.forEach(d => {
+                    const data = d.data();
+                    const cid = data.candidateId;
+                    const base = data.score_base != null ? data.score_base : computeScoreBase(data.score1, data.score2);
+                    totalBaseByCandidate[cid] = (totalBaseByCandidate[cid] || 0) + base;
+                });
+                // Charger les candidats depuis Firestore (ne pas dépendre de CANDIDATES en mémoire, qui peut être vide si on n'a pas ouvert l'onglet Candidats)
+                const candidatsSnap = await getDoc(doc(db, "candidats", "liste_actuelle"));
+                const allCandidates = candidatsSnap.exists() ? (candidatsSnap.data().candidates || []) : [];
+                const roundCandidates = allCandidates.filter(c => (c.tour || '') === roundId);
+                const withScore = roundCandidates.map(c => ({
+                    candidateId: c.id,
+                    name: c.name || c.id,
+                    score_base: totalBaseByCandidate[c.id] || 0
+                }));
+                withScore.sort((a, b) => b.score_base - a.score_base);
+                if (withScore.length === 0) {
+                    console.log('[CLASSEMENT] updateClassementFromScoresForRound: withScore vide, return');
+                    return;
+                }
+                // Résolution du classementId identique à loadActivationClassementsData pour toujours écrire dans le même doc que l'onglet Activation (et donc lire les bons points d'activation)
+                let classementId = null;
+                const roundsSnap = await getDoc(doc(db, "config", "rounds"));
+                const roundsList = roundsSnap.exists() ? (roundsSnap.data().rounds || []) : [];
+                const round = roundsList.find(r => r.id === roundId);
+                if (round && round.classementId && String(round.classementId).trim()) {
+                    classementId = String(round.classementId).trim();
+                }
+                if (!classementId) {
+                    const configActivationsSnap = await getDoc(doc(db, "config", "activations"));
+                    classementId = (configActivationsSnap.exists() && configActivationsSnap.data().classementIdActif)
+                        ? configActivationsSnap.data().classementIdActif.trim() : ('classement_' + roundId);
+                }
+                console.log('[CLASSEMENT] updateClassementFromScoresForRound: classementId=', classementId);
+                const classementRef = doc(db, "classements", classementId);
+                const classementSnap = await getDoc(classementRef);
+                const currentData = classementSnap.exists() ? classementSnap.data() : {};
+                if (classementSnap.exists() && currentData.code != null && currentData.code !== roundId) {
+                    console.log('[CLASSEMENT] updateClassementFromScoresForRound: doc classement code !== roundId, return');
+                    return;
+                }
+                // Toujours relire les activations juste avant d'écrire (même doc que l'onglet Activation) pour ne jamais écraser les points
+                const activationsSnap = await getDoc(doc(db, "classement_activations", classementId));
+                const activated = activationsSnap.exists() ? (activationsSnap.data().activated || []) : [];
+                console.log('[CLASSEMENT] updateClassementFromScoresForRound: activations lues =', activated.length, activated.map(a => `${a.candidateId}+${a.points}`).join(', '));
+                const pointsByCandidate = {};
+                activated.forEach(a => {
+                    if (a.candidateId && (a.points != null || a.points === 0)) {
+                        pointsByCandidate[a.candidateId] = (pointsByCandidate[a.candidateId] || 0) + (typeof a.points === 'number' ? a.points : parseFloat(a.points) || 0);
+                    }
+                });
+                console.log('[CLASSEMENT] updateClassementFromScoresForRound: pointsByCandidate =', JSON.stringify(pointsByCandidate));
+                const entries = withScore.map((x, i) => {
+                    const base = x.score_base != null ? (typeof x.score_base === 'number' ? x.score_base : parseFloat(x.score_base) || 0) : 0;
+                    const points = pointsByCandidate[x.candidateId] != null ? pointsByCandidate[x.candidateId] : 0;
+                    const total = Math.round((base + points) * 100) / 100;
+                    return {
+                        rank: i + 1,
+                        candidateId: x.candidateId,
+                        name: x.name,
+                        score_base: x.score_base,
+                        score_appliqué: total,
+                        score_affiché: total
+                    };
+                });
+                entries.sort((a, b) => (b.score_appliqué ?? 0) - (a.score_appliqué ?? 0));
+                entries.forEach((e, i) => { e.rank = i + 1; });
+                // Sauvegarde : ne JAMAIS écraser le classement si le doc actuel a des points d'activation et qu'on écrirait des scores plus bas (sinon on perdrait les points ; ne pas appeler recalculate ici car il relirait les mêmes activations et pourrait aussi écraser en cas de cache/doc différent)
+                const currentEntries = currentData.entries || [];
+                const entriesWithBonus = currentEntries.filter(e => {
+                    const base = e.score_base != null ? (typeof e.score_base === 'number' ? e.score_base : parseFloat(e.score_base) || 0) : 0;
+                    const applied = e.score_appliqué != null ? (typeof e.score_appliqué === 'number' ? e.score_appliqué : parseFloat(e.score_appliqué) || 0) : 0;
+                    return applied > base;
+                });
+                console.log('[CLASSEMENT] updateClassementFromScoresForRound: currentEntries=', currentEntries.length, 'dont avec bonus (appliqué>base)=', entriesWithBonus.length, entriesWithBonus.map(e => `${e.candidateId}:${e.score_base}→${e.score_appliqué}`).join(', '));
+                const newByCid = Object.fromEntries(entries.map(e => [e.candidateId, e]));
+                const wouldLosePoints = currentEntries.some(e => {
+                    const base = e.score_base != null ? (typeof e.score_base === 'number' ? e.score_base : parseFloat(e.score_base) || 0) : 0;
+                    const applied = e.score_appliqué != null ? (typeof e.score_appliqué === 'number' ? e.score_appliqué : parseFloat(e.score_appliqué) || 0) : 0;
+                    const newEntry = newByCid[e.candidateId];
+                    const newApplied = newEntry ? (newEntry.score_appliqué != null ? newEntry.score_appliqué : 0) : 0;
+                    return applied > base && newApplied < applied;
+                });
+                const losingCandidates = currentEntries.filter(e => {
+                    const base = e.score_base != null ? (typeof e.score_base === 'number' ? e.score_base : parseFloat(e.score_base) || 0) : 0;
+                    const applied = e.score_appliqué != null ? (typeof e.score_appliqué === 'number' ? e.score_appliqué : parseFloat(e.score_appliqué) || 0) : 0;
+                    const newEntry = newByCid[e.candidateId];
+                    const newApplied = newEntry ? (newEntry.score_appliqué != null ? newEntry.score_appliqué : 0) : 0;
+                    return applied > base && newApplied < applied;
+                });
+                if (wouldLosePoints) {
+                    console.log('[CLASSEMENT] updateClassementFromScoresForRound: SKIP ÉCRITURE (wouldLosePoints) candidats qui perdraient des points:', losingCandidates.map(e => e.candidateId).join(', '));
+                    return;
+                }
+                const duelBonusEnabled = Array.isArray(currentData.duelBonusEnabled) ? currentData.duelBonusEnabled : [];
+                console.log('[CLASSEMENT] updateClassementFromScoresForRound: ÉCRITURE classement', classementId, 'entries=', entries.length);
+                await setDoc(classementRef, {
+                    ...currentData,
+                    code: roundId,
+                    entries,
+                    duelBonusEnabled,
+                    readOnly: true,
+                    lastUpdateSource: 'admin_sync_from_scores_listener',
+                    updatedAt: new Date()
+                }, { merge: true });
+            } catch (e) {
+                console.warn('[CLASSEMENT] updateClassementFromScoresForRound ERREUR:', e);
+            }
+        }
+
         window.sortNotesTable = (column) => {
             if (notesSortColumn === column) {
                 notesSortAscending = !notesSortAscending;
@@ -2848,6 +3123,7 @@
             const select = document.getElementById('notes-round-select');
             if (!select) return;
             
+            const roundToSelect = notesDisplayRound || activeRoundId || (ROUNDS.length > 0 ? [...ROUNDS].sort((a, b) => (a.order || 0) - (b.order || 0))[0].id : null);
             select.innerHTML = '';
             const sortedRounds = [...ROUNDS].sort((a, b) => a.order - b.order);
             
@@ -2855,9 +3131,14 @@
                 const option = document.createElement('option');
                 option.value = round.id;
                 option.textContent = round.name;
-                option.selected = (round.id === (notesDisplayRound || activeRoundId));
                 select.appendChild(option);
             });
+            
+            if (roundToSelect && sortedRounds.some(r => r.id === roundToSelect)) {
+                select.value = roundToSelect;
+            } else if (sortedRounds.length > 0) {
+                select.value = sortedRounds[0].id;
+            }
             
             // Attacher l'event listener sur la checkbox de filtrage (si pas déjà fait)
             const filterCheckbox = document.getElementById('notes-filter-current-round');
@@ -2899,8 +3180,695 @@
             loadResults();
         };
         
+        // --- ONGLET DUELS ---
+        function isDuelsRound(round) {
+            return (round && (round.type === 'Duels' || round.type_epreuve === 'duels'));
+        }
+        
+        function populateDuelsRoundDropdown() {
+            const select = document.getElementById('duels-round-select');
+            if (!select) return;
+            const current = duelDisplayRound || activeRoundId;
+            select.innerHTML = '<option value="">-- Sélectionner un tour --</option>';
+            const sortedRounds = [...ROUNDS].sort((a, b) => (a.order || 0) - (b.order || 0));
+            sortedRounds.forEach(round => {
+                if (!isDuelsRound(round)) return;
+                const option = document.createElement('option');
+                option.value = round.id;
+                option.textContent = round.name;
+                option.selected = (round.id === current);
+                select.appendChild(option);
+            });
+        }
+        
+        window.changeDuelsRound = (roundId) => {
+            duelDisplayRound = roundId || null;
+            loadDuelsData();
+        };
+        
+        async function loadDuelsData() {
+            const roundId = duelDisplayRound || activeRoundId;
+            const emptyMsg = document.getElementById('duels-empty-msg');
+            const listEl = document.getElementById('duels-list');
+            const addBtn = document.getElementById('duels-add-btn');
+            if (!roundId || !isDuelsRound(ROUNDS.find(r => r.id === roundId))) {
+                duelsList = [];
+                if (emptyMsg) emptyMsg.textContent = 'Sélectionnez un tour de type Duels.';
+                if (emptyMsg) emptyMsg.style.display = 'block';
+                if (listEl) listEl.style.display = 'none';
+                if (addBtn) addBtn.disabled = true;
+                return;
+            }
+            if (duelsListener) { duelsListener(); duelsListener = null; }
+            const snap = await getDoc(doc(db, "duel_results", roundId));
+            duelsList = (snap.exists() && snap.data().duels) ? [...snap.data().duels] : [];
+            if (addBtn) addBtn.disabled = false;
+            if (duelsList.length === 0) {
+                if (emptyMsg) emptyMsg.textContent = 'Aucun duel. Cliquez sur "Ajouter un duel" pour en créer un.';
+                if (emptyMsg) emptyMsg.style.display = 'block';
+                if (listEl) listEl.style.display = 'none';
+            } else {
+                if (emptyMsg) emptyMsg.style.display = 'none';
+                if (listEl) listEl.style.display = 'block';
+                renderDuelsList();
+            }
+            duelsListener = onSnapshot(doc(db, "duel_results", roundId), (snap) => {
+                if (snap.exists() && snap.data().duels) {
+                    duelsList = [...snap.data().duels];
+                    const emptyMsg2 = document.getElementById('duels-empty-msg');
+                    const listEl2 = document.getElementById('duels-list');
+                    if (duelsList.length === 0) {
+                        if (emptyMsg2) { emptyMsg2.textContent = 'Aucun duel. Cliquez sur "Ajouter un duel" pour en créer un.'; emptyMsg2.style.display = 'block'; }
+                        if (listEl2) listEl2.style.display = 'none';
+                    } else {
+                        if (emptyMsg2) emptyMsg2.style.display = 'none';
+                        if (listEl2) { listEl2.style.display = 'block'; renderDuelsList(); }
+                    }
+                }
+            });
+        }
+
+        window.addDuel = function() {
+            const roundId = duelDisplayRound || activeRoundId;
+            if (!roundId) {
+                customAlert('Sélectionnez un tour de type Duels.');
+                return;
+            }
+            duelsList.push({
+                duelId: 'duel_' + Date.now(),
+                candidate1Id: '',
+                candidate2Id: '',
+                winnerId: null
+            });
+            document.getElementById('duels-empty-msg').style.display = 'none';
+            document.getElementById('duels-list').style.display = 'block';
+            renderDuelsList();
+            saveDuelsSilently();
+        };
+
+        window.removeDuel = function(duelIndex) {
+            if (duelIndex < 0 || duelIndex >= duelsList.length) return;
+            duelsList.splice(duelIndex, 1);
+            if (duelsList.length === 0) {
+                document.getElementById('duels-empty-msg').textContent = 'Aucun duel. Cliquez sur "Ajouter un duel" pour en créer un.';
+                document.getElementById('duels-empty-msg').style.display = 'block';
+                document.getElementById('duels-list').style.display = 'none';
+            } else {
+                renderDuelsList();
+            }
+            saveDuelsSilently();
+        };
+        
+        /** Synchronise duelBonusEnabled des classements liés à ce tour : ne garde que les candidats qui sont encore gagnants d'un duel (on retire les ex-gagnants ; on n'ajoute pas les nouveaux par défaut).
+         * @param {string} roundId - id du tour duels
+         * @param {string[]} [currentWinnerIds] - si fourni, utilise cette liste ; sinon déduit de duelsList en mémoire
+         */
+        async function syncDuelBonusEnabledWithDuelWinners(roundId, currentWinnerIds) {
+            if (!roundId) return;
+            try {
+                const winnerIds = currentWinnerIds != null
+                    ? currentWinnerIds
+                    : (duelsList || []).filter(d => d.winnerId).map(d => d.winnerId);
+                const classementsSnap = await getDocs(collection(db, "classements"));
+                for (const docSnap of classementsSnap.docs) {
+                    const data = docSnap.data();
+                    if (data.code !== roundId) continue;
+                    const list = Array.isArray(data.duelBonusEnabled) ? data.duelBonusEnabled : [];
+                    const kept = list.filter(id => winnerIds.includes(id));
+                    if (kept.length !== list.length) {
+                        await setDoc(doc(db, "classements", docSnap.id), { duelBonusEnabled: kept, lastUpdateSource: 'admin_duel_sync', updatedAt: new Date() }, { merge: true });
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        /** Sauvegarde les duels en base sans message (à chaque modification). */
+        async function saveDuelsSilently() {
+            const roundId = duelDisplayRound || activeRoundId;
+            if (!roundId) return;
+            const sameCandidate = duelsList.filter(d => d.candidate1Id && d.candidate2Id && d.candidate1Id === d.candidate2Id);
+            if (sameCandidate.length > 0) return;
+            try {
+                await setDoc(doc(db, "duel_results", roundId), {
+                    roundId,
+                    duels: duelsList,
+                    updatedAt: new Date()
+                });
+                await syncDuelBonusEnabledWithDuelWinners(roundId);
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        window.updateDuelCandidates = function(duelIndex, which, value) {
+            if (duelIndex < 0 || duelIndex >= duelsList.length) return;
+            const d = duelsList[duelIndex];
+            if (which === 1) {
+                d.candidate1Id = value || '';
+                if (d.candidate2Id === d.candidate1Id) d.candidate2Id = '';
+                d.winnerId = null;
+            }
+            if (which === 2) {
+                d.candidate2Id = value || '';
+                if (d.candidate1Id === d.candidate2Id) d.candidate1Id = '';
+                d.winnerId = null;
+            }
+            renderDuelsList();
+            saveDuelsSilently();
+        };
+
+        window.setDuelWinner = async function(duelIndex, winnerId) {
+            if (duelIndex < 0 || duelIndex >= duelsList.length) return;
+            const d = duelsList[duelIndex];
+            if (winnerId !== d.candidate1Id && winnerId !== d.candidate2Id) return;
+            d.winnerId = winnerId;
+            renderDuelsList();
+            await saveDuelsSilently();
+        };
+
+        function renderDuelsList() {
+            const listEl = document.getElementById('duels-list');
+            if (!listEl) return;
+            const roundId = duelDisplayRound || activeRoundId;
+            const candidatesInRound = (roundId ? CANDIDATES.filter(c => c.tour === roundId) : []).sort((a, b) => String(a.id).localeCompare(String(b.id)));
+            listEl.innerHTML = '';
+            duelsList.forEach((duel, i) => {
+                const c1 = CANDIDATES.find(c => c.id === duel.candidate1Id);
+                const c2 = CANDIDATES.find(c => c.id === duel.candidate2Id);
+                const card = document.createElement('div');
+                card.style.cssText = 'display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 14px; margin-bottom: 10px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--input-bg);';
+                const sel1 = document.createElement('select');
+                sel1.style.cssText = 'padding: 6px 10px; border: 2px solid var(--border-color); border-radius: 6px; background: var(--input-bg); color: var(--text-color); min-width: 140px;';
+                sel1.innerHTML = '<option value="">-- Candidat 1 --</option>' + candidatesInRound.map(c => `<option value="${c.id}" ${duel.candidate1Id === c.id ? 'selected' : ''}>${(c.name || c.id).replace(/</g, '&lt;')}</option>`).join('');
+                sel1.onchange = () => updateDuelCandidates(i, 1, sel1.value);
+                const sel2 = document.createElement('select');
+                sel2.style.cssText = 'padding: 6px 10px; border: 2px solid var(--border-color); border-radius: 6px; background: var(--input-bg); color: var(--text-color); min-width: 140px;';
+                const others = candidatesInRound.filter(c => c.id !== duel.candidate1Id);
+                sel2.innerHTML = '<option value="">-- Candidat 2 --</option>' + others.map(c => `<option value="${c.id}" ${duel.candidate2Id === c.id ? 'selected' : ''}>${(c.name || c.id).replace(/</g, '&lt;')}</option>`).join('');
+                sel2.onchange = () => updateDuelCandidates(i, 2, sel2.value);
+                const left = document.createElement('span');
+                left.style.display = 'flex';
+                left.style.alignItems = 'center';
+                left.style.gap = '10px';
+                left.innerHTML = `<span style="font-weight: 600; color: var(--text-color); min-width: 50px;">Duel ${i + 1}</span>`;
+                left.appendChild(sel1);
+                left.appendChild(document.createTextNode(' vs '));
+                left.appendChild(sel2);
+                card.appendChild(left);
+                const center = document.createElement('span');
+                center.style.display = 'flex';
+                center.style.gap = '10px';
+                center.style.alignItems = 'center';
+                if (duel.candidate1Id && duel.candidate2Id) {
+                    center.innerHTML = '<label style="color: var(--text-color);">Gagnant :</label>';
+                    const name1 = (c1 ? c1.name : duel.candidate1Id).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    const name2 = (c2 ? c2.name : duel.candidate2Id).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    const is1Winner = duel.winnerId === duel.candidate1Id;
+                    const is2Winner = duel.winnerId === duel.candidate2Id;
+                    const btn1 = document.createElement('button');
+                    btn1.type = 'button';
+                    btn1.textContent = c1 ? c1.name : duel.candidate1Id;
+                    btn1.style.cssText = `padding: 8px 16px; border-radius: 6px; border: 2px solid var(--border-color); background: ${is1Winner ? 'var(--success-color)' : (duel.winnerId ? 'var(--danger-color)' : 'var(--input-bg)')}; color: ${is1Winner || (duel.winnerId && !is1Winner) ? 'white' : 'var(--text-color)'}; cursor: pointer; font-weight: 600;`;
+                    btn1.onclick = () => setDuelWinner(i, duel.candidate1Id);
+                    const btn2 = document.createElement('button');
+                    btn2.type = 'button';
+                    btn2.textContent = c2 ? c2.name : duel.candidate2Id;
+                    btn2.style.cssText = `padding: 8px 16px; border-radius: 6px; border: 2px solid var(--border-color); background: ${is2Winner ? 'var(--success-color)' : (duel.winnerId ? 'var(--danger-color)' : 'var(--input-bg)')}; color: ${is2Winner || (duel.winnerId && !is2Winner) ? 'white' : 'var(--text-color)'}; cursor: pointer; font-weight: 600;`;
+                    btn2.onclick = () => setDuelWinner(i, duel.candidate2Id);
+                    center.appendChild(btn1);
+                    center.appendChild(btn2);
+                } else {
+                    center.textContent = 'Choisissez les deux candidats';
+                    center.style.color = 'var(--text-secondary)';
+                }
+                card.appendChild(center);
+                const delBtn = document.createElement('button');
+                delBtn.type = 'button';
+                delBtn.textContent = 'Supprimer';
+                delBtn.style.cssText = 'padding: 8px 14px; border-radius: 6px; border: 2px solid var(--danger-color); background: transparent; color: var(--danger-color); cursor: pointer; font-weight: 600;';
+                delBtn.onclick = () => removeDuel(i);
+                card.appendChild(delBtn);
+                listEl.appendChild(card);
+            });
+        }
+        
+        /** Valider / enregistrer les duels (avec ou sans gagnant : permet de sauvegarder la liste des duels puis de renseigner les gagnants plus tard, ou de corriger un gagnant depuis l'admin). */
+        window.validateDuels = async function() {
+            const roundId = duelDisplayRound || activeRoundId;
+            if (!roundId) {
+                await customAlert('Sélectionnez un tour.');
+                return;
+            }
+            const incomplete = duelsList.filter(d => !d.candidate1Id || !d.candidate2Id);
+            if (incomplete.length > 0) {
+                await customAlert('Choisissez les deux candidats pour chaque duel. Il manque ' + incomplete.length + ' duel(s) incomplet(s).');
+                return;
+            }
+            const sameCandidate = duelsList.filter(d => d.candidate1Id === d.candidate2Id);
+            if (sameCandidate.length > 0) {
+                await customAlert('Les deux candidats d\'un duel doivent être différents.');
+                return;
+            }
+            try {
+                await setDoc(doc(db, "duel_results", roundId), {
+                    roundId,
+                    duels: duelsList,
+                    updatedAt: new Date()
+                });
+                const withWinner = duelsList.filter(d => d.winnerId).length;
+                const total = duelsList.length;
+                if (withWinner === total) {
+                    await customAlert('Duels validés. Tous les gagnants sont enregistrés.');
+                } else if (withWinner === 0) {
+                    await customAlert('Duels validés. Aucun gagnant renseigné pour l\'instant ; vous pourrez les indiquer plus tard ou corriger depuis l\'admin.');
+                } else {
+                    await customAlert('Duels validés. ' + withWinner + ' gagnant(s) sur ' + total + ' enregistré(s).');
+                }
+            } catch (e) {
+                console.error(e);
+                await customAlert('Erreur lors de la validation : ' + e.message);
+            }
+        };
+
+        // --- ACTIVATION CLASSEMENTS ---
+        // Le jury enregistre les positions sous les clés "1" à "5" (jury_rankings.positions).
+        // Points associés : 1er = 10, 2e = 8, 3e = 6, 4e = 4, 5e = 2.
+        const POSITION_LABELS_JURY = ['1', '2', '3', '4', '5'];
+        const POSITION_TO_POINTS = { '1': 10, '2': 8, '3': 6, '4': 4, '5': 2 };
+
+        function isClassementRound(round) {
+            return round && (round.type === 'Classement' || round.type_epreuve === 'classement');
+        }
+
+        function populateActivationClassementRoundDropdown() {
+            const sel = document.getElementById('activation-classement-round');
+            if (!sel) return;
+            sel.innerHTML = '';
+            const sorted = [...ROUNDS].sort((a, b) => (a.order || 0) - (b.order || 0));
+            sorted.forEach(r => {
+                const opt = document.createElement('option');
+                opt.value = r.id;
+                opt.textContent = r.name;
+                sel.appendChild(opt);
+            });
+            const saved = localStorage.getItem('activation_classement_round');
+            const firstRoundId = sorted.length > 0 ? sorted[0].id : '';
+            const toSelect = (saved && sorted.some(r => r.id === saved)) ? saved : firstRoundId;
+            if (toSelect) {
+                sel.value = toSelect;
+                activationClassementRoundId = toSelect;
+            } else {
+                activationClassementRoundId = firstRoundId || null;
+            }
+        }
+
+        window.changeActivationClassementRound = function(roundId) {
+            activationClassementRoundId = roundId || null;
+            activationClassementId = null;
+            if (roundId) localStorage.setItem('activation_classement_round', roundId);
+            loadActivationClassementsData();
+        };
+
+        window.loadActivationClassementsData = async function() {
+            console.log('[CLASSEMENT] loadActivationClassementsData ENTRÉE');
+            activationClassementUnsubscribes.forEach(fn => { if (typeof fn === 'function') fn(); });
+            activationClassementUnsubscribes = [];
+
+            const loadingEl = document.getElementById('activation-classements-loading');
+            const emptyEl = document.getElementById('activation-classements-empty');
+            const containerEl = document.getElementById('activation-classements-container');
+            if (loadingEl) loadingEl.style.display = 'block';
+            if (emptyEl) emptyEl.style.display = 'none';
+            if (containerEl) containerEl.style.display = 'none';
+
+            const roundId = activationClassementRoundId || document.getElementById('activation-classement-round')?.value;
+            if (!roundId) {
+                console.log('[CLASSEMENT] loadActivationClassementsData: pas de roundId, return');
+                if (loadingEl) loadingEl.style.display = 'none';
+                if (emptyEl) { emptyEl.style.display = 'block'; emptyEl.textContent = ROUNDS.length === 0 ? 'Aucun tour configuré.' : 'Chargement…'; }
+                return;
+            }
+            const round = ROUNDS.find(r => r.id === roundId);
+            let classementId = (round && round.classementId) ? round.classementId.trim() : null;
+            if (!classementId) {
+                const activationsSnap = await getDoc(doc(db, "config", "activations"));
+                classementId = (activationsSnap.exists() && activationsSnap.data().classementIdActif) ? activationsSnap.data().classementIdActif.trim() : 'classement';
+            }
+            console.log('[CLASSEMENT] loadActivationClassementsData: roundId=', roundId, 'classementId=', classementId);
+
+            try {
+                await loadJuries();
+                const juriesOnRound = JURIES.filter(j => j.rounds && j.rounds.includes(roundId));
+                let classementSnap = await getDoc(doc(db, "classements", classementId));
+                let entries = classementSnap.exists() ? (classementSnap.data().entries || []) : [];
+                const entriesWithBonus = entries.filter(e => {
+                    const base = e.score_base != null ? (typeof e.score_base === 'number' ? e.score_base : parseFloat(e.score_base) || 0) : 0;
+                    const applied = e.score_appliqué != null ? (typeof e.score_appliqué === 'number' ? e.score_appliqué : parseFloat(e.score_appliqué) || 0) : 0;
+                    return applied > base;
+                });
+                console.log('[CLASSEMENT] loadActivationClassementsData: entries lues=', entries.length, 'dont avec bonus (appliqué>base)=', entriesWithBonus.length, entriesWithBonus.map(e => `${e.candidateId}:${e.score_base}→${e.score_appliqué}`).join(', '));
+                if (entries.length === 0 && roundId) {
+                    try {
+                        const scoresQuery = query(collection(db, "scores"), where("roundId", "==", roundId));
+                        const scoresSnap = await getDocs(scoresQuery);
+                        const totalBaseByCandidate = {};
+                        scoresSnap.forEach(d => {
+                            const sd = d.data();
+                            const cid = sd.candidateId;
+                            totalBaseByCandidate[cid] = (totalBaseByCandidate[cid] || 0) + (sd.score_base != null ? sd.score_base : 0);
+                        });
+                        const candidatesSnap = await getDoc(doc(db, "candidats", "liste_actuelle"));
+                        const allCandidates = candidatesSnap.exists() ? (candidatesSnap.data().candidates || []) : [];
+                        let roundCandidates = allCandidates.filter(c => (c.tour || '') === roundId);
+                        if (roundCandidates.length === 0) roundCandidates = allCandidates;
+                        const withScore = roundCandidates.map(c => ({ candidateId: c.id, name: c.name, score_base: totalBaseByCandidate[c.id] || 0 }));
+                        withScore.sort((a, b) => b.score_base - a.score_base);
+                        const activationsRepopSnap = await getDoc(doc(db, "classement_activations", classementId));
+                        const pointsByCandidate = {};
+                        (activationsRepopSnap.exists() ? (activationsRepopSnap.data().activated || []) : []).forEach(a => {
+                            if (a.candidateId && (a.points != null || a.points === 0)) {
+                                pointsByCandidate[a.candidateId] = (pointsByCandidate[a.candidateId] || 0) + (typeof a.points === 'number' ? a.points : parseFloat(a.points) || 0);
+                            }
+                        });
+                        entries = withScore.map((x, i) => {
+                            const base = x.score_base != null ? (typeof x.score_base === 'number' ? x.score_base : parseFloat(x.score_base) || 0) : 0;
+                            const points = pointsByCandidate[x.candidateId] != null ? pointsByCandidate[x.candidateId] : 0;
+                            const total = Math.round((base + points) * 100) / 100;
+                            return { rank: i + 1, candidateId: x.candidateId, name: x.name, score_base: x.score_base, score_appliqué: total, score_affiché: total };
+                        });
+                        entries.sort((a, b) => (b.score_appliqué ?? 0) - (a.score_appliqué ?? 0));
+                        entries.forEach((e, i) => { e.rank = i + 1; });
+                        if (entries.length > 0) {
+                            const data = classementSnap.exists() ? classementSnap.data() : {};
+                            const repopDuelBonusEnabled = Array.isArray(data.duelBonusEnabled) ? data.duelBonusEnabled : [];
+                            await setDoc(doc(db, "classements", classementId), { ...data, code: roundId, entries, duelBonusEnabled: repopDuelBonusEnabled, lastUpdateSource: 'admin_activation_tab_repopulate', updatedAt: new Date() }, { merge: true });
+                            classementSnap = await getDoc(doc(db, "classements", classementId));
+                            entries = classementSnap.exists() ? (classementSnap.data().entries || []) : [];
+                        }
+                    } catch (repopErr) {
+                        console.warn('Repopulation classement vide:', repopErr);
+                    }
+                }
+                const activationsSnap = await getDoc(doc(db, "classement_activations", classementId));
+                const activatedList = activationsSnap.exists() ? (activationsSnap.data().activated || []) : [];
+                console.log('[CLASSEMENT] loadActivationClassementsData: activations lues=', activatedList.length, activatedList.map(a => `${a.candidateId}+${a.points}`).join(', '));
+                const entriesWithBonusNow = entries.filter(e => {
+                    const base = e.score_base != null ? (typeof e.score_base === 'number' ? e.score_base : parseFloat(e.score_base) || 0) : 0;
+                    const applied = e.score_appliqué != null ? (typeof e.score_appliqué === 'number' ? e.score_appliqué : parseFloat(e.score_appliqué) || 0) : 0;
+                    return applied > base;
+                });
+                if (activatedList.length > 0 && entriesWithBonusNow.length === 0 && entries.length > 0) {
+                    console.warn('[CLASSEMENT] ⚠️ INCOHÉRENCE: il y a', activatedList.length, 'activation(s) mais aucune entry n\'a score_appliqué > score_base. Le document classement a été écrasé sans les points.');
+                }
+                const activatedSet = new Set();
+                if (activationsSnap.exists() && activationsSnap.data().activated) {
+                    activationsSnap.data().activated.forEach(a => {
+                        activatedSet.add(a.juryId + '_' + a.candidateId);
+                    });
+                }
+                const juryRankingsByJury = {};
+                for (const j of juriesOnRound) {
+                    const docId = j.id + '_' + roundId;
+                    const snap = await getDoc(doc(db, "jury_rankings", docId));
+                    juryRankingsByJury[j.id] = snap.exists() ? (snap.data().positions || {}) : {};
+                }
+
+                function pointsForCandidateAtPosition(positions, candidateId) {
+                    for (const posLabel of POSITION_LABELS_JURY) {
+                        if (positions[posLabel] === candidateId) return POSITION_TO_POINTS[posLabel] || 0;
+                    }
+                    return 0;
+                }
+
+                const grid = [];
+                entries.forEach(entry => {
+                    const row = { candidateId: entry.candidateId, name: entry.name || entry.candidateId };
+                    row.cells = {};
+                    juriesOnRound.forEach(j => {
+                        const pos = juryRankingsByJury[j.id] || {};
+                        const points = pointsForCandidateAtPosition(pos, entry.candidateId);
+                        row.cells[j.id] = {
+                            points,
+                            juryId: j.id,
+                            juryName: j.name,
+                            activated: activatedSet.has(j.id + '_' + entry.candidateId)
+                        };
+                    });
+                    grid.push(row);
+                });
+
+                const duelWinnerIds = await getDuelWinnerIds(roundId);
+                const classementData = classementSnap.exists() ? classementSnap.data() : {};
+                const duelBonusEnabled = Array.isArray(classementData.duelBonusEnabled) ? classementData.duelBonusEnabled : [];
+
+                if (loadingEl) loadingEl.style.display = 'none';
+                if (emptyEl) emptyEl.style.display = 'none';
+                if (containerEl) containerEl.style.display = 'block';
+                renderActivationClassementsGrid(grid, juriesOnRound, classementId, roundId, activationsSnap.exists() ? activationsSnap.data().activated : [], duelWinnerIds, duelBonusEnabled);
+
+                let firstJury = true, firstClassement = true, firstActivations = true, firstDuels = true;
+                const qJuryRankings = query(collection(db, "jury_rankings"), where("roundId", "==", roundId));
+                activationClassementUnsubscribes.push(onSnapshot(qJuryRankings, () => {
+                    if (firstJury) { firstJury = false; return; }
+                    loadActivationClassementsData();
+                }));
+                activationClassementUnsubscribes.push(onSnapshot(doc(db, "classements", classementId), () => {
+                    if (firstClassement) { firstClassement = false; return; }
+                    loadActivationClassementsData();
+                }));
+                activationClassementUnsubscribes.push(onSnapshot(doc(db, "classement_activations", classementId), () => {
+                    if (firstActivations) { firstActivations = false; return; }
+                    loadActivationClassementsData();
+                }));
+                activationClassementUnsubscribes.push(onSnapshot(doc(db, "duel_results", roundId), () => {
+                    if (firstDuels) { firstDuels = false; return; }
+                    loadActivationClassementsData();
+                }));
+            } catch (e) {
+                console.error(e);
+                if (loadingEl) loadingEl.style.display = 'none';
+                if (emptyEl) { emptyEl.style.display = 'block'; emptyEl.textContent = 'Erreur : ' + (e.message || e); }
+            }
+        };
+
+        function renderActivationClassementsGrid(grid, juriesOnRound, classementId, roundId, activatedList, duelWinnerIds, duelBonusEnabled) {
+            duelWinnerIds = duelWinnerIds || [];
+            duelBonusEnabled = duelBonusEnabled || [];
+            const thead = document.getElementById('activation-classements-thead');
+            const tbody = document.getElementById('activation-classements-tbody');
+            if (!thead || !tbody) return;
+            thead.innerHTML = '';
+            tbody.innerHTML = '';
+            const thCand = document.createElement('th');
+            thCand.textContent = 'Candidat';
+            thCand.style.padding = '10px';
+            thCand.style.textAlign = 'left';
+            thead.appendChild(thCand);
+            juriesOnRound.forEach(j => {
+                const th = document.createElement('th');
+                th.textContent = j.name || j.id;
+                th.style.padding = '10px';
+                th.style.textAlign = 'center';
+                th.style.minWidth = '100px';
+                thead.appendChild(th);
+            });
+
+            grid.forEach(row => {
+                const tr = tbody.insertRow();
+                const tdCand = tr.insertCell();
+                tdCand.style.padding = '10px';
+                const nameText = document.createTextNode((row.name || row.candidateId) + ' (' + row.candidateId + ') ');
+                tdCand.appendChild(nameText);
+                const isDuelWinner = duelWinnerIds.includes(row.candidateId);
+                const bonusEnabled = duelBonusEnabled.includes(row.candidateId);
+                if (isDuelWinner) {
+                    const duelBtn = document.createElement('button');
+                    duelBtn.type = 'button';
+                    duelBtn.title = bonusEnabled ? 'Désactiver les +10% gagnant duel dans le classement' : 'Activer les +10% gagnant duel dans le classement';
+                    duelBtn.textContent = '🏆';
+                    duelBtn.style.cssText = 'margin-left: 4px; padding: 2px 6px; font-size: 1.1em; border-radius: 6px; border: 2px solid var(--border-color); cursor: pointer; background: ' + (bonusEnabled ? 'linear-gradient(135deg, #ffc107 0%, #e0a800 100%)' : 'var(--light-bg, #e9ecef)') + '; color: ' + (bonusEnabled ? '#1a1a1a' : 'var(--text-secondary)') + ';';
+                    duelBtn.onclick = () => toggleDuelBonus(classementId, row.candidateId);
+                    tdCand.appendChild(duelBtn);
+                }
+                juriesOnRound.forEach(j => {
+                    const cell = row.cells[j.id];
+                    const td = tr.insertCell();
+                    td.style.padding = '8px';
+                    td.style.textAlign = 'center';
+                    if (!cell || cell.points === 0) {
+                        td.textContent = '—';
+                        td.style.background = 'var(--light-bg, #f5f5f5)';
+                        td.style.color = 'var(--text-secondary)';
+                    } else {
+                        td.innerHTML = '';
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'action-button';
+                        btn.style.padding = '6px 12px';
+                        btn.style.fontSize = '0.9em';
+                        if (cell.activated) {
+                            btn.textContent = '✓ ' + cell.points + ' (désactiver)';
+                            btn.style.background = 'linear-gradient(135deg, #28a745 0%, #1e7e34 100%)';
+                            btn.style.color = 'white';
+                            btn.style.cursor = 'pointer';
+                            btn.onclick = () => deactivateClassementJury(classementId, roundId, j.id, row.candidateId, cell.points);
+                        } else {
+                            btn.textContent = '+ ' + cell.points;
+                            btn.style.background = 'linear-gradient(135deg, #28a745 0%, #1e7e34 100%)';
+                            btn.style.color = 'white';
+                            btn.onclick = () => activateClassementJury(classementId, roundId, j.id, row.candidateId, cell.points);
+                        }
+                        td.appendChild(btn);
+                    }
+                });
+            });
+        }
+
+        /** Retourne la liste des IDs candidats gagnants d'un duel pour le tour donné. */
+        async function getDuelWinnerIds(roundId) {
+            if (!roundId) return [];
+            const snap = await getDoc(doc(db, "duel_results", roundId));
+            if (!snap.exists() || !snap.data().duels) return [];
+            return (snap.data().duels).filter(d => d.winnerId).map(d => d.winnerId);
+        }
+
+        /** Recalcule score_appliqué et score_affiché de chaque entrée = score_base + somme des points de classement activés (jamais de +10% stocké). */
+        async function recalculateClassementScoresFromBase(classementId) {
+            console.log('[CLASSEMENT] recalculateClassementScoresFromBase ENTRÉE classementId=', classementId);
+            const snap = await getDoc(doc(db, "classements", classementId));
+            if (!snap.exists()) {
+                console.log('[CLASSEMENT] recalculateClassementScoresFromBase: doc classement inexistant, return');
+                return;
+            }
+            const data = snap.data();
+            const entries = [...(data.entries || [])];
+            const activationsSnap = await getDoc(doc(db, "classement_activations", classementId));
+            const activated = activationsSnap.exists() ? (activationsSnap.data().activated || []) : [];
+            console.log('[CLASSEMENT] recalculateClassementScoresFromBase: activations=', activated.length, activated.map(a => `${a.candidateId}+${a.points}`).join(', '));
+            const pointsByCandidate = {};
+            activated.forEach(a => {
+                if (a.candidateId && (a.points != null || a.points === 0)) {
+                    pointsByCandidate[a.candidateId] = (pointsByCandidate[a.candidateId] || 0) + (typeof a.points === 'number' ? a.points : parseFloat(a.points) || 0);
+                }
+            });
+            entries.forEach(e => {
+                const base = e.score_base != null ? (typeof e.score_base === 'number' ? e.score_base : parseFloat(e.score_base) || 0) : 0;
+                const points = pointsByCandidate[e.candidateId] != null ? pointsByCandidate[e.candidateId] : 0;
+                const total = Math.round((base + points) * 100) / 100;
+                e.score_appliqué = total;
+                e.score_affiché = total;
+            });
+            entries.sort((a, b) => (b.score_appliqué ?? 0) - (a.score_appliqué ?? 0));
+            entries.forEach((e, i) => { e.rank = i + 1; });
+            console.log('[CLASSEMENT] recalculateClassementScoresFromBase: ÉCRITURE entries=', entries.length, 'source=admin_recalculate_scores');
+            await setDoc(doc(db, "classements", classementId), { entries, lastUpdateSource: 'admin_recalculate_scores', updatedAt: new Date() }, { merge: true });
+        }
+
+        /** Active ou désactive les +10% gagnant duel pour un candidat dans le classement (stocké dans le doc classement : duelBonusEnabled). Recalcule toutes les notes à partir de la base pour éviter d'avoir stocké du +10%. */
+        window.toggleDuelBonus = async function(classementId, candidateId) {
+            try {
+                const snap = await getDoc(doc(db, "classements", classementId));
+                if (!snap.exists()) {
+                    await customAlert('Classement introuvable.');
+                    return;
+                }
+                const data = snap.data();
+                const list = Array.isArray(data.duelBonusEnabled) ? [...data.duelBonusEnabled] : [];
+                const idx = list.indexOf(candidateId);
+                if (idx >= 0) list.splice(idx, 1);
+                else list.push(candidateId);
+                await setDoc(doc(db, "classements", classementId), { ...data, duelBonusEnabled: list, lastUpdateSource: 'admin_duel_bonus_toggle', updatedAt: new Date() }, { merge: true });
+                await recalculateClassementScoresFromBase(classementId);
+                await loadActivationClassementsData();
+            } catch (e) {
+                console.error(e);
+                await customAlert('Erreur : ' + (e.message || e));
+            }
+        };
+
+        window.activateClassementJury = async function(classementId, roundId, juryId, candidateId, points) {
+            try {
+                console.log('[CLASSEMENT] activateClassementJury:', classementId, candidateId, '+', points);
+                const activationsCheckSnap = await getDoc(doc(db, "classement_activations", classementId));
+                const alreadyActivated = activationsCheckSnap.exists() && (activationsCheckSnap.data().activated || []).some(a => a.juryId === juryId && a.candidateId === candidateId);
+                if (alreadyActivated) {
+                    await customAlert('Cette activation a déjà été effectuée. Pas de double activation possible.');
+                    await loadActivationClassementsData();
+                    return;
+                }
+                const snap = await getDoc(doc(db, "classements", classementId));
+                if (!snap.exists()) {
+                    await customAlert('Classement introuvable.');
+                    return;
+                }
+                const entry = (snap.data().entries || []).find(e => e.candidateId === candidateId);
+                if (!entry) {
+                    await customAlert('Candidat non trouvé dans le classement.');
+                    return;
+                }
+                const activationsSnap = await getDoc(doc(db, "classement_activations", classementId));
+                const activated = activationsSnap.exists() ? [...(activationsSnap.data().activated || [])] : [];
+                activated.push({ juryId, candidateId, points, activatedAt: new Date() });
+                await setDoc(doc(db, "classement_activations", classementId), { activated, updatedAt: new Date() });
+                console.log('[CLASSEMENT] activateClassementJury: activations écrites, appel recalculateClassementScoresFromBase');
+                await recalculateClassementScoresFromBase(classementId);
+                const afterSnap = await getDoc(doc(db, "classements", classementId));
+                const newScore = (afterSnap.data().entries || []).find(e => e.candidateId === candidateId)?.score_affiché;
+                await addDoc(collection(db, "activation_logs"), {
+                    type: 'classement_jury',
+                    candidat_id: candidateId,
+                    source: juryId,
+                    timestamp: new Date(),
+                    payload: { classementId, points, newScore }
+                });
+                await loadActivationClassementsData();
+            } catch (e) {
+                console.error(e);
+                await customAlert('Erreur lors de l\'activation : ' + (e.message || e));
+            }
+        };
+
+        window.deactivateClassementJury = async function(classementId, roundId, juryId, candidateId, points) {
+            try {
+                const activationsSnap = await getDoc(doc(db, "classement_activations", classementId));
+                if (!activationsSnap.exists()) {
+                    await customAlert('Aucune activation trouvée.');
+                    await loadActivationClassementsData();
+                    return;
+                }
+                const activatedList = activationsSnap.data().activated || [];
+                const activated = activatedList.filter(a => !(a.juryId === juryId && a.candidateId === candidateId));
+                if (activated.length === activatedList.length) {
+                    await customAlert('Cette activation n\'est pas enregistrée.');
+                    await loadActivationClassementsData();
+                    return;
+                }
+                const snap = await getDoc(doc(db, "classements", classementId));
+                if (!snap.exists()) {
+                    await customAlert('Classement introuvable.');
+                    return;
+                }
+                await setDoc(doc(db, "classement_activations", classementId), { activated, updatedAt: new Date() });
+                await recalculateClassementScoresFromBase(classementId);
+                await addDoc(collection(db, "activation_logs"), {
+                    type: 'classement_jury_desactivated',
+                    candidat_id: candidateId,
+                    source: juryId,
+                    timestamp: new Date(),
+                    payload: { classementId, points }
+                });
+                await loadActivationClassementsData();
+            } catch (e) {
+                console.error(e);
+                await customAlert('Erreur lors de la désactivation : ' + (e.message || e));
+            }
+        };
+
         function createTourDropdown(candidate) {
-            let html = `<select onchange="updateCandidateTour('${candidate.id}', this.value)" style="width: 100%; min-width: 180px; padding: 6px 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px; font-size: 13px;">`;
+            const selId = 'notes-tour-' + candidate.id;
+            let html = `<select id="${selId}" name="${selId}" onchange="updateCandidateTour('${candidate.id}', this.value)" style="width: 100%; min-width: 180px; padding: 6px 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px; font-size: 13px;">`;
             ROUNDS.forEach(round => {
                 const selected = round.id === candidate.tour ? 'selected' : '';
                 html += `<option value="${round.id}" ${selected}>${round.name}</option>`;
@@ -2911,7 +3879,8 @@
         
         function createStatusDropdown(candidate) {
             const statuses = ['Actif', 'Reset', 'Elimine', 'Qualifie'];
-            let html = `<select onchange="updateCandidateStatus('${candidate.id}', this.value)" style="width: 100%; min-width: 130px; padding: 6px 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px; font-size: 13px;">`;
+            const selId = 'notes-status-' + candidate.id;
+            let html = `<select id="${selId}" name="${selId}" onchange="updateCandidateStatus('${candidate.id}', this.value)" style="width: 100%; min-width: 130px; padding: 6px 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px; font-size: 13px;">`;
             statuses.forEach(status => {
                 const selected = status === candidate.status ? 'selected' : '';
                 html += `<option value="${status}" ${selected}>${status}</option>`;
@@ -3097,13 +4066,19 @@
         }
 
         function createScoreDropdown(scoreId, field, currentValue, candidateId, juryId, readonly = false) {
-            const options = ['-', '5', '10', '15', '20', 'EL'];
+            const displayRound = notesDisplayRound || activeRoundId || 'round1';
+            const round = ROUNDS.find(r => r.id === displayRound);
+            const isDuels = round && (round.type === 'Duels' || round.type_epreuve === 'duels');
+            const options = isDuels
+                ? ['-'].concat(Array.from({ length: 21 }, (_, i) => String(i)))
+                : ['-', '5', '10', '15', '20', 'EL'];
             const selectId = `score-${candidateId}-${juryId}-${field}`;
             const disabledAttr = readonly ? 'disabled' : '';
-            
+            const currentStr = currentValue === undefined || currentValue === null ? '-' : String(currentValue);
+
             let html = `<select id="${selectId}" onchange="handleScoreChange('${scoreId}', '${field}', this.value, '${candidateId}', '${juryId}')" ${disabledAttr} style="text-align: center;">`;
             options.forEach(opt => {
-                const selected = opt === String(currentValue) ? 'selected' : '';
+                const selected = opt === currentStr ? 'selected' : '';
                 html += `<option value="${opt}" ${selected}>${opt}</option>`;
             });
             html += '</select>';
@@ -3125,11 +4100,16 @@
         }
         
         window.handleRepechageScoreChange = async function(scoreId, value, candidateId, juryId) {
-            // Sauvegarder la position de scroll et l'élément actif
+            const displayRound = notesDisplayRound || activeRoundId || 'round1';
+            const validatedSnap = await getDoc(doc(db, "config", "validated_rounds"));
+            const vr = validatedSnap.exists() ? (validatedSnap.data().rounds || {}) : {};
+            if (vr[displayRound]) {
+                await customAlert('Ce tour est validé. Les notes ne sont plus modifiables.');
+                return;
+            }
             const tableContainer = document.querySelector('#tab-notes .table-container');
             const scrollTop = tableContainer ? tableContainer.scrollTop : 0;
             const scrollLeft = tableContainer ? tableContainer.scrollLeft : 0;
-            
             if (value === '-') {
                 // Supprimer le score s'il existe
                 if (scoreId && scoreId !== 'null') {
@@ -3171,14 +4151,18 @@
         };
 
         window.handleScoreChange = async function(scoreId, field, value, candidateId, juryId) {
-            // Activer le flag pour éviter que le listener ne déclenche aussi un rendu
+            const displayRound = notesDisplayRound || activeRoundId || 'round1';
+            console.log('[CLASSEMENT] handleScoreChange: note modifiée, displayRound=', displayRound, '→ updateClassementFromScoresForRound sera appelé');
+            const validatedSnap = await getDoc(doc(db, "config", "validated_rounds"));
+            const vr = validatedSnap.exists() ? (validatedSnap.data().rounds || {}) : {};
+            if (vr[displayRound]) {
+                await customAlert('Ce tour est validé. Les notes Fond/Forme ne sont plus modifiables.');
+                return;
+            }
             isManualChange = true;
-            
-            // Sauvegarder la position de scroll et l'élément actif
             const tableContainer = document.querySelector('#tab-notes .table-container');
             const scrollTop = tableContainer ? tableContainer.scrollTop : 0;
             const scrollLeft = tableContainer ? tableContainer.scrollLeft : 0;
-            
             try {
                 if (value === '-') {
                     // Supprimer le score s'il existe
@@ -3186,20 +4170,16 @@
                         await deleteDoc(doc(db, "scores", scoreId));
                     }
                 } else {
-                    // Créer ou mettre à jour le score
+                    // Créer ou mettre à jour le score (avec le tour affiché dans l'onglet Notes pour éviter roundId incorrect)
                     if (scoreId && scoreId !== 'null') {
                         await updateScore(scoreId, field, value);
                     } else {
-                        await createScore(candidateId, juryId, field, value);
+                        await createScore(candidateId, juryId, field, value, displayRound);
                     }
                 }
                 
-                // Attendre que Firebase soit synchronisé avant de vérifier la qualification
-                // (300ms pour laisser le temps à la base de propager le changement)
+                await updateClassementFromScoresForRound(displayRound);
                 await new Promise(resolve => setTimeout(resolve, 300));
-                
-                // Vérifier si le candidat doit être qualifié automatiquement
-                await checkAndQualifyCandidate(candidateId);
                 
                 // Rafraîchir les deux onglets
                 await renderNotesTable();
@@ -3222,13 +4202,14 @@
             }
         };
 
-        async function createScore(candidateId, juryNameOrId, field, value) {
+        async function createScore(candidateId, juryNameOrId, field, value, roundIdForScore) {
+            const roundId = roundIdForScore || notesDisplayRound || activeRoundId || 'round1';
             // juryNameOrId est maintenant le juryId dans le nouveau système ou le nom dans l'ancien
             // On essaie d'abord par juryId, sinon par juryName (compatibilité)
             let q = query(collection(db, "scores"), 
                 where("candidateId", "==", candidateId),
                 where("juryId", "==", juryNameOrId),
-                where("roundId", "==", activeRoundId || 'round1'));
+                where("roundId", "==", roundId));
             let snap = await getDocs(q);
             
             // Si pas trouvé par juryId, essayer par juryName (ancien système)
@@ -3236,7 +4217,7 @@
                 q = query(collection(db, "scores"), 
                     where("candidateId", "==", candidateId),
                     where("juryName", "==", juryNameOrId),
-                    where("roundId", "==", activeRoundId || 'round1'));
+                    where("roundId", "==", roundId));
                 snap = await getDocs(q);
             }
             
@@ -3264,13 +4245,16 @@
                     }
                 }
                 
+                const score1 = field === 'score1' ? value : '-';
+                const score2 = field === 'score2' ? value : '-';
                 const data = {
                     candidateId: candidateId,
                     juryId: juryId,
                     juryName: juryName,
-                    roundId: activeRoundId || 'round1',
-                    score1: field === 'score1' ? value : '-',
-                    score2: field === 'score2' ? value : '-',
+                    roundId: roundId,
+                    score1,
+                    score2,
+                    score_base: computeScoreBase(score1, score2),
                     timestamp: new Date()
                 };
                 
@@ -3308,8 +4292,8 @@
                 const data = scoreSnap.data();
                 data[field] = value;
                 
-                // Ne pas stocker totalWeightedScore - il sera calculé à la volée
                 delete data.totalWeightedScore;
+                data.score_base = computeScoreBase(data.score1, data.score2);
                 
                 await setDoc(scoreRef, data);
             } catch (e) {
@@ -3337,6 +4321,93 @@
                 await setDoc(doc(db, "config", "locks"), { locks: candidateLocks });
             }
         }
+
+        /** Validation globale : vérifie que tous les candidats du tour ont Fond+Forme pour tous les jurys, puis verrouillage définitif. */
+        window.validateRoundGlobally = async function() {
+            const displayRound = notesDisplayRound || activeRoundId || 'round1';
+            if (validatedRounds[displayRound]) {
+                await customAlert('Ce tour est déjà validé (verrouillage définitif).');
+                return;
+            }
+            await loadJuries();
+            const juriesOnRound = JURIES.filter(j => j.rounds && j.rounds.includes(displayRound));
+            const candidatesInRound = CANDIDATES.filter(c => c.tour === displayRound);
+            if (candidatesInRound.length === 0 || juriesOnRound.length === 0) {
+                await customAlert('Aucun candidat ou jury sur ce tour.');
+                return;
+            }
+            const scoresQuery = query(collection(db, "scores"), where("roundId", "==", displayRound));
+            const scoresSnap = await getDocs(scoresQuery);
+            const byCandidate = {};
+            scoresSnap.forEach(d => {
+                const data = d.data();
+                const cid = data.candidateId;
+                const jid = data.juryId || data.juryName;
+                if (!byCandidate[cid]) byCandidate[cid] = {};
+                byCandidate[cid][jid] = { score1: data.score1, score2: data.score2 };
+            });
+            let missing = [];
+            for (const c of candidatesInRound) {
+                for (const j of juriesOnRound) {
+                    const s = byCandidate[c.id] && byCandidate[c.id][j.id];
+                    if (!s || s.score1 === '-' || s.score1 === undefined || s.score2 === '-' || s.score2 === undefined) {
+                        missing.push(`${c.name} (${j.name})`);
+                    }
+                }
+            }
+            if (missing.length > 0) {
+                await customAlert('Impossible de valider : notes manquantes pour\n\n' + missing.slice(0, 10).join('\n') + (missing.length > 10 ? '\n… et ' + (missing.length - 10) + ' autre(s)' : ''));
+                return;
+            }
+            if (!await customConfirm('Valider tout le tour ? Les notes ne pourront plus être modifiées (verrouillage définitif).')) return;
+            validatedRounds[displayRound] = true;
+            await setDoc(doc(db, "config", "validated_rounds"), { rounds: validatedRounds });
+            for (const c of candidatesInRound) {
+                candidateLocks[c.id] = candidateLocks[c.id] || {};
+                juriesOnRound.forEach(j => { candidateLocks[c.id][j.id] = true; });
+            }
+            await setDoc(doc(db, "config", "locks"), { locks: candidateLocks });
+            await addDoc(collection(db, "activation_logs"), {
+                type: 'tour_validated',
+                candidat_id: '',
+                source: 'admin',
+                timestamp: new Date(),
+                payload: { roundId: displayRound }
+            });
+            await customAlert('✓ Tour validé. Verrouillage définitif appliqué.');
+            await renderNotesTable();
+        };
+
+        /** Déverrouiller le tour : retire la validation et les verrous pour ce tour. */
+        window.unlockRoundGlobally = async function() {
+            const displayRound = notesDisplayRound || activeRoundId || 'round1';
+            if (!validatedRounds[displayRound]) {
+                await customAlert('Ce tour n\'est pas validé.');
+                return;
+            }
+            if (!await customConfirm('Déverrouiller ce tour ? Les notes pourront à nouveau être modifiées.')) return;
+            delete validatedRounds[displayRound];
+            await setDoc(doc(db, "config", "validated_rounds"), { rounds: validatedRounds });
+            await loadJuries();
+            const juriesOnRound = JURIES.filter(j => j.rounds && j.rounds.includes(displayRound));
+            const candidatesInRound = CANDIDATES.filter(c => c.tour === displayRound);
+            for (const c of candidatesInRound) {
+                if (candidateLocks[c.id]) {
+                    juriesOnRound.forEach(j => { delete candidateLocks[c.id][j.id]; });
+                    if (Object.keys(candidateLocks[c.id]).length === 0) delete candidateLocks[c.id];
+                }
+            }
+            await setDoc(doc(db, "config", "locks"), { locks: candidateLocks });
+            await addDoc(collection(db, "activation_logs"), {
+                type: 'tour_unlocked',
+                candidat_id: '',
+                source: 'admin',
+                timestamp: new Date(),
+                payload: { roundId: displayRound }
+            });
+            await customAlert('✓ Tour déverrouillé. Les notes peuvent à nouveau être modifiées.');
+            await renderNotesTable();
+        };
 
         // --- CALCUL DES SCORES ---
         window.loadResults = async () => {
@@ -4815,6 +5886,122 @@
             }
         };
 
+        /** Remplit tous les scores (tous tours, jurys, candidats) et génère les classements globaux (pas par jury) comme en temps normal — pour tests. */
+        window.fillAllScoresAndBonusesRandomly = async function() {
+            try {
+                if (!await customConfirm('Remplir TOUS les scores avec des valeurs aléatoires et générer les classements (comme les classements globaux, pas par jury) ?\n\n⚠️ Tous les tours, tous les jurys, tous les candidats seront concernés.\nRéservé aux tests.\n\nContinuer ?')) return;
+
+                await loadList();
+                await loadJuries();
+                const roundsSnap = await getDoc(doc(db, "config", "rounds"));
+                const rounds = roundsSnap.exists() ? (roundsSnap.data().rounds || []) : [];
+                if (CANDIDATES.length === 0 || JURIES.length === 0) {
+                    await customAlert('Chargement candidats ou jurys : aucun candidat ou jury trouvé.');
+                    return;
+                }
+
+                const randomScore = () => [5, 10, 15, 20][Math.floor(Math.random() * 4)];
+                const existingScoresSnap = await getDocs(collection(db, "scores"));
+                const scoreDocByKey = {};
+                existingScoresSnap.forEach(d => {
+                    const data = d.data();
+                    scoreDocByKey[`${data.candidateId}_${data.juryId}_${data.roundId}`] = d.id;
+                });
+
+                let written = 0;
+                const BATCH_SIZE = 500;
+                let batch = writeBatch(db);
+                let batchCount = 0;
+
+                for (const round of rounds) {
+                    const roundId = round.id;
+                    const isRepechage = (round.type || '').toLowerCase().includes('repêchage') || (round.type || '').toLowerCase().includes('repechage');
+                    const juriesOnRound = JURIES.filter(j => j.rounds && j.rounds.includes(roundId));
+                    const candidatesOnRound = CANDIDATES.filter(c => c.tour === roundId);
+                    for (const candidate of candidatesOnRound) {
+                        for (const jury of juriesOnRound) {
+                            const key = `${candidate.id}_${jury.id}_${roundId}`;
+                            let score1, score2;
+                            if (isRepechage) {
+                                score1 = Math.random() < 0.5 ? '0' : '1';
+                                score2 = score1;
+                            } else {
+                                score1 = String(randomScore());
+                                score2 = String(randomScore());
+                            }
+                            const score_base = computeScoreBase(score1, score2);
+                            const data = {
+                                juryId: jury.id,
+                                juryName: jury.name || jury.id,
+                                candidateId: candidate.id,
+                                roundId,
+                                score1,
+                                score2,
+                                score_base,
+                                timestamp: new Date()
+                            };
+                            const docId = scoreDocByKey[key];
+                            if (docId) {
+                                batch.update(doc(db, "scores", docId), data);
+                            } else {
+                                batch.set(doc(collection(db, "scores")), data);
+                            }
+                            batchCount++;
+                            written++;
+                            if (batchCount >= BATCH_SIZE) {
+                                await batch.commit();
+                                batch = writeBatch(db);
+                                batchCount = 0;
+                            }
+                        }
+                    }
+                }
+                if (batchCount > 0) await batch.commit();
+
+                for (const round of rounds) {
+                    const roundId = round.id;
+                    const isNotationOrDuels = (round.type === 'Notation individuelle' || round.type === 'Duels' || (round.type_epreuve && (round.type_epreuve === 'notation' || round.type_epreuve === 'duels')));
+                    if (isNotationOrDuels) {
+                        try {
+                            await syncClassementFromScores(roundId);
+                        } catch (e) {
+                            console.warn('syncClassementFromScores', roundId, e);
+                        }
+                    }
+                }
+
+                const POSITION_LABELS_FILL = ['1', '2', '3', '4', '5'];
+                let juryRankingsWritten = 0;
+                for (const round of rounds) {
+                    const roundId = round.id;
+                    const juriesOnRound = JURIES.filter(j => j.rounds && j.rounds.includes(roundId));
+                    const candidatesOnRound = CANDIDATES.filter(c => c.tour === roundId);
+                    if (candidatesOnRound.length === 0) continue;
+                    for (const jury of juriesOnRound) {
+                        const shuffled = [...candidatesOnRound].sort(() => Math.random() - 0.5);
+                        const positions = {};
+                        POSITION_LABELS_FILL.forEach((posLabel, i) => {
+                            if (shuffled[i]) positions[posLabel] = shuffled[i].id;
+                        });
+                        await setDoc(doc(db, "jury_rankings", jury.id + '_' + roundId), {
+                            juryId: jury.id,
+                            roundId,
+                            positions,
+                            updatedAt: new Date()
+                        });
+                        juryRankingsWritten++;
+                    }
+                }
+
+                await loadList();
+                await renderNotesTable();
+                await customAlert('✓ Terminé.\n\n' + written + ' score(s) mis à jour / créé(s).\nClassements globaux générés.\n' + juryRankingsWritten + ' « Mon classement » (jury_rankings) généré(s) pour l\'activation classements.');
+            } catch (e) {
+                console.error(e);
+                await customAlert('❌ Erreur : ' + (e.message || e));
+            }
+        };
+
         window.confirmResetScores = async () => {
             if(!await customConfirm("Supprimer TOUTES les notes (les candidats et jurys seront conservés) ?")) return;
             
@@ -4844,54 +6031,12 @@
             try {
                 // Créer la configuration par défaut des tours
                 const defaultRounds = [
-                    {
-                        id: 'round1',
-                        order: 1,
-                        name: '1er tour',
-                        type: 'Notation individuelle',
-                        nextRoundCandidates: 'ALL',
-                        active: true
-                    },
-                    {
-                        id: 'round2',
-                        order: 2,
-                        name: 'Repechage 1er tour',
-                        type: 'Repêchage',
-                        nextRoundCandidates: 18,
-                        active: false
-                    },
-                    {
-                        id: 'round3',
-                        order: 3,
-                        name: '2eme tour',
-                        type: 'Duels',
-                        nextRoundCandidates: 'ALL',
-                        active: false
-                    },
-                    {
-                        id: 'round4',
-                        order: 4,
-                        name: 'Repechage 2eme tour',
-                        type: 'Repêchage',
-                        nextRoundCandidates: 7,
-                        active: false
-                    },
-                    {
-                        id: 'round5',
-                        order: 5,
-                        name: 'Demi-finale',
-                        type: 'Duels',
-                        nextRoundCandidates: 3,
-                        active: false
-                    },
-                    {
-                        id: 'round6',
-                        order: 6,
-                        name: 'Finale',
-                        type: 'Duels',
-                        nextRoundCandidates: 1,
-                        active: false
-                    }
+                    { id: 'round1', order: 1, name: '1er tour', type: 'Notation individuelle', type_epreuve: 'notation', nextRoundCandidates: 'ALL', active: true },
+                    { id: 'round2', order: 2, name: 'Repechage 1er tour', type: 'Repêchage', type_epreuve: 'repechage', nextRoundCandidates: 18, active: false },
+                    { id: 'round3', order: 3, name: '2eme tour', type: 'Duels', type_epreuve: 'duels', nextRoundCandidates: 'ALL', active: false },
+                    { id: 'round4', order: 4, name: 'Repechage 2eme tour', type: 'Repêchage', type_epreuve: 'repechage', nextRoundCandidates: 7, active: false },
+                    { id: 'round5', order: 5, name: 'Demi-finale', type: 'Duels', type_epreuve: 'duels', nextRoundCandidates: 3, active: false },
+                    { id: 'round6', order: 6, name: 'Finale', type: 'Duels', type_epreuve: 'duels', nextRoundCandidates: 1, active: false }
                 ];
                 
                 // Sauvegarder la configuration par défaut
@@ -4990,6 +6135,12 @@
                         delete candidateLocks[candidateId];
                     }
                     await setDoc(doc(db, "config", "locks"), { locks: candidateLocks });
+                }
+                
+                // Retirer la validation globale du tour (verrouillage définitif annulé)
+                if (validatedRounds[activeRoundId]) {
+                    delete validatedRounds[activeRoundId];
+                    await setDoc(doc(db, "config", "validated_rounds"), { rounds: validatedRounds });
                 }
                 
                 await customAlert(`✓ Tour "${roundName}" réinitialisé !\n\n📊 ${scoresSnap.size} note(s) supprimée(s)\n✅ ${candidatesReset} candidat(s) remis à "Actif"`);
@@ -5160,13 +6311,137 @@
             }
         };
 
+        window.confirmDeleteAllDuels = async () => {
+            if (!await customConfirm('Supprimer tous les duels (tous les tours) ?\n\nLes jurys, candidats et notes sont conservés. Seuls les duels créés seront supprimés.\n\nContinuer ?')) {
+                return;
+            }
+            try {
+                const duelSnap = await getDocs(collection(db, "duel_results"));
+                const n = duelSnap.size;
+                if (n === 0) {
+                    await customAlert('Aucun duel à supprimer.');
+                    return;
+                }
+                const batch = writeBatch(db);
+                duelSnap.docs.forEach(d => batch.delete(d.ref));
+                await batch.commit();
+                duelsList = [];
+                if (document.getElementById('duels-empty-msg')) document.getElementById('duels-empty-msg').style.display = 'block';
+                if (document.getElementById('duels-list')) document.getElementById('duels-list').style.display = 'none';
+                await customAlert(`✓ ${n} duel(s) supprimé(s).`);
+                loadDuelsData();
+            } catch (e) {
+                console.error('Erreur:', e);
+                await customAlert('❌ Erreur lors de la suppression des duels:\n' + e.message);
+            }
+        };
+
+        window.confirmDeleteAllClassementPoints = async () => {
+            if (!await customConfirm('Supprimer tous les points de classement ?\n\n- Tous les classements des jurys (Mon classement) seront effacés\n- Les scores du classement seront remis à la base (sans les points activés)\n- La liste des candidats reste affichée pour réactiver ensuite\n\nLes jurys, candidats, notes et duels sont conservés.\n\nContinuer ?')) {
+                return;
+            }
+            try {
+                let count = 0;
+                const juryRankingsSnap = await getDocs(collection(db, "jury_rankings"));
+                if (juryRankingsSnap.size > 0) {
+                    const batch = writeBatch(db);
+                    juryRankingsSnap.docs.forEach(d => { batch.delete(d.ref); count++; });
+                    await batch.commit();
+                }
+                const classementsSnap = await getDocs(collection(db, "classements"));
+                for (const docSnap of classementsSnap.docs) {
+                    const data = docSnap.data();
+                    let entries = data.entries || [];
+                    if (entries.length > 0) {
+                        entries = entries.map(e => {
+                            const base = e.score_base != null ? (typeof e.score_base === 'number' ? e.score_base : parseFloat(e.score_base) || 0) : 0;
+                            return { ...e, score_appliqué: base, score_affiché: base };
+                        });
+                        entries.sort((a, b) => (b.score_appliqué ?? b.score_affiché ?? 0) - (a.score_appliqué ?? a.score_affiché ?? 0));
+                        entries.forEach((e, i) => { e.rank = i + 1; });
+                        await setDoc(docSnap.ref, { ...data, entries, lastUpdateSource: 'admin_reset_classement_points', updatedAt: new Date() }, { merge: true });
+                    } else {
+                        const firstRoundId = ROUNDS.length ? [...ROUNDS].sort((a, b) => (a.order || 0) - (b.order || 0))[0].id : null;
+                        const roundId = data.code || (docSnap.id.startsWith('classement_') ? docSnap.id.replace(/^classement_/, '') : null) || activationClassementRoundId || document.getElementById('activation-classement-round')?.value || firstRoundId;
+                        if (roundId) {
+                        const scoresQuery = query(collection(db, "scores"), where("roundId", "==", roundId));
+                        const scoresSnap = await getDocs(scoresQuery);
+                        const totalBaseByCandidate = {};
+                        scoresSnap.forEach(d => {
+                            const sd = d.data();
+                            const cid = sd.candidateId;
+                            const base = sd.score_base != null ? sd.score_base : 0;
+                            totalBaseByCandidate[cid] = (totalBaseByCandidate[cid] || 0) + base;
+                        });
+                        const candidatesSnap = await getDoc(doc(db, "candidats", "liste_actuelle"));
+                        const allCandidates = candidatesSnap.exists() ? (candidatesSnap.data().candidates || []) : [];
+                        let roundCandidates = allCandidates.filter(c => (c.tour || '') === roundId);
+                        if (roundCandidates.length === 0) roundCandidates = allCandidates;
+                        const withScore = roundCandidates.map(c => ({
+                            candidateId: c.id,
+                            name: c.name,
+                            score_base: totalBaseByCandidate[c.id] || 0
+                        }));
+                        withScore.sort((a, b) => b.score_base - a.score_base);
+                        entries = withScore.map((x, i) => ({
+                            rank: i + 1,
+                            candidateId: x.candidateId,
+                            name: x.name,
+                            score_base: x.score_base,
+                            score_appliqué: x.score_base,
+                            score_affiché: x.score_base
+                        }));
+                        if (entries.length > 0) {
+                            await setDoc(docSnap.ref, { ...data, entries, code: roundId, lastUpdateSource: 'admin_reset_classement_points', updatedAt: new Date() }, { merge: true });
+                        }
+                        }
+                    }
+                    count++;
+                }
+                const activationsSnap = await getDocs(collection(db, "classement_activations"));
+                const batch2 = writeBatch(db);
+                activationsSnap.docs.forEach(d => { batch2.delete(d.ref); count++; });
+                if (activationsSnap.size > 0) await batch2.commit();
+                await customAlert('✓ Points de classement supprimés.\n\nScores remis à la base, liste des candidats conservée. ' + (count > 0 ? count + ' élément(s) réinitialisé(s).' : ''));
+                if (typeof loadActivationClassementsData === 'function') loadActivationClassementsData();
+            } catch (e) {
+                console.error('Erreur:', e);
+                await customAlert('❌ Erreur lors de la suppression des points de classement:\n' + e.message);
+            }
+        };
+
+        window.confirmResetDuelWinners = async () => {
+            if (!await customConfirm('Supprimer les gagnants de tous les duels ?\n\nLes duels et candidats restent en place. Seuls les gagnants seront effacés (boutons repassent en blanc).\n\nContinuer ?')) {
+                return;
+            }
+            try {
+                const duelSnap = await getDocs(collection(db, "duel_results"));
+                let updated = 0;
+                for (const d of duelSnap.docs) {
+                    const data = d.data();
+                    const currentDuels = data.duels || [];
+                    const duels = currentDuels.map(duel => ({ ...duel, winnerId: null }));
+                    if (duels.some((x, i) => currentDuels[i] && currentDuels[i].winnerId != null)) {
+                        await setDoc(d.ref, { ...data, duels, updatedAt: new Date() });
+                        await syncDuelBonusEnabledWithDuelWinners(d.id, []);
+                        updated++;
+                    }
+                }
+                await customAlert(updated > 0 ? '✓ Gagnants des duels supprimés.\n\n' + updated + ' tour(s) de duels réinitialisé(s).' : 'Aucun gagnant de duel à supprimer.');
+                loadDuelsData();
+            } catch (e) {
+                console.error('Erreur:', e);
+                await customAlert('❌ Erreur lors de la suppression des gagnants:\n' + e.message);
+            }
+        };
+
         window.confirmResetAllScoresAndRounds = async () => {
-            if (!await customConfirm('⚠️ ATTENTION : Réinitialiser tous les scores et tours ?\n\n❌ Toutes les notes de tous les tours seront supprimées\n🔄 Tous les candidats seront remis en "Actif" au premier tour\n✅ Les jurys et la liste des candidats seront conservés\n\nCette action est IRRÉVERSIBLE !\n\nContinuer ?')) {
+            if (!await customConfirm('⚠️ ATTENTION : Réinitialiser tous les scores et tours ?\n\n❌ Toutes les notes de tous les tours seront supprimées\n❌ Tous les duels seront supprimés\n🔄 Tous les candidats seront remis en "Actif" au premier tour\n✅ Les jurys et la liste des candidats seront conservés\n\nCette action est IRRÉVERSIBLE !\n\nContinuer ?')) {
                 return;
             }
             
             try {
-                console.log('🔄 Réinitialisation de tous les scores et tours...');
+                console.log('🔄 Réinitialisation de tous les scores, tours et duels...');
                 
                 // 1. Supprimer TOUS les scores
                 const scoresSnap = await getDocs(collection(db, "scores"));
@@ -5178,6 +6453,15 @@
                 });
                 await batch.commit();
                 console.log('✅ Tous les scores supprimés');
+                
+                // 1b. Supprimer tous les duels
+                const duelSnap = await getDocs(collection(db, "duel_results"));
+                if (duelSnap.size > 0) {
+                    const batchDuels = writeBatch(db);
+                    duelSnap.docs.forEach(d => batchDuels.delete(d.ref));
+                    await batchDuels.commit();
+                    console.log(`✅ ${duelSnap.size} duel(s) supprimé(s)`);
+                }
                 
                 // 2. Charger les candidats
                 const candidatesDoc = await getDoc(doc(db, "candidats", "liste_actuelle"));
@@ -5214,12 +6498,15 @@
                 await setDoc(doc(db, "config", "locks"), { locks: {} });
                 console.log('✅ Verrous réinitialisés');
                 
-                await customAlert(`✓ Réinitialisation terminée !\n\n❌ ${scoresSnap.size} note(s) supprimée(s)\n🔄 ${allCandidates.length} candidat(s) remis en "Actif" au tour "${firstRound.name || firstRound.id}"\n🎯 Tour actif réinitialisé à "${firstRound.name || firstRound.id}"\n✅ Jurys et candidats conservés`);
+                const duelMsg = duelSnap.size > 0 ? `\n❌ ${duelSnap.size} duel(s) supprimé(s)` : '';
+                await customAlert(`✓ Réinitialisation terminée !\n\n❌ ${scoresSnap.size} note(s) supprimée(s)${duelMsg}\n🔄 ${allCandidates.length} candidat(s) remis en "Actif" au tour "${firstRound.name || firstRound.id}"\n🎯 Tour actif réinitialisé à "${firstRound.name || firstRound.id}"\n✅ Jurys et candidats conservés`);
                 
                 // Rafraîchir l'affichage
                 CANDIDATES = allCandidates;
+                duelsList = [];
                 await loadList();
                 await renderNotesTable();
+                loadDuelsData();
             } catch (e) {
                 console.error('❌ Erreur:', e);
                 await customAlert('❌ Erreur lors de la réinitialisation:\n' + e.message);
@@ -5239,6 +6526,32 @@
                 const batch1 = writeBatch(db);
                 scoresSnap.docs.forEach(d => batch1.delete(d.ref));
                 await batch1.commit();
+                
+                // Supprimer tous les duels
+                const duelSnap = await getDocs(collection(db, "duel_results"));
+                if (duelSnap.size > 0) {
+                    const batchDuels = writeBatch(db);
+                    duelSnap.docs.forEach(d => batchDuels.delete(d.ref));
+                    await batchDuels.commit();
+                }
+
+                // Supprimer tous les points de classement (jury_rankings, classements, classement_activations)
+                const juryRankingsSnap = await getDocs(collection(db, "jury_rankings"));
+                if (juryRankingsSnap.size > 0) {
+                    const batchCR = writeBatch(db);
+                    juryRankingsSnap.docs.forEach(d => batchCR.delete(d.ref));
+                    await batchCR.commit();
+                }
+                const classementsSnap = await getDocs(collection(db, "classements"));
+                for (const d of classementsSnap.docs) {
+                    await setDoc(d.ref, { ...d.data(), entries: [], updatedAt: new Date() }, { merge: true });
+                }
+                const activationsSnap = await getDocs(collection(db, "classement_activations"));
+                if (activationsSnap.size > 0) {
+                    const batchAct = writeBatch(db);
+                    activationsSnap.docs.forEach(d => batchAct.delete(d.ref));
+                    await batchAct.commit();
+                }
                 
                 // Supprimer tous les jurys
                 const accountsSnap = await getDocs(collection(db, "accounts"));
@@ -5271,7 +6584,7 @@
                 });
                 console.log(`✅ Tour actif réinitialisé à: ${firstRoundId}`);
                 
-                await customAlert('✓ Réinitialisation complète effectuée\n\n- Tous les jurys supprimés\n- Tous les candidats supprimés\n- Toutes les notations supprimées\n- Tous les verrous supprimés\n- Tour actif remis au premier tour');
+                await customAlert('✓ Réinitialisation complète effectuée\n\n- Tous les jurys supprimés\n- Tous les candidats supprimés\n- Toutes les notations supprimées\n- Tous les duels supprimés\n- Tous les points de classement supprimés\n- Tous les verrous supprimés\n- Tour actif remis au premier tour');
                 location.reload();
             } catch (e) {
                 console.error('Erreur:', e);

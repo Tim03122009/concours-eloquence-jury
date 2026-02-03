@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="description" content="Classement - Concours d'éloquence">
+    <meta name="theme-color" content="#667eea">
+    <title>Classement — Concours Éloquence</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        #classement-container {
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+        }
+        #classement-table {
+            overflow: visible;
+            border-radius: var(--radius-sm);
+        }
+        #classement-table thead tr {
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%) !important;
+            color: #fff !important;
+        }
+        #classement-table thead th {
+            border-bottom: 2px solid var(--border-color);
+        }
+        #classement-table thead th:first-child {
+            border-radius: var(--radius-sm) 0 0 0;
+        }
+        #classement-table thead th:last-child {
+            border-radius: 0 var(--radius-sm) 0 0;
+        }
+        .classement-row {
+            background-color: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+        }
+        .classement-row:nth-child(even) {
+            background-color: var(--light-bg);
+        }
+        [data-theme="dark"] .classement-row:nth-child(even) {
+            background-color: rgba(255,255,255,0.04);
+        }
+        .classement-row.rank-fly-up {
+            z-index: 20;
+            position: relative;
+            box-shadow: var(--shadow-lg);
+            background-color: var(--card-bg) !important;
+            transform-origin: center center;
+            border-bottom-color: var(--border-color);
+        }
+        .rank-fly-up-wrapper table {
+            overflow: visible;
+        }
+        .rank-fly-up-wrapper .classement-row {
+            background-color: var(--card-bg);
+        }
+        [data-theme="dark"] .rank-fly-up-wrapper .classement-row {
+            background-color: var(--card-bg);
+        }
+        #classement-table tbody tr:last-child td:first-child {
+            border-radius: 0 0 0 var(--radius-sm);
+        }
+        #classement-table tbody tr:last-child td:last-child {
+            border-radius: 0 0 var(--radius-sm) 0;
+        }
+        #classement-empty, #classement-loading {
+            color: var(--text-secondary);
+        }
+        #classement-container {
+            position: relative;
+        }
+        #qualified-zone-overlay {
+            position: absolute;
+            border: 10px solid var(--success-color);
+            border-radius: var(--radius-lg);
+            pointer-events: none;
+            display: none;
+            box-sizing: border-box;
+            z-index: 5;
+        }
+    </style>
+</head>
+<body>
+    <div class="page active" style="max-width: 800px; margin: 0 auto; padding: var(--spacing-md); overflow: visible;">
+        <p style="text-align: center; margin-bottom: var(--spacing-sm);">
+            <a href="index.html" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">← Retour à l'accueil</a>
+        </p>
+        <h2 style="text-align: center; margin-bottom: var(--spacing-sm); color: var(--text-color);">Classement</h2>
+        <p style="text-align: center; color: var(--text-secondary); margin-bottom: var(--spacing-md);">Lecture seule · Mise à jour en temps réel</p>
+        <div id="classement-container" style="background: var(--card-bg); padding: var(--spacing-md); box-shadow: var(--shadow-md); color: var(--text-color); overflow: visible;">
+            <p id="classement-loading" style="text-align: center; margin: var(--spacing-sm) 0;">Chargement du classement…</p>
+            <table id="classement-table" style="width: 100%; border-collapse: collapse; display: table;">
+                <thead>
+                    <tr>
+                        <th style="padding: 12px; text-align: center;">Rang</th>
+                        <th style="padding: 12px; text-align: left;">Candidat</th>
+                        <th style="padding: 12px; text-align: center;">Score</th>
+                    </tr>
+                </thead>
+                <tbody id="classement-body" style="position: relative;"></tbody>
+            </table>
+            <div id="qualified-zone-overlay"></div>
+            <p id="classement-empty" style="text-align: center; margin: var(--spacing-md) 0; display: none;">Classement vide. Aucune note enregistrée pour l'instant.</p>
+        </div>
+    </div>
+    <script type="module">
+        import { db } from './firebase-init.js';
+        import { getDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
+
+        function getScoreBase(entry) {
+            const v = entry.score_affiché != null ? entry.score_affiché : (entry.score_appliqué != null ? entry.score_appliqué : (entry.score_base != null ? entry.score_base : 0));
+            return typeof v === 'number' ? v : parseFloat(v) || 0;
+        }
+        /** Score affiché : note de base + 10% si le candidat a gagné un duel (calculé à l'affichage, pas stocké). */
+        function getDisplayScore(entry, duelWinnerIds) {
+            const base = getScoreBase(entry);
+            if (duelWinnerIds && duelWinnerIds.length && duelWinnerIds.includes(entry.candidateId)) {
+                return Math.round(base * 1.1 * 100) / 100;
+            }
+            return base;
+        }
+
+        function ensureArray(entries) {
+            if (Array.isArray(entries)) return entries;
+            if (entries && typeof entries === 'object') return Object.values(entries);
+            return [];
+        }
+
+        function showState(loadingEl, tableEl, emptyEl, state, emptyMessage) {
+            if (loadingEl) loadingEl.style.display = state === 'loading' ? 'block' : 'none';
+            if (tableEl) tableEl.style.display = 'table';
+            if (emptyEl) {
+                emptyEl.style.display = state === 'empty' || state === 'error' ? 'block' : 'none';
+                if (state === 'empty') emptyEl.textContent = emptyMessage || "Classement vide. Aucune note enregistrée pour l'instant.";
+                if (state === 'error') emptyEl.textContent = "Erreur de chargement. Vérifiez la connexion.";
+            }
+        }
+
+        const ROW_HEIGHT_PX = 52;
+        const PX_PER_CM = 38;
+        const MIN_SPEED_CM_S = 0.18;
+        const FLOAT_MAX_PX = 20;
+        let previousRanks = new Map();
+        let previousScores = new Map();
+        let animationsInProgress = 0;
+        let lastRenderData = null;
+        let lastRenderDuelWinnerIds = null;
+
+        /** Animation : clone en position fixed sur body. onLandStart = appelé au tout début de la phase de réincertion. */
+        function runFlyUpAnimationAbsolute(row, oldIndex, newIndex, onComplete, onLandStart) {
+            const offsetPx = (oldIndex - newIndex) * ROW_HEIGHT_PX;
+            const placesMoved = offsetPx / ROW_HEIGHT_PX;
+            const floatPx = Math.min(FLOAT_MAX_PX, Math.max(10, offsetPx * 0.32));
+            const totalPx = offsetPx + 2 * floatPx;
+            const speedDurationSec = totalPx / (MIN_SPEED_CM_S * PX_PER_CM);
+            const minDurationSec = placesMoved <= 1 ? 6 : placesMoved <= 2 ? 5 : placesMoved <= 3 ? 4.5 : placesMoved <= 4 ? 4 : 3.5;
+            const MAX_DURATION_SEC = 5;
+            const totalDurationSec = Math.min(MAX_DURATION_SEC, Math.max(minDurationSec, speedDurationSec));
+            const RISE_SHARE = 0.74;
+            const LAND_SHARE = 0.22;
+            const GLIDE_SHARE = 0.04;
+            const riseDurationSec = totalDurationSec * RISE_SHARE;
+            const landDurationSec = totalDurationSec * LAND_SHARE;
+            const glidePauseMs = Math.round(totalDurationSec * GLIDE_SHARE * 1000);
+
+            const topStart = oldIndex * ROW_HEIGHT_PX;
+            const topFloat = newIndex * ROW_HEIGHT_PX - floatPx;
+            const topEnd = newIndex * ROW_HEIGHT_PX;
+
+            const table = row.closest('table');
+            const tbody = row.closest('tbody');
+            const tableRect = table.getBoundingClientRect();
+            const tbodyTop = tbody.getBoundingClientRect().top;
+            const topStartFixed = tbodyTop + topStart;
+            const topFloatFixed = tbodyTop + (newIndex * ROW_HEIGHT_PX - floatPx);
+            const topEndFixed = tbodyTop + topEnd;
+
+            row.style.visibility = 'hidden';
+            row.style.height = '0';
+            row.style.overflow = 'hidden';
+            row.style.lineHeight = '0';
+            row.style.padding = '0';
+            Array.from(row.cells).forEach(c => { c.style.padding = '0'; c.style.height = '0'; c.style.border = 'none'; });
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'rank-fly-up-wrapper';
+            wrapper.style.cssText = `position:fixed;left:${tableRect.left}px;top:${topStartFixed}px;width:${tableRect.width}px;z-index:1000;pointer-events:none;`;
+            const cloneTable = document.createElement('table');
+            cloneTable.style.cssText = 'width:100%;border-collapse:collapse;background:transparent;';
+            const cloneTbody = document.createElement('tbody');
+            const cloneRow = row.cloneNode(true);
+            cloneRow.style.visibility = 'visible';
+            cloneRow.style.height = '';
+            cloneRow.style.overflow = '';
+            cloneRow.style.lineHeight = '';
+            cloneRow.style.padding = '';
+            Array.from(cloneRow.cells).forEach(c => { c.style.padding = '12px'; c.style.height = ''; c.style.border = ''; });
+            cloneRow.classList.add('rank-fly-up');
+            cloneRow.style.position = 'relative';
+            cloneRow.style.boxShadow = '0 4px 12px rgba(0,0,0,0.12)';
+            cloneRow.style.transform = 'scale(1.04)';
+            cloneTbody.appendChild(cloneRow);
+            cloneTable.appendChild(cloneTbody);
+            wrapper.appendChild(cloneTable);
+            document.body.appendChild(wrapper);
+
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    cloneRow.style.transition = `box-shadow ${riseDurationSec}s ease, transform ${riseDurationSec}s ease-out`;
+                    cloneRow.style.boxShadow = '0 10px 24px rgba(0,0,0,0.2)';
+                    cloneRow.style.transform = 'scale(1.05)';
+                    wrapper.style.transition = `top ${riseDurationSec}s ease-out`;
+                    wrapper.style.top = topFloatFixed + 'px';
+
+                    const landAt = riseDurationSec * 1000 + glidePauseMs;
+                    setTimeout(() => {
+                        if (typeof onLandStart === 'function') onLandStart();
+                        wrapper.style.transition = `top ${landDurationSec}s ease-in-out`;
+                        cloneRow.style.transition = `box-shadow ${landDurationSec}s ease, transform ${landDurationSec}s ease-in-out`;
+                        cloneRow.style.boxShadow = '0 2px 6px rgba(0,0,0,0.08)';
+                        cloneRow.style.transform = 'scale(1)';
+                        wrapper.style.top = topEndFixed + 'px';
+
+                        setTimeout(() => {
+                            wrapper.remove();
+                            row.style.visibility = '';
+                            if (typeof onComplete === 'function') onComplete();
+                        }, landDurationSec * 1000 + 80);
+                    }, landAt);
+                });
+            });
+        }
+
+        function render(data, duelWinnerIds) {
+            const tbody = document.getElementById('classement-body');
+            const loadingEl = document.getElementById('classement-loading');
+            const tableEl = document.getElementById('classement-table');
+            const emptyEl = document.getElementById('classement-empty');
+            if (!tbody) return;
+            if (animationsInProgress > 0) return;
+            const entries = data && data.entries ? ensureArray(data.entries) : [];
+            if (entries.length === 0) {
+                const msg = data === null
+                    ? "Classement vide. Aucune note enregistrée pour l'instant."
+                    : "Classement vide. Aucun candidat avec des notes.";
+                showState(loadingEl, tableEl, emptyEl, 'empty', msg);
+                tbody.innerHTML = '';
+                previousRanks.clear();
+                currentQualifyCount = null;
+                updateQualifiedZoneOverlay();
+                return;
+            }
+            showState(loadingEl, tableEl, emptyEl, 'table');
+            if (emptyEl) emptyEl.style.display = 'none';
+            const sorted = [...entries].sort((a, b) => getDisplayScore(b, duelWinnerIds) - getDisplayScore(a, duelWinnerIds));
+            const newRanks = new Map();
+            sorted.forEach((entry, i) => newRanks.set(entry.candidateId, i));
+            const movedUp = [];
+            previousRanks.forEach((oldIndex, candidateId) => {
+                const newIndex = newRanks.get(candidateId);
+                if (newIndex != null && newIndex < oldIndex) movedUp.push({ candidateId, oldIndex, newIndex });
+            });
+            lastRenderData = data;
+            lastRenderDuelWinnerIds = duelWinnerIds;
+            tbody.innerHTML = '';
+            animationsInProgress = movedUp.length;
+            const freezeRanks = movedUp.length > 0;
+
+            const reRenderWhenAllDone = () => {
+                animationsInProgress--;
+                if (animationsInProgress <= 0 && lastRenderData && lastRenderDuelWinnerIds) {
+                    render(lastRenderData, lastRenderDuelWinnerIds);
+                }
+            };
+
+            if (freezeRanks) {
+                // Ordre ancien : trou à la place de sortie. Glissement vers le bas au début de la réincertion (reboucher le trou + créer le trou d'atterrissage).
+                const sortedOld = [...entries].sort((a, b) => (previousRanks.get(a.candidateId) ?? 999) - (previousRanks.get(b.candidateId) ?? 999));
+                const rowsToSlidePerFly = movedUp.map(() => []);
+                sortedOld.forEach((entry, i) => {
+                    const fly = movedUp.find(m => m.candidateId === entry.candidateId);
+                    const flyIdx = fly ? movedUp.findIndex(m => m.candidateId === entry.candidateId) : -1;
+                    const nameVal = entry.name || entry.candidateId || '—';
+                    const oldRank = (previousRanks.get(entry.candidateId) ?? i) + 1;
+                    const oldScoreVal = previousScores.get(entry.candidateId);
+                    const oldScoreStr = (oldScoreVal != null && oldScoreVal !== '') ? oldScoreVal : '—';
+                    if (fly) {
+                        const placeholderRow = tbody.insertRow();
+                        placeholderRow.classList.add('classement-row');
+                        placeholderRow.style.height = ROW_HEIGHT_PX + 'px';
+                        const ph1 = placeholderRow.insertCell();
+                        const ph2 = placeholderRow.insertCell();
+                        const ph3 = placeholderRow.insertCell();
+                        ph1.style.padding = '12px';
+                        ph2.style.padding = '12px';
+                        ph3.style.padding = '12px';
+                        const row = tbody.insertRow();
+                        row.classList.add('classement-row');
+                        const rankCell = row.insertCell();
+                        rankCell.textContent = '—';
+                        rankCell.style.padding = '12px';
+                        rankCell.style.textAlign = 'center';
+                        const nameCell = row.insertCell();
+                        nameCell.textContent = nameVal;
+                        nameCell.style.padding = '12px';
+                        const scoreCell = row.insertCell();
+                        scoreCell.textContent = '—';
+                        scoreCell.style.padding = '12px';
+                        scoreCell.style.textAlign = 'center';
+                        const onLandStart = () => {
+                            const rowsToSlide = rowsToSlidePerFly[flyIdx];
+                            if (rowsToSlide.length === 0) return;
+                            rowsToSlide.forEach(r => {
+                                r.style.transition = 'transform 0.45s ease-out';
+                                r.style.transform = `translateY(${ROW_HEIGHT_PX}px)`;
+                            });
+                        };
+                        runFlyUpAnimationAbsolute(row, i, fly.newIndex, reRenderWhenAllDone, onLandStart);
+                    } else {
+                        const row = tbody.insertRow();
+                        row.classList.add('classement-row');
+                        const rankCell = row.insertCell();
+                        rankCell.textContent = oldRank;
+                        rankCell.style.padding = '12px';
+                        rankCell.style.textAlign = 'center';
+                        const nameCell = row.insertCell();
+                        nameCell.textContent = nameVal;
+                        nameCell.style.padding = '12px';
+                        const scoreCell = row.insertCell();
+                        scoreCell.textContent = oldScoreStr;
+                        scoreCell.style.padding = '12px';
+                        scoreCell.style.textAlign = 'center';
+                        movedUp.forEach((f, fIdx) => {
+                            if (f.newIndex <= i && i < f.oldIndex) rowsToSlidePerFly[fIdx].push(row);
+                        });
+                    }
+                });
+            } else {
+                sorted.forEach((entry, i) => {
+                    const row = tbody.insertRow();
+                    row.classList.add('classement-row');
+                    const nameVal = entry.name || entry.candidateId || '—';
+                    const scoreVal = getDisplayScore(entry, duelWinnerIds);
+                    const scoreStr = scoreVal != null && scoreVal !== '' ? scoreVal : '—';
+                    const rankCell = row.insertCell();
+                    rankCell.textContent = i + 1;
+                    rankCell.style.padding = '12px';
+                    rankCell.style.textAlign = 'center';
+                    const nameCell = row.insertCell();
+                    nameCell.textContent = nameVal;
+                    nameCell.style.padding = '12px';
+                    const scoreCell = row.insertCell();
+                    scoreCell.textContent = scoreStr;
+                    scoreCell.style.padding = '12px';
+                    scoreCell.style.textAlign = 'center';
+                });
+            }
+            sorted.forEach((entry, i) => {
+                const s = getDisplayScore(entry, duelWinnerIds);
+                previousScores.set(entry.candidateId, s != null && s !== '' ? s : '—');
+            });
+            previousRanks = newRanks;
+            if (movedUp.length === 0) animationsInProgress = 0;
+            requestAnimationFrame(() => { requestAnimationFrame(fitTableToViewport); });
+        }
+
+        async function getDuelWinnerIds(roundId) {
+            if (!roundId) return [];
+            try {
+                const duelSnap = await getDoc(doc(db, "duel_results", roundId));
+                if (!duelSnap.exists() || !duelSnap.data().duels) return [];
+                return (duelSnap.data().duels).filter(d => d.winnerId).map(d => d.winnerId);
+            } catch (_) {
+                return [];
+            }
+        }
+
+        let currentQualifyCount = null;
+
+        /** Charge config/rounds, trouve le tour roundId, lit nextRoundCandidates : 'ALL' → entriesLength, sinon N (nombre). Retourne null si indisponible. */
+        async function getQualifyCountForRound(roundId, entriesLength) {
+            if (!roundId) return null;
+            try {
+                const roundsSnap = await getDoc(doc(db, "config", "rounds"));
+                if (!roundsSnap.exists()) return null;
+                const rounds = roundsSnap.data().rounds || [];
+                const round = rounds.find(r => r.id === roundId);
+                if (!round || round.nextRoundCandidates == null || round.nextRoundCandidates === '') return null;
+                if (round.nextRoundCandidates === 'ALL') return entriesLength;
+                const n = parseInt(round.nextRoundCandidates, 10);
+                return isNaN(n) ? null : Math.max(0, n);
+            } catch (_) {
+                return null;
+            }
+        }
+
+        /** Recalcule position et taille du contour vert (N premières lignes) ; masque si N null ou 0. À appeler après layout (ex. après fitTableToViewport). */
+        function updateQualifiedZoneOverlay() {
+            const overlay = document.getElementById('qualified-zone-overlay');
+            const container = document.getElementById('classement-container');
+            const table = document.getElementById('classement-table');
+            const tbody = document.getElementById('classement-body');
+            if (!overlay || !container || !table || !tbody) return;
+            if (currentQualifyCount == null || currentQualifyCount === 0) {
+                overlay.style.display = 'none';
+                return;
+            }
+            const rows = Array.from(tbody.querySelectorAll('tr.classement-row'));
+            const n = Math.min(currentQualifyCount, rows.length);
+            if (n === 0 || rows.length === 0) {
+                overlay.style.display = 'none';
+                return;
+            }
+            const firstRow = rows[0];
+            const lastRow = rows[n - 1];
+            const containerRect = container.getBoundingClientRect();
+            const tableRect = table.getBoundingClientRect();
+            const firstRect = firstRow.getBoundingClientRect();
+            const lastRect = lastRow.getBoundingClientRect();
+            const BORDER_PX = 10;
+            const top = firstRect.top - containerRect.top + container.scrollTop - BORDER_PX;
+            const left = tableRect.left - containerRect.left - BORDER_PX;
+            const width = tableRect.width + BORDER_PX * 2;
+            const height = (lastRect.bottom - firstRect.top) + BORDER_PX * 2;
+            overlay.style.top = top + 'px';
+            overlay.style.left = left + 'px';
+            overlay.style.width = width + 'px';
+            overlay.style.height = height + 'px';
+            overlay.style.display = 'block';
+        }
+
+        function fitTableToViewport() {
+            updateQualifiedZoneOverlay();
+        }
+
+        (async () => {
+            const params = new URLSearchParams(window.location.search);
+            let classementId = params.get('id') && params.get('id').trim() ? params.get('id').trim() : null;
+            if (!classementId) {
+                try {
+                    const activationsSnap = await getDoc(doc(db, "config", "activations"));
+                    if (activationsSnap.exists() && activationsSnap.data().classementIdActif) {
+                        classementId = (activationsSnap.data().classementIdActif || '').trim();
+                    }
+                } catch (e) {
+                    console.warn('config/activations non disponible, usage ID par défaut', e);
+                }
+            }
+            if (!classementId) classementId = 'classement';
+
+            onSnapshot(doc(db, "classements", classementId), (snap) => {
+                if (!snap.exists()) {
+                    render(null);
+                    return;
+                }
+                const tbody = document.getElementById('classement-body');
+                if (tbody && tbody.querySelector('.rank-fly-up')) return;
+                const data = snap.data();
+                (async () => {
+                    const rawDuelWinnerIds = await getDuelWinnerIds(data.code || null) || [];
+                    const duelBonusEnabled = Array.isArray(data.duelBonusEnabled) ? data.duelBonusEnabled : [];
+                    const duelWinnerIds = rawDuelWinnerIds.filter(id => duelBonusEnabled.includes(id));
+                    const entries = ensureArray(data.entries || []);
+                    const n = await getQualifyCountForRound(data.code || null, entries.length);
+                    currentQualifyCount = n;
+                    render(data, duelWinnerIds);
+                })();
+            }, (err) => {
+                console.error('Erreur classement', err);
+                const loadingEl = document.getElementById('classement-loading');
+                const tableEl = document.getElementById('classement-table');
+                const emptyEl = document.getElementById('classement-empty');
+                showState(loadingEl, tableEl, emptyEl, 'error');
+            });
+
+            // Rafraîchissement de secours (onSnapshot suffit pour le temps réel ; on ne coupe jamais une animation)
+            const refreshClassement = async () => {
+                if (animationsInProgress > 0) return;
+                try {
+                    const snap = await getDoc(doc(db, "classements", classementId));
+                    if (!snap.exists()) {
+                        render(null);
+                        return;
+                    }
+                    const data = snap.data();
+                    const rawDuelWinnerIds = await getDuelWinnerIds(data.code || null) || [];
+                    const duelBonusEnabled = Array.isArray(data.duelBonusEnabled) ? data.duelBonusEnabled : [];
+                    const duelWinnerIds = rawDuelWinnerIds.filter(id => duelBonusEnabled.includes(id));
+                    const entries = ensureArray(data.entries || []);
+                    const n = await getQualifyCountForRound(data.code || null, entries.length);
+                    currentQualifyCount = n;
+                    render(data, duelWinnerIds);
+                } catch (e) {
+                    console.warn('Rafraîchissement classement:', e);
+                }
+            };
+            setInterval(refreshClassement, 45000);
+
+            window.addEventListener('resize', () => fitTableToViewport());
+
+            setTimeout(() => {
+                const loadingEl = document.getElementById('classement-loading');
+                if (loadingEl && loadingEl.style.display !== 'none') {
+                    loadingEl.style.display = 'none';
+                    const emptyEl = document.getElementById('classement-empty');
+                    if (emptyEl) {
+                        emptyEl.style.display = 'block';
+                        emptyEl.textContent = "Classement vide. Aucune note enregistrée pour l'instant.";
+                    }
+                }
+            }, 5000);
+        })();
+    </script>
+</body>
+</html>

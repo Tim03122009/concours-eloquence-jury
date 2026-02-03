@@ -103,6 +103,14 @@ body:has(#identification-page.active) {
     display: block;
 }
 
+/* Une seule page visible : quand l'une est active, l'autre est toujours cachée */
+body:has(#identification-page.active) #scoring-page {
+    display: none !important;
+}
+body:has(#scoring-page.active) #identification-page {
+    display: none !important;
+}
+
 @keyframes fadeIn {
     from {
         opacity: 0;
@@ -435,6 +443,231 @@ h2 {
     color: var(--text-color);
 }
 
+/* Onglets jury (style type admin) */
+.jury-tabs-bar {
+    display: flex;
+    gap: 0;
+    margin-bottom: var(--spacing);
+    flex-wrap: wrap;
+    border-bottom: 2px solid var(--border-color);
+}
+.jury-tab-btn {
+    padding: 12px 20px;
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+.jury-tab-btn:hover {
+    color: var(--primary-color);
+    background: rgba(0, 123, 255, 0.05);
+}
+.jury-tab-btn.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+}
+.jury-tab-content {
+    display: none;
+}
+.jury-tab-content.active {
+    display: block;
+}
+
+/* Onglet Notation jury : deux candidats (style type épreuve 1) */
+.jury-notation-intro {
+    text-align: center;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing);
+    font-size: clamp(0.9rem, 2vw, 1rem);
+}
+
+.jury-notation-cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing);
+}
+
+@media (max-width: 767px) {
+    .jury-notation-cols {
+        grid-template-columns: 1fr;
+    }
+}
+
+.jury-notation-card {
+    border: 2px solid var(--primary-color);
+    border-radius: var(--radius);
+    padding: var(--spacing);
+    background: var(--card-bg);
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition);
+}
+
+.jury-notation-card:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.jury-notation-card .control-group {
+    margin-top: var(--spacing);
+}
+
+.jury-notation-card .control-group:first-of-type {
+    margin-top: 0;
+}
+
+.jury-notation-card label.card-title {
+    display: block;
+    color: var(--primary-color);
+    font-weight: 600;
+    margin-bottom: var(--spacing-xs);
+    font-size: 1rem;
+}
+
+.jury-notation-card select {
+    width: 100%;
+    padding: var(--spacing-sm);
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--input-bg);
+    color: var(--text-color);
+    font-size: 1em;
+    font-family: inherit;
+    transition: var(--transition);
+}
+
+.jury-notation-card select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.jury-notation-card .jury-notation-sep {
+    border: none;
+    border-top: 1px solid var(--border-color);
+    margin: var(--spacing) 0;
+}
+
+.jury-notation-validate {
+    width: 100%;
+    padding: 14px;
+    font-size: 1.1em;
+    font-weight: 600;
+    border-radius: var(--radius);
+    border: 2px solid var(--success-dark);
+    background: linear-gradient(135deg, var(--success-color) 0%, var(--success-dark) 100%);
+    color: white;
+    cursor: pointer;
+    transition: var(--transition);
+    box-shadow: var(--shadow-sm);
+}
+
+.jury-notation-validate:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.jury-notation-validate:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background: var(--neutral-color);
+    border-color: var(--neutral-color);
+}
+
+/* Duel : saisie note 0-20 (cadran + slider) */
+/* Conteneur duel : prendre toute la largeur de la carte candidat */
+.jury-notation-card div[id^="duel-grid-"] {
+    display: block;
+    width: 100%;
+    min-width: 0;
+}
+.duel-score-input-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: var(--spacing-sm) 0;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+.duel-slider-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+.duel-slider-endcap {
+    flex-shrink: 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    min-width: 1.4em;
+    text-align: center;
+}
+.duel-range-input {
+    flex: 1;
+    min-width: 0;
+    box-sizing: border-box;
+    height: 10px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--border-color);
+    border-radius: 5px;
+    outline: none;
+}
+/* Curseur slider duel : rectangle-flèche bleu (dessiné en CSS, sans image) */
+.duel-range-input::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 26px;
+    background: #66CCFF;
+    border: none;
+    cursor: pointer;
+    clip-path: polygon(50% 0%, 0% 45%, 0% 100%, 100% 100%, 100% 45%);
+    transition: transform 0.15s ease;
+}
+.duel-range-input::-webkit-slider-thumb:hover {
+    transform: scale(1.08);
+}
+.duel-range-input::-moz-range-thumb {
+    width: 16px;
+    height: 26px;
+    background: #66CCFF;
+    border: none;
+    cursor: pointer;
+    clip-path: polygon(50% 0%, 0% 45%, 0% 100%, 100% 100%, 100% 45%);
+    transition: transform 0.15s ease;
+}
+.duel-range-input::-moz-range-thumb:hover {
+    transform: scale(1.08);
+}
+.duel-num-input {
+    width: 3.2em;
+    min-width: 3.2em;
+    flex-shrink: 0;
+    padding: var(--spacing-sm);
+    font-size: 1.1em;
+    font-weight: 600;
+    text-align: center;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--input-bg);
+    color: var(--text-color);
+}
+.duel-num-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
+}
 hr {
     border: none;
     border-top: 1px solid var(--border-color);
@@ -629,21 +862,125 @@ hr {
     }
 }
 
-/* Landscape orientation adjustments */
-@media (orientation: landscape) and (max-height: 600px) {
+/* Mode paysage : tout visible sans défilement sur tous les appareils */
+@media (orientation: landscape) {
     body {
+        min-height: 100vh;
+        height: 100vh;
+        height: 100dvh;
+        overflow: hidden;
+        padding: 6px;
         align-items: flex-start;
-        padding-top: var(--spacing-md);
     }
-    
-    /* Keep login page centered in landscape */
     body:has(#identification-page.active) {
         align-items: center !important;
-        padding-top: var(--spacing-xs);
     }
-    
-    .page, .page-container {
-        margin: var(--spacing-md) auto;
+    .page.active,
+    .page-container.active {
+        max-height: calc(100vh - 12px);
+        max-height: calc(100dvh - 12px);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        padding: 8px;
+        flex: 1;
+        min-height: 0;
+    }
+    /* Contenu scoring/jury : tient dans la hauteur, scroll interne si besoin */
+    #scoring-page {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    #scoring-page > p,
+    #scoring-page > h2 {
+        margin: 4px 0 !important;
+    }
+    .jury-tabs-bar {
+        margin-bottom: 6px;
+        flex-shrink: 0;
+    }
+    .jury-tab-btn {
+        padding: 8px 14px;
+        font-size: 0.9rem;
+    }
+    .jury-tab-content.active {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+    }
+    .jury-notation-intro {
+        margin-bottom: 6px;
+        font-size: 0.85rem;
+        flex-shrink: 0;
+    }
+    .jury-notation-cols {
+        gap: 8px;
+        margin-bottom: 6px;
+        flex: 1;
+        min-height: 0;
+    }
+    .jury-notation-card {
+        padding: 8px;
+        border-width: 1px;
+    }
+    .jury-notation-card .card-title,
+    .jury-notation-card label.card-title {
+        font-size: 0.9rem;
+        margin-bottom: 4px;
+    }
+    .jury-notation-card select {
+        padding: 6px;
+        font-size: 0.9rem;
+    }
+    .jury-notation-sep {
+        margin: 6px 0 !important;
+    }
+    .jury-notation-card .control-group {
+        margin-top: 6px !important;
+    }
+    .jury-notation-card .control-group label {
+        font-size: 0.85rem;
+    }
+    .duel-score-input-wrap {
+        margin: 4px 0 !important;
+    }
+    .duel-slider-row {
+        gap: 4px;
+    }
+    .duel-slider-endcap {
+        font-size: 0.75rem;
+    }
+    .duel-num-input {
+        padding: 4px 6px;
+        font-size: 0.95rem;
+    }
+    .jury-notation-card .selection-info {
+        margin: 4px 0 !important;
+        padding: 4px 6px !important;
+        font-size: 0.8rem !important;
+    }
+    .jury-notation-validate {
+        padding: 10px;
+        font-size: 1rem;
+        flex-shrink: 0;
+    }
+    /* Grilles de notation (épreuve 1 / notation individuelle) */
+    .score-grid {
+        margin: 4px 0 !important;
+        gap: 4px !important;
+    }
+    .score-btn {
+        padding: 8px;
+        font-size: 0.95rem !important;
+    }
+    .score-btn.eliminated {
+        font-size: 0.85rem !important;
     }
 }
 
@@ -992,4 +1329,66 @@ la /* Sortable table headers */
 #notes-table th:nth-child(5), /* Statut */
 #notes-table td:nth-child(5) {
     min-width: 130px;
+}
+
+/* Bonus victoire (président) — classement */
+.bonus-victoire-btn {
+    padding: 8px 14px;
+    font-size: 0.9em;
+    font-weight: 600;
+    border: 2px solid var(--success-color);
+    border-radius: var(--radius-sm);
+    background: var(--success-color);
+    color: white;
+    cursor: pointer;
+    transition: var(--transition);
+}
+.bonus-victoire-btn:hover {
+    background: var(--success-dark);
+    border-color: var(--success-dark);
+    transform: translateY(-1px);
+}
+
+/* Lignes qualifiées dans le classement (N premiers selon nextRoundCandidates) */
+.classement-row-qualified {
+    background-color: rgba(40, 167, 69, 0.15);
+}
+[data-theme="dark"] .classement-row-qualified {
+    background-color: rgba(76, 175, 80, 0.2);
+}
+
+/* Dépassement survol : sur les candidats dépassés (rang baissé), au survol — purement visuel, déclenché uniquement après action admin */
+.classement-row-overtaken:hover {
+    animation: overtake-hover 0.6s ease-out;
+}
+@keyframes overtake-hover {
+    0% { background-color: rgba(220, 53, 69, 0.12); }
+    50% { background-color: rgba(220, 53, 69, 0.08); }
+    100% { background-color: transparent; }
+}
+[data-theme="dark"] .classement-row-overtaken:hover {
+    animation-name: overtake-hover-dark;
+}
+@keyframes overtake-hover-dark {
+    0% { background-color: rgba(244, 67, 54, 0.2); }
+    50% { background-color: rgba(244, 67, 54, 0.1); }
+    100% { background-color: transparent; }
+}
+
+/* Animation de dépassement (classement après bonus) */
+@keyframes overtake {
+    0% { background-color: rgba(40, 167, 69, 0.5); }
+    50% { background-color: rgba(40, 167, 69, 0.25); }
+    100% { background-color: transparent; }
+}
+.row-overtake {
+    animation: overtake 0.8s ease-out;
+}
+[data-theme="dark"] .row-overtake {
+    animation-name: overtake-dark;
+}
+@keyframes overtake-dark {
+    0% { background-color: rgba(76, 175, 80, 0.5); }
+    50% { background-color: rgba(76, 175, 80, 0.2); }
+    100% { background-color: transparent; }
 }
