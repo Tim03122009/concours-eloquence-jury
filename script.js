@@ -45,6 +45,7 @@ let repechageQualified = [];
 let repechageEliminated = [];
 let repechageScoresListener = null;
 let roundChangeListener = null;
+let sessionLockListener = null;
 
 // Variables pour l'interface Duels (Fond + Forme pour chaque candidat)
 let duelCandidate1 = null;
@@ -261,7 +262,20 @@ async function checkAndQualifyCandidateFromJury(candidateId) {
 async function checkSessionAndStart() {
     try {
         const snap = await getDoc(doc(db, "config", "session"));
-        const firebaseSessionId = snap.exists() ? snap.data().current_id : '1';
+        const data = snap.exists() ? snap.data() : {};
+        const firebaseSessionId = data.current_id || '1';
+        const sessionLocked = data.sessionLocked === true;
+
+        if (sessionLocked) {
+            localStorage.removeItem('currentJuryName');
+            localStorage.removeItem('currentJuryDisplayName');
+            localStorage.removeItem('sessionId');
+            showIdentificationOnly();
+            await displayActiveRoundOnLogin();
+            const display = document.getElementById('active-round-display');
+            if (display) display.textContent = 'Session verrouillée. Vous n\'avez plus accès aux modifications.';
+            return;
+        }
 
         if (storedSessionId !== firebaseSessionId && storedSessionId !== '') {
             logout(); // Reset forcé par l'admin
@@ -321,6 +335,10 @@ function logout() {
     if (roundChangeListener) {
         roundChangeListener();
         roundChangeListener = null;
+    }
+    if (sessionLockListener) {
+        sessionLockListener();
+        sessionLockListener = null;
     }
     if (classementListener) {
         classementListener();
@@ -818,9 +836,15 @@ document.getElementById('start-scoring-button').onclick = async () => {
             const storedPassword = accountDoc.data().password || '';
             
             if (password === storedPassword) {
-                // Connexion réussie
-                const snap = await getDoc(doc(db, "config", "session"));
-                const firebaseSessionId = snap.exists() ? snap.data().current_id : '1';
+                // Connexion réussie — vérifier que la session n'est pas verrouillée
+                const sessionSnap = await getDoc(doc(db, "config", "session"));
+                const sessionData = sessionSnap.exists() ? sessionSnap.data() : {};
+                if (sessionData.sessionLocked === true) {
+                    if (typeof customAlert === 'function') await customAlert('La session est verrouillée.\n\nVous n\'avez plus accès aux modifications.');
+                    else alert('La session est verrouillée. Vous n\'avez plus accès aux modifications.');
+                    return;
+                }
+                const firebaseSessionId = sessionData.current_id || '1';
 
                 currentJuryName = juryId;  // Stocker l'ID du jury
                 currentJuryDisplayName = accountDoc.data().name || name;  // Stocker le nom affiché
@@ -908,9 +932,15 @@ document.getElementById('start-scoring-button').onclick = async () => {
                     rounds: defaultRounds
                 });
                 
-                // Connexion automatique après création
-                const snap = await getDoc(doc(db, "config", "session"));
-                const firebaseSessionId = snap.exists() ? snap.data().current_id : '1';
+                // Connexion automatique après création — vérifier que la session n'est pas verrouillée
+                const sessionSnap = await getDoc(doc(db, "config", "session"));
+                const sessionData = sessionSnap.exists() ? sessionSnap.data() : {};
+                if (sessionData.sessionLocked === true) {
+                    if (typeof customAlert === 'function') await customAlert('La session est verrouillée.\n\nVous n\'avez plus accès aux modifications.');
+                    else alert('La session est verrouillée. Vous n\'avez plus accès aux modifications.');
+                    return;
+                }
+                const firebaseSessionId = sessionData.current_id || '1';
 
                 currentJuryName = newJuryId;  // Stocker l'ID du jury
                 currentJuryDisplayName = name;  // Stocker le nom affiché
@@ -1205,6 +1235,8 @@ async function startScoring() {
     
     // Écouter les changements de tour
     setupRoundChangeListener();
+    // Écouter le verrouillage de session (expulsion immédiate si admin verrouille)
+    setupSessionLockListener();
     // Mise à jour temps réel quand l'admin modifie tours, candidats, duels ou compte jury
     setupRealtimeListeners();
 }
@@ -1320,6 +1352,39 @@ function setupRealtimeListeners() {
             console.error('scoresRealtime listener', e);
         }
     });
+}
+
+/**
+ * Écouter le verrouillage de session : si l'admin verrouille, expulser immédiatement le jury.
+ */
+function setupSessionLockListener() {
+    if (sessionLockListener) return;
+    let isFirstSnapshot = true;
+    sessionLockListener = onSnapshot(doc(db, "config", "session"), (snap) => {
+        if (isFirstSnapshot) {
+            isFirstSnapshot = false;
+            return;
+        }
+        if (!snap.exists()) return;
+        const data = snap.data();
+        if (data.sessionLocked === true) {
+            if (typeof customAlert === 'function') {
+                customAlert('La session a été verrouillée par l\'administrateur.\n\nVous n\'avez plus accès aux modifications.').then(() => { logout(); });
+            } else {
+                alert('La session a été verrouillée. Vous n\'avez plus accès.');
+                logout();
+            }
+            return;
+        }
+        const firebaseSessionId = data.current_id || '1';
+        if (storedSessionId !== firebaseSessionId) {
+            if (typeof customAlert === 'function') {
+                customAlert('Votre session a été invalidée.\n\nVous allez être déconnecté.').then(() => { logout(); });
+            } else {
+                logout();
+            }
+        }
+    }, (err) => { console.error('sessionLockListener', err); });
 }
 
 /**

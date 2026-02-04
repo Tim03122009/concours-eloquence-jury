@@ -236,13 +236,31 @@ Score Total = (Note Fond × 3) + (Note Forme × 1)
 
 ## 🧪 Tests
 
-Voir le fichier **[TESTING.md](./TESTING.md)** pour :
-- Guide de test local complet
-- Firebase Emulator Suite
-- Scénarios de test recommandés
-- Checklist avant commit
+### Tests automatiques (vérification du site)
 
-### Test Rapide
+Pour lancer toute la suite de tests (unitaires, intégration, e2e) et vérifier le site :
+
+```bash
+# Une fois : installer les dépendances des tests
+cd test && npm install && cd ..
+
+# Lancer tous les tests
+node run-tests.js
+```
+
+Ou depuis le dossier `test` :
+
+```bash
+cd test
+npm install   # une fois
+npm test      # tous les tests
+npm run test:unit         # tests unitaires uniquement
+npm run test:coverage     # avec rapport de couverture
+```
+
+Voir **[test/README.md](./test/README.md)** pour la liste des tests et **[TESTING.md](./specs/TESTING.md)** pour le guide de test local (serveur, émulateur, scénarios manuels).
+
+### Test rapide (navigateur)
 ```bash
 # Démarrer le serveur local
 python3 -m http.server 8080

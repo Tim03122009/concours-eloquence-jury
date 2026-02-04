@@ -812,11 +812,6 @@
 
         <!-- TAB 2: JURY -->
         <div id="tab-jury" class="tab-content">
-            <div class="candidate-zone" style="background: var(--warning-color); background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); border: 2px solid var(--warning-dark, #e65100); padding: 16px; border-radius: 8px; margin-bottom: 20px;">
-                <h3 style="color: var(--warning-dark, #e65100);">🔒 Verrouillage des sessions jury</h3>
-                <p style="color: var(--text-color); font-size: 0.9em; margin: 5px 0;">En verrouillant, tous les jurys connectés sont déconnectés et ne peuvent plus accéder à l'interface (comme un changement de tour sans accès). Idéal pour figer les saisies après coup.</p>
-                <button id="jury-session-lock-btn" type="button" class="action-button" onclick="toggleJurySessionLock()" style="margin-top: 10px; padding: 10px 20px;">Chargement…</button>
-            </div>
             <div class="candidate-zone" style="background: var(--primary-light, #e3f2fd); border: 2px solid var(--primary-color, #2196f3); padding: 20px; border-radius: 8px; margin-bottom: 20px;">
                 <h3 style="color: var(--primary-color, #1565c0);">🔑 Mot de passe par défaut</h3>
                 <p style="color: var(--text-color); font-size: 0.9em; margin: 5px 0;">Ce mot de passe sera requis pour créer un nouveau compte jury et sera défini par défaut lors de la création.</p>
@@ -825,6 +820,13 @@
                     <button onclick="saveDefaultJuryPassword()" class="action-button" style="background: linear-gradient(135deg, #2196f3 0%, #1565c0 100%); color: white;">💾 Enregistrer</button>
                 </div>
                 <p style="color: var(--text-secondary); font-size: 0.85em; margin-top: 8px;">💡 Astuce : Communiquez ce mot de passe aux jurys avant le concours.</p>
+            </div>
+
+            <div class="candidate-zone" style="background: var(--info-bg-start, #fff3e0); border: 2px solid var(--warning-color, #ff9800); padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                <h3 style="color: var(--text-color);">🔒 Verrouillage des sessions</h3>
+                <p style="color: var(--text-secondary); font-size: 0.9em; margin: 5px 0;">Verrouiller empêche tout changement après coup : les jurys sont expulsés de leur session et ne peuvent plus se reconnecter tant que la session est verrouillée.</p>
+                <p id="session-lock-status" style="color: var(--text-color); font-size: 0.9em; margin: 8px 0; font-weight: 600;"></p>
+                <button type="button" id="session-lock-btn" onclick="toggleSessionLock()" class="action-button" style="padding: 10px 20px;">Chargement…</button>
             </div>
             
             <div class="candidate-zone">
@@ -1320,7 +1322,7 @@
                 renderCandidateTable();
             } else if (tabName === 'jury') {
                 renderJuryTable();
-                loadJurySessionLockState();
+                loadSessionLockState();
             } else if (tabName === 'tours') {
                 renderRoundsTable();
             } else if (tabName === 'notes') {
@@ -1709,6 +1711,48 @@
         
         // Charger le mot de passe par défaut au démarrage
         loadDefaultJuryPassword();
+
+        // --- VERROUILLAGE SESSIONS JURY ---
+        window.loadSessionLockState = async () => {
+            const btn = document.getElementById('session-lock-btn');
+            const statusEl = document.getElementById('session-lock-status');
+            if (!btn || !statusEl) return;
+            try {
+                const snap = await getDoc(doc(db, "config", "session"));
+                const data = snap.exists() ? snap.data() : {};
+                const locked = data.sessionLocked === true;
+                statusEl.textContent = locked ? 'État : sessions verrouillées (les jurys n\'ont plus accès).' : 'État : sessions déverrouillées.';
+                btn.textContent = locked ? '🔓 Déverrouiller les sessions' : '🔒 Verrouiller les sessions';
+                btn.style.background = locked ? 'linear-gradient(135deg, #28a745 0%, #1e7e34 100%)' : 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)';
+                btn.style.color = 'white';
+            } catch (e) {
+                console.error(e);
+                statusEl.textContent = '';
+                btn.textContent = '🔒 Verrouiller / Déverrouiller';
+            }
+        };
+
+        window.toggleSessionLock = async () => {
+            const btn = document.getElementById('session-lock-btn');
+            if (!btn) return;
+            try {
+                const snap = await getDoc(doc(db, "config", "session"));
+                const data = snap.exists() ? snap.data() : {};
+                const currentlyLocked = data.sessionLocked === true;
+                if (currentlyLocked) {
+                    await setDoc(doc(db, "config", "session"), { sessionLocked: false, updatedAt: new Date() }, { merge: true });
+                    await customAlert('✓ Sessions déverrouillées.\n\nLes jurys peuvent à nouveau se connecter.');
+                } else {
+                    const newSessionId = String(Date.now());
+                    await setDoc(doc(db, "config", "session"), { sessionLocked: true, current_id: newSessionId, updatedAt: new Date() }, { merge: true });
+                    await customAlert('✓ Sessions verrouillées.\n\nTous les jurys ont été expulsés et ne peuvent plus se connecter tant que vous ne déverrouillez pas.');
+                }
+                await loadSessionLockState();
+            } catch (e) {
+                console.error(e);
+                await customAlert('Erreur : ' + (e.message || e));
+            }
+        };
         
         // --- GESTION OPTION PODIUM APRÈS REPÊCHAGE ---
         let SHOW_PODIUM_AFTER_REPECHAGE = false;
@@ -2072,37 +2116,6 @@
             await loadJuries();
         };
         
-        async function loadJurySessionLockState() {
-            const btn = document.getElementById('jury-session-lock-btn');
-            if (!btn) return;
-            try {
-                const snap = await getDoc(doc(db, "config", "session"));
-                const locked = snap.exists() && snap.data().jurySessionLocked === true;
-                btn.textContent = locked ? '🔓 Déverrouiller les sessions jury' : '🔒 Verrouiller les sessions jury';
-                btn.style.background = locked ? 'linear-gradient(135deg, #28a745 0%, #1e7e34 100%)' : 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)';
-                btn.style.color = 'white';
-            } catch (e) {
-                console.warn('loadJurySessionLockState:', e);
-                btn.textContent = 'Erreur de chargement';
-            }
-        }
-
-        window.toggleJurySessionLock = async function() {
-            const btn = document.getElementById('jury-session-lock-btn');
-            if (!btn) return;
-            try {
-                const snap = await getDoc(doc(db, "config", "session"));
-                const data = snap.exists() ? snap.data() : {};
-                const nextLocked = !(data.jurySessionLocked === true);
-                await setDoc(doc(db, "config", "session"), { ...data, jurySessionLocked: nextLocked, lastUpdateSource: 'admin_jury_lock', updatedAt: new Date() }, { merge: true });
-                await loadJurySessionLockState();
-                await customAlert(nextLocked ? '✓ Sessions jury verrouillées.\n\nLes jurys connectés sont déconnectés et n\'ont plus accès.' : '✓ Sessions jury déverrouillées.\n\nLes jurys peuvent à nouveau se connecter.');
-            } catch (e) {
-                console.error(e);
-                await customAlert('Erreur : ' + (e.message || e));
-            }
-        };
-
         async function renderJuryTable() {
             console.log('🎨 renderJuryTable() appelé');
             console.log('🎨 ROUNDS.length:', ROUNDS.length);
