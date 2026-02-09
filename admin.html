@@ -1005,6 +1005,7 @@
             <div style="margin-bottom: 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 15px;">
                 <label for="activation-classement-round" style="color: var(--text-color); font-weight: 600;">Tour (pour les jurys à afficher) :</label>
                 <select id="activation-classement-round" onchange="changeActivationClassementRound(this.value)" style="padding: 8px 12px; border: 2px solid var(--border-color); border-radius: 6px; background: var(--input-bg); color: var(--text-color); font-size: 1em; min-width: 220px;"></select>
+                <button type="button" onclick="refreshClassementFully()" class="action-button" style="margin-left: 12px; padding: 8px 16px; background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white;" title="Recalcule le classement à partir des notes et candidats actuels (utile après suppression d’un candidat).">🔄 Actualiser entièrement le classement</button>
             </div>
             <div id="activation-classements-loading" style="display: none; text-align: center; color: var(--text-secondary); padding: 20px;">Chargement…</div>
             <div id="activation-classements-empty" style="display: none; text-align: center; color: var(--text-secondary); padding: 20px;">Sélectionnez un tour.</div>
@@ -1080,6 +1081,12 @@
                 <h3 style="color: var(--text-color);">Supprimer les gagnants des duels</h3>
                 <p>Remet tous les gagnants des duels à « non renseigné » (boutons repassent en blanc). Les duels et candidats restent en place, seuls les gagnants sont effacés.</p>
                 <button onclick="confirmResetDuelWinners()" class="action-button" style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); color: white;">Supprimer les gagnants des duels</button>
+            </div>
+
+            <div class="reset-zone" style="margin-top: 30px; border: 2px solid var(--danger); border-radius: 8px; padding: 15px;">
+                <h3 style="color: var(--text-color);">🗑️ Vider tout le classement (notes et bonus)</h3>
+                <p>Supprime <strong>toutes les notes</strong> (scores) et <strong>tous les bonus</strong> : scores, classements affichés, points activés, « Mon classement » des jurys, gagnants des duels. Il faudra tout rentrer à nouveau. Les jurys et la liste des candidats sont conservés.</p>
+                <button onclick="confirmClearAllNotesAndClassement()" class="action-button" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white;">🗑️ Vider tout (notes + classement + bonus)</button>
             </div>
             
             <div class="reset-zone" style="margin-top: 30px;">
@@ -3120,6 +3127,76 @@
                 console.warn('[CLASSEMENT] updateClassementFromScoresForRound ERREUR:', e);
             }
         }
+
+        /** Recalcule entièrement le classement du tour sélectionné à partir des notes et candidats actuels (exclut les candidats supprimés). À utiliser après suppression d’un candidat si le classement ne s’est pas mis à jour. */
+        window.refreshClassementFully = async function() {
+            const roundId = activationClassementRoundId || document.getElementById('activation-classement-round')?.value;
+            if (!roundId) {
+                await customAlert('Sélectionnez un tour dans la liste.');
+                return;
+            }
+            try {
+                const roundsSnap = await getDoc(doc(db, "config", "rounds"));
+                const roundsList = roundsSnap.exists() ? (roundsSnap.data().rounds || []) : [];
+                const round = roundsList.find(r => r.id === roundId);
+                let classementId = (round && round.classementId) ? String(round.classementId).trim() : null;
+                if (!classementId) {
+                    const activationsSnap = await getDoc(doc(db, "config", "activations"));
+                    classementId = (activationsSnap.exists() && activationsSnap.data().classementIdActif) ? activationsSnap.data().classementIdActif.trim() : ('classement_' + roundId);
+                }
+                const scoresQuery = query(collection(db, "scores"), where("roundId", "==", roundId));
+                const scoresSnap = await getDocs(scoresQuery);
+                const totalBaseByCandidate = {};
+                scoresSnap.forEach(d => {
+                    const data = d.data();
+                    const cid = data.candidateId;
+                    const base = data.score_base != null ? data.score_base : computeScoreBase(data.score1, data.score2);
+                    totalBaseByCandidate[cid] = (totalBaseByCandidate[cid] || 0) + base;
+                });
+                const candidatsSnap = await getDoc(doc(db, "candidats", "liste_actuelle"));
+                const allCandidates = candidatsSnap.exists() ? (candidatsSnap.data().candidates || []) : [];
+                let roundCandidates = allCandidates.filter(c => (c.tour || '') === roundId);
+                if (roundCandidates.length === 0) roundCandidates = allCandidates;
+                const withScore = roundCandidates.map(c => ({
+                    candidateId: c.id,
+                    name: c.name || c.id,
+                    score_base: totalBaseByCandidate[c.id] || 0
+                }));
+                withScore.sort((a, b) => b.score_base - a.score_base);
+                const activationsSnap = await getDoc(doc(db, "classement_activations", classementId));
+                const activated = activationsSnap.exists() ? (activationsSnap.data().activated || []) : [];
+                const pointsByCandidate = {};
+                activated.forEach(a => {
+                    if (a.candidateId && (a.points != null || a.points === 0)) {
+                        pointsByCandidate[a.candidateId] = (pointsByCandidate[a.candidateId] || 0) + (typeof a.points === 'number' ? a.points : parseFloat(a.points) || 0);
+                    }
+                });
+                const entries = withScore.map((x, i) => {
+                    const base = x.score_base != null ? (typeof x.score_base === 'number' ? x.score_base : parseFloat(x.score_base) || 0) : 0;
+                    const points = pointsByCandidate[x.candidateId] != null ? pointsByCandidate[x.candidateId] : 0;
+                    const total = Math.round((base + points) * 100) / 100;
+                    return { rank: i + 1, candidateId: x.candidateId, name: x.name, score_base: x.score_base, score_appliqué: total, score_affiché: total };
+                });
+                entries.sort((a, b) => (b.score_appliqué ?? 0) - (a.score_appliqué ?? 0));
+                entries.forEach((e, i) => { e.rank = i + 1; });
+                const classementSnap = await getDoc(doc(db, "classements", classementId));
+                const currentData = classementSnap.exists() ? classementSnap.data() : {};
+                const duelBonusEnabled = Array.isArray(currentData.duelBonusEnabled) ? currentData.duelBonusEnabled : [];
+                await setDoc(doc(db, "classements", classementId), {
+                    ...currentData,
+                    code: roundId,
+                    entries,
+                    duelBonusEnabled,
+                    lastUpdateSource: 'admin_refresh_classement_fully',
+                    updatedAt: new Date()
+                }, { merge: true });
+                await customAlert('✓ Classement actualisé.\n\n' + entries.length + ' candidat(s) dans le classement (candidats supprimés exclus).');
+                if (typeof loadActivationClassementsData === 'function') await loadActivationClassementsData();
+            } catch (e) {
+                console.error(e);
+                await customAlert('Erreur lors de l\'actualisation : ' + (e.message || e));
+            }
+        };
 
         window.sortNotesTable = (column) => {
             if (notesSortColumn === column) {
@@ -6420,6 +6497,54 @@
             } catch (e) {
                 console.error('Erreur:', e);
                 await customAlert('❌ Erreur lors de la suppression des points de classement:\n' + e.message);
+            }
+        };
+
+        /** Supprime toutes les notes et tout ce qui s'affiche dans le classement : scores, entries classement, activations, Mon classement jurys, gagnants duels. Tout devra être rentré à nouveau. */
+        window.confirmClearAllNotesAndClassement = async () => {
+            if (!await customConfirm('⚠️ Vider TOUT le classement (notes et bonus) ?\n\n❌ Toutes les notes (scores) seront supprimées\n❌ Tous les classements affichés seront vidés\n❌ Tous les points activés et « Mon classement » des jurys seront effacés\n❌ Les gagnants des duels seront remis à « non renseigné »\n\n✅ Les jurys et la liste des candidats sont conservés.\n\nIl faudra tout rentrer à nouveau. Cette action est IRRÉVERSIBLE !\n\nContinuer ?')) {
+                return;
+            }
+            try {
+                let scoresDeleted = 0;
+                const scoresSnap = await getDocs(collection(db, "scores"));
+                const BATCH_SIZE = 500;
+                for (let i = 0; i < scoresSnap.docs.length; i += BATCH_SIZE) {
+                    const batch = writeBatch(db);
+                    scoresSnap.docs.slice(i, i + BATCH_SIZE).forEach(d => { batch.delete(d.ref); scoresDeleted++; });
+                    await batch.commit();
+                }
+                const classementsSnap = await getDocs(collection(db, "classements"));
+                for (const docSnap of classementsSnap.docs) {
+                    const data = docSnap.data();
+                    await setDoc(docSnap.ref, { ...data, entries: [], duelBonusEnabled: [], lastUpdateSource: 'admin_clear_all_notes_and_classement', updatedAt: new Date() }, { merge: true });
+                }
+                const activationsSnap = await getDocs(collection(db, "classement_activations"));
+                for (const docSnap of activationsSnap.docs) {
+                    await setDoc(docSnap.ref, { activated: [], updatedAt: new Date() }, { merge: true });
+                }
+                const juryRankingsSnap = await getDocs(collection(db, "jury_rankings"));
+                for (let i = 0; i < juryRankingsSnap.docs.length; i += BATCH_SIZE) {
+                    const batch = writeBatch(db);
+                    juryRankingsSnap.docs.slice(i, i + BATCH_SIZE).forEach(d => batch.delete(d.ref));
+                    await batch.commit();
+                }
+                const duelSnap = await getDocs(collection(db, "duel_results"));
+                for (const d of duelSnap.docs) {
+                    const data = d.data();
+                    const currentDuels = data.duels || [];
+                    const duels = currentDuels.map(duel => ({ ...duel, winnerId: null }));
+                    if (currentDuels.some((x, i) => x && x.winnerId != null)) {
+                        await setDoc(d.ref, { ...data, duels, updatedAt: new Date() });
+                        if (typeof syncDuelBonusEnabledWithDuelWinners === 'function') await syncDuelBonusEnabledWithDuelWinners(d.id, []);
+                    }
+                }
+                if (typeof loadActivationClassementsData === 'function') loadActivationClassementsData();
+                if (typeof loadDuelsData === 'function') loadDuelsData();
+                await customAlert('✓ Tout a été vidé.\n\n- ' + scoresDeleted + ' note(s) supprimée(s)\n- Classements et points activés effacés\n- « Mon classement » des jurys effacé\n- Gagnants des duels réinitialisés\n\nLes jurys et candidats sont conservés. Vous devrez tout rentrer à nouveau.');
+            } catch (e) {
+                console.error('Erreur:', e);
+                await customAlert('❌ Erreur : ' + (e.message || e));
             }
         };
 

@@ -1,6 +1,6 @@
 /**
  * Concours d'Éloquence - Jury Interface
- *
+ * 
  * RÔLES (séparation stricte) :
  * - Jury : saisie uniquement (notes fond/forme, votes repêchage, notes duels).
  * - Président : choix (repêchage) + bonus ; pas d’activation ni d’affichage global.
