@@ -1,0 +1,7 @@
+[33mb3bffe5[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{0}: reset: moving to HEAD~1
+[33m480c12d[m HEAD@{1}: reset: moving to HEAD~1
+[33m477616f[m HEAD@{2}: pull --tags origin main: Fast-forward
+[33m480c12d[m HEAD@{3}: commit: feat: add refresh and clear ranking buttons in admin interface
+[33mb3bffe5[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{4}: commit: ajout du bouton verouiller sesion jury
+[33ma0cbbf4[m HEAD@{5}: commit: Evolution 2, les deuls
+[33m9f721a4[m HEAD@{6}: clone: from https://github.com/Tim03122009/concours-eloquence-jury
