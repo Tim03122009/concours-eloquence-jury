@@ -1148,12 +1148,15 @@
         let isManualChange = false; // Flag pour ignorer les listeners pendant un changement manuel
         let isRenderingNotesTable = false; // Flag pour éviter les appels multiples à renderNotesTable
 
-        /** Score base = fond×3 + forme ; EL ou - = 0. Utilisé partout (notes, classement, auto-remplissage). */
-        function computeScoreBase(score1, score2) {
+        /** Score base = fond×coef + forme ; pour l'épreuve duel : coef 1 (fond+forme), sinon fond×3 + forme. EL ou - = 0. */
+        function computeScoreBase(score1, score2, roundId) {
             if (score1 === 'EL' || score2 === 'EL' || score1 === '-' || score2 === '-') return 0;
             const s1 = parseInt(score1, 10);
             const s2 = parseInt(score2, 10);
             if (isNaN(s1) || isNaN(s2)) return 0;
+            const r = (typeof ROUNDS !== 'undefined' && Array.isArray(ROUNDS)) ? ROUNDS.find(x => x.id === roundId) : null;
+            const isDuel = r && (r.type === 'Duels' || r.type_epreuve === 'duels');
+            if (isDuel) return s1 + s2;  // duel : fond et forme en coef 1
             return (s1 * 3) + s2;
         }
         
@@ -2730,7 +2733,7 @@
                     id: docSnap.id,
                     score1: data.score1,
                     score2: data.score2,
-                    score_base: data.score_base != null ? data.score_base : computeScoreBase(data.score1, data.score2)
+                    score_base: data.score_base != null ? data.score_base : computeScoreBase(data.score1, data.score2, displayRound)
                 };
             });
             
@@ -2843,7 +2846,7 @@
                     sortedJuries.forEach(jury => {
                         const scores = scoresByCandidate[candidate.id]?.[jury.id];
                         if (scores && scores.score1 !== '-' && scores.score2 !== '-') {
-                            totalScoreBase += (scores.score_base != null ? scores.score_base : computeScoreBase(scores.score1, scores.score2));
+                            totalScoreBase += (scores.score_base != null ? scores.score_base : computeScoreBase(scores.score1, scores.score2, displayRound));
                         }
                     });
                 }
@@ -3021,7 +3024,7 @@
                 scoresSnap.forEach(d => {
                     const data = d.data();
                     const cid = data.candidateId;
-                    const base = data.score_base != null ? data.score_base : computeScoreBase(data.score1, data.score2);
+                    const base = data.score_base != null ? data.score_base : computeScoreBase(data.score1, data.score2, roundId);
                     totalBaseByCandidate[cid] = (totalBaseByCandidate[cid] || 0) + base;
                 });
                 // Charger les candidats depuis Firestore (ne pas dépendre de CANDIDATES en mémoire, qui peut être vide si on n'a pas ouvert l'onglet Candidats)
@@ -3150,7 +3153,7 @@
                 scoresSnap.forEach(d => {
                     const data = d.data();
                     const cid = data.candidateId;
-                    const base = data.score_base != null ? data.score_base : computeScoreBase(data.score1, data.score2);
+                    const base = data.score_base != null ? data.score_base : computeScoreBase(data.score1, data.score2, roundId);
                     totalBaseByCandidate[cid] = (totalBaseByCandidate[cid] || 0) + base;
                 });
                 const candidatsSnap = await getDoc(doc(db, "candidats", "liste_actuelle"));
@@ -4344,7 +4347,7 @@
                     roundId: roundId,
                     score1,
                     score2,
-                    score_base: computeScoreBase(score1, score2),
+                    score_base: computeScoreBase(score1, score2, roundId),
                     timestamp: new Date()
                 };
                 
@@ -4383,7 +4386,7 @@
                 data[field] = value;
                 
                 delete data.totalWeightedScore;
-                data.score_base = computeScoreBase(data.score1, data.score2);
+                data.score_base = computeScoreBase(data.score1, data.score2, data.roundId);
                 
                 await setDoc(scoreRef, data);
             } catch (e) {
@@ -6019,7 +6022,7 @@
                                 score1 = String(randomScore());
                                 score2 = String(randomScore());
                             }
-                            const score_base = computeScoreBase(score1, score2);
+                            const score_base = computeScoreBase(score1, score2, roundId);
                             const data = {
                                 juryId: jury.id,
                                 juryName: jury.name || jury.id,

@@ -3189,7 +3189,7 @@ async function showDuelsInterface() {
             <button type="button" class="jury-tab-btn" data-jury-tab="mon-classement">Mon classement</button>
         </div>
         <div id="jury-tab-notation" class="jury-tab-content active">
-            <p class="jury-notation-intro">Duel - Notez les deux candidats : Fond (×3) et Forme (×1) pour chacun. Note de 0 à 20 pour chaque critère.</p>
+            <p class="jury-notation-intro">Duel - Notez les deux candidats : Fond (×1) et Forme (×1) pour chacun. Note de 0 à 20 pour chaque critère.</p>
             <div class="jury-notation-cols">
                 <div class="jury-notation-card">
                     <label for="duel-candidate-1" class="card-title">Candidat 1</label>
@@ -3199,7 +3199,7 @@ async function showDuelsInterface() {
                     </select>
                     <hr class="jury-notation-sep">
                     <div class="control-group">
-                        <label>Fond / Argumentation (Coefficient ×3)</label>
+                        <label>Fond / Argumentation (Coefficient ×1)</label>
                         <div class="score-grid" id="duel-grid-fond-1"></div>
                         <p id="duel-display-1-fond" class="selection-info">Note Fond : -</p>
                 </div>
@@ -3218,7 +3218,7 @@ async function showDuelsInterface() {
                     </select>
                     <hr class="jury-notation-sep">
                     <div class="control-group">
-                        <label>Fond / Argumentation (Coefficient ×3)</label>
+                        <label>Fond / Argumentation (Coefficient ×1)</label>
                         <div class="score-grid" id="duel-grid-fond-2"></div>
                         <p id="duel-display-2-fond" class="selection-info">Note Fond : -</p>
                 </div>
@@ -3296,7 +3296,7 @@ async function confirmDuel() {
         const s2 = Number(duelScore1Forme);
         const s3 = Number(duelScore2Fond);
         const s4 = Number(duelScore2Forme);
-        const scoreBase = (s1, s2) => ((s1 === 'EL' || s2 === 'EL') ? 0 : (Number(s1) * 3) + Number(s2));
+        const scoreBase = (s1, s2) => ((s1 === 'EL' || s2 === 'EL') ? 0 : Number(s1) + Number(s2)); // duel : fond et forme coef 1
         const scores = [
             { juryId: currentJuryName, juryName, candidateId: duelCandidate1, roundId: activeRoundId, score1: s1, score2: s2, score_base: scoreBase(s1, s2), timestamp: new Date() },
             { juryId: currentJuryName, juryName, candidateId: duelCandidate2, roundId: activeRoundId, score1: s3, score2: s4, score_base: scoreBase(s3, s4), timestamp: new Date() }
