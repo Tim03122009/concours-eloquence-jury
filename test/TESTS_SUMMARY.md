@@ -4,37 +4,34 @@
 
 | Type | Nombre | Fichiers | Statut |
 |------|--------|----------|--------|
-| Tests unitaires | 69 | 3 fichiers | ✅ Complet |
+| Tests unitaires | 80+ | 4 fichiers | ✅ Complet |
 | Tests d'intégration | 23 | 2 fichiers | ✅ Complet |
 | Tests end-to-end | 41 | 2 fichiers | ✅ Complet |
 | Tests manuels | 15 scénarios | 1 manuel | ✅ Documenté |
-| **TOTAL** | **133 tests + 15 scénarios** | **8 fichiers** | ✅ |
+| **TOTAL** | **144+ tests + 15 scénarios** | **9 fichiers** | ✅ |
 
-## 🧪 Tests automatiques (133 tests)
+## 🧪 Tests automatiques (144+ tests)
 
-### Tests unitaires (69 tests)
+### Tests unitaires (80+ tests)
 
-#### 📄 `unit/score-calculation.test.js` (18 tests)
+#### 📄 `unit/score-calculation.test.js` (25+ tests)
 - ✅ Score pondéré (5 tests)
   - Score normal (5, 10, 15, 20)
   - Score mixte
   - Score avec EL donne 0
 - ✅ Agrégation des scores de plusieurs jurys (3 tests)
-  - Total avec notes normales
-  - Total avec un jury EL
-  - Total avec tous EL
 - ✅ Score de repêchage (2 tests)
-  - Qualifié (note 1) conserve score
-  - Éliminé (note 0) obtient 0
 - ✅ Classement des candidats (2 tests)
-  - Tri par score décroissant
-  - Tri avec égalité
 - ✅ Filtrage des candidats (2 tests)
-  - Exclure éliminés du podium
-  - Filtrer par tour
 - ✅ Génération de notes aléatoires (2 tests)
-  - Score parmi 5, 10, 15, 20
-  - 15% de candidats éliminés
+- ✅ **Score épreuve duel** (2 tests) : fond et forme coefficient 1, EL = 0
+- ✅ **computeScoreBase selon type de tour** (3 tests) : notation (fond×3+forme) vs duel (fond+forme), roundId absent/inconnu
+
+#### 📄 `unit/pages.test.js` (nouveau)
+- ✅ **index.html** : page identification, page notation, modale confirmation, chargement CSS/JS
+- ✅ **classement.html** : classement-body, classement-table, qualified-zone-overlay
+- ✅ **admin.html** : onglets (Candidats, Jurys, Notes, Duels, Classement), computeScoreBase et type Duels, tableau des notes
+- ✅ **Logique métier** : notes 0–20 et EL, score max notation 80, score max duel 40
 
 #### 📄 `unit/data-validation.test.js` (30 tests)
 - ✅ Validation des candidats (3 tests)

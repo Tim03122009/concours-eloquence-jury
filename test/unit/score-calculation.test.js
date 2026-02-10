@@ -153,5 +153,63 @@ describe('Calcul des scores', () => {
       expect(eliminatedCount).toBe(15);
     });
   });
+
+  describe('Score épreuve duel (fond et forme coefficient 1)', () => {
+    /** Même logique que computeScoreBase pour un tour de type Duels. */
+    function computeScoreBaseDuel(score1, score2) {
+      if (score1 === 'EL' || score2 === 'EL' || score1 === '-' || score2 === '-') return 0;
+      const s1 = parseInt(score1, 10);
+      const s2 = parseInt(score2, 10);
+      if (isNaN(s1) || isNaN(s2)) return 0;
+      return s1 + s2;
+    }
+
+    test('Duel : score = fond + forme (coef 1 chacun)', () => {
+      expect(computeScoreBaseDuel(10, 10)).toBe(20);
+      expect(computeScoreBaseDuel(5, 15)).toBe(20);
+      expect(computeScoreBaseDuel(20, 20)).toBe(40);
+      expect(computeScoreBaseDuel(0, 0)).toBe(0);
+    });
+
+    test('Duel : EL ou tiret donne 0', () => {
+      expect(computeScoreBaseDuel('EL', 10)).toBe(0);
+      expect(computeScoreBaseDuel(15, 'EL')).toBe(0);
+      expect(computeScoreBaseDuel('-', 10)).toBe(0);
+      expect(computeScoreBaseDuel(10, '-')).toBe(0);
+    });
+  });
+
+  describe('computeScoreBase selon type de tour (notation vs duel)', () => {
+    const ROUNDS = [
+      { id: 'round1', type: 'Notation individuelle', type_epreuve: 'notation' },
+      { id: 'round3', type: 'Duels', type_epreuve: 'duels' }
+    ];
+
+    function computeScoreBase(score1, score2, roundId) {
+      if (score1 === 'EL' || score2 === 'EL' || score1 === '-' || score2 === '-') return 0;
+      const s1 = parseInt(score1, 10);
+      const s2 = parseInt(score2, 10);
+      if (isNaN(s1) || isNaN(s2)) return 0;
+      const r = Array.isArray(ROUNDS) ? ROUNDS.find(x => x.id === roundId) : null;
+      const isDuel = r && (r.type === 'Duels' || r.type_epreuve === 'duels');
+      if (isDuel) return s1 + s2;
+      return (s1 * 3) + s2;
+    }
+
+    test('Tour notation : fond×3 + forme', () => {
+      expect(computeScoreBase(10, 10, 'round1')).toBe(40);
+      expect(computeScoreBase(5, 20, 'round1')).toBe(35);
+    });
+
+    test('Tour duel : fond + forme (coef 1)', () => {
+      expect(computeScoreBase(10, 10, 'round3')).toBe(20);
+      expect(computeScoreBase(5, 20, 'round3')).toBe(25);
+    });
+
+    test('roundId absent ou inconnu : comportement notation (fond×3 + forme)', () => {
+      expect(computeScoreBase(10, 10, undefined)).toBe(40);
+      expect(computeScoreBase(10, 10, 'round_inconnu')).toBe(40);
+    });
+  });
 });
 

@@ -27,6 +27,29 @@ Ce document décrit les procédures de tests manuels complémentaires aux tests 
 - ✅ Identifier les bugs d'interface
 - ✅ Valider les workflows complets
 
+### Résumé : tests manuels à faire (checklist rapide)
+
+| # | À faire | Où |
+|---|--------|-----|
+| 1 | Gestion des candidats (ajouter, modifier, supprimer, tour) | Admin → Candidats |
+| 2 | Gestion des jurys (ajouter, président, tours, MDP, supprimer) | Admin → Jurys |
+| 3 | Gestion des tours (créer, modifier, actif, terminer) | Admin → Tours |
+| 4 | Tableau de notes (afficher, modifier, filtre, tri, repêchage) | Admin → Notes |
+| 5 | Podium (classement, couleurs, export image) | Admin → Podium |
+| 6 | **Épreuve duel** : notation fond×1 + forme×1, gagnants duels | Admin → Duels ; Jury → Notation duel |
+| 7 | Auto-remplissage et réinitialisation | Admin → Réinitialiser |
+| 8 | Export CSV / JSON, restauration | Admin → Notes, Podium, Réinitialiser |
+| 9 | Connexion jury (succès, échec, accès tour, repêchage président) | index.html |
+| 10 | Notation normale (candidat, notes, valider, lecture seule, EL) | Jury → Notation |
+| 11 | Repêchage président (colonnes, déplacer, finaliser, podium) | Jury (président) |
+| 12 | Changement de mot de passe jury | Jury → Menu ☰ |
+| 13 | Scénario complet (tour 1 → repêchage → tour 2 → … → finale) | Admin + plusieurs jurys |
+| 14 | Synchronisation multi-utilisateurs (plusieurs onglets) | Admin + 3 jurys en parallèle |
+| 15 | Régression (checklist rapide après une modif) | Toute l’app |
+| 16 | Performance (200 candidats, 2000 scores) | Optionnel |
+
+Le détail de chaque test est décrit ci-dessous. Pour une validation avant mise en production, voir la [Checklist de validation](#checklist-de-validation).
+
 ---
 
 ## Prérequis
@@ -368,6 +391,56 @@ Vérifier les fonctions d'automatisation et de remise à zéro.
 - ✅ Les réinitialisations fonctionnent selon leur portée
 - ✅ Les confirmations sont demandées pour toutes les actions destructives
 - ✅ Les données sont correctement restaurées ou supprimées
+
+---
+
+### TEST 6b : Épreuve duel (notation et gagnants)
+
+#### Objectif
+Vérifier que pour l’épreuve **Duels**, les notes Fond et Forme ont le **même coefficient 1** (score = fond + forme), et que la gestion des duels et gagnants fonctionne.
+
+#### Procédure
+
+1. **Configurer un tour Duels**
+   - [ ] Aller dans l’onglet **Tours**
+   - [ ] Créer ou modifier un tour en type **Duels** (ex. « 2ème tour », « Demi-finale »)
+   - [ ] Activer ce tour comme tour actif (ou le sélectionner pour les tests)
+   - [ ] S’assurer que des candidats sont affectés à ce tour
+
+2. **Notation duel côté jury**
+   - [ ] Ouvrir l’interface Jury (`index.html`)
+   - [ ] Se connecter avec un jury ayant accès au tour Duels
+   - [ ] **Vérifier** : L’interface affiche « Duel - Fond (×1) et Forme (×1) » (et non ×3 pour le fond)
+   - [ ] Choisir Candidat 1 et Candidat 2
+   - [ ] Noter : par ex. Candidat 1 → Fond 10, Forme 15 ; Candidat 2 → Fond 12, Forme 8
+   - [ ] Valider le duel
+   - [ ] **Vérifier** : Message de succès
+
+3. **Vérifier le calcul des scores (coef 1)**
+   - [ ] Dans l’admin, aller dans **Notes**
+   - [ ] Sélectionner le tour de type Duels
+   - [ ] **Vérifier** : Pour Candidat 1, score = 10 + 15 = **25** (et non 10×3+15 = 45)
+   - [ ] **Vérifier** : Pour Candidat 2, score = 12 + 8 = **20**
+   - [ ] **Vérifier** : Le classement du tour duel est trié selon ces scores (25 puis 20)
+
+4. **Comparer avec un tour Notation individuelle**
+   - [ ] Sélectionner un tour « Notation individuelle » (ex. round1)
+   - [ ] **Vérifier** : Les scores sont bien fond×3 + forme (ex. 10 et 15 → 45)
+   - [ ] Confirmer que seul le tour Duels utilise fond + forme
+
+5. **Gagnants de duel (admin)**
+   - [ ] Aller dans l’onglet **Duels**
+   - [ ] Sélectionner le tour Duels
+   - [ ] Ajouter un duel (choisir deux candidats)
+   - [ ] Cliquer sur un candidat pour le désigner gagnant (bouton vert)
+   - [ ] **Vérifier** : Le gagnant est enregistré et l’affichage se met à jour
+   - [ ] **Vérifier** : Côté jury, l’onglet « Gagnants de duel » affiche les duels et permet d’enregistrer le gagnant si prévu
+
+#### Résultats attendus
+- ✅ En duel : score = fond + forme (coefficient 1 pour chacun)
+- ✅ En notation individuelle : score = fond×3 + forme (inchangé)
+- ✅ Les libellés jury pour le duel indiquent bien « Coefficient ×1 » pour le fond
+- ✅ Création de duels et désignation des gagnants fonctionnent
 
 ---
 
