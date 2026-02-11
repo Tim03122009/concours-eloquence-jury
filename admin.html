@@ -939,6 +939,7 @@
         <!-- TAB 5: PODIUM -->
         <div id="tab-podium" class="tab-content">
     <h2>Classement Officiel</h2>
+            <p style="margin: 0 0 15px 0; font-size: 0.95em; color: var(--text-secondary);">Classement final pour la régie : points « Mon classement » et bonus duel (+10%) directement comptabilisés (indépendant de l’onglet Activation classements).</p>
             
             <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
                 <div style="display: flex; align-items: center; gap: 10px;">
@@ -2643,6 +2644,8 @@
         let notesSortAscending = true;
         let notesDisplayRound = null; // Tour affiché dans le tableau Notes
         let podiumDisplayRound = null; // Tour affiché dans le podium
+        let podiumFinalList = null;     // Classement final (avec bonus et points activés) pour l'onglet Podium uniquement
+        let podiumFinalListRound = null;
         let duelDisplayRound = null; // Tour affiché dans l'onglet Duels
         let duelsList = []; // Liste des duels : [ { duelId, candidate1Id, candidate2Id, winnerId } ]
         let activationClassementRoundId = null; // Tour (Classement) pour l'onglet Activation classements
@@ -4656,6 +4659,43 @@
                 aggregatedData[c.id].hasScores = hasScores;
             });
 
+            // Pour l'onglet Podium uniquement : classement final pour la régie = score_base + TOUS les points (Mon classement des jurys) + bonus +10% pour TOUS les gagnants de duel. Sans dépendre de l'activation classements.
+            podiumFinalList = null;
+            podiumFinalListRound = null;
+            try {
+                await loadJuries();
+                const juriesOnRound = JURIES.filter(j => j.rounds && j.rounds.includes(displayRound));
+                const POSITION_LABELS = ['1', '2', '3', '4', '5'];
+                const POSITION_TO_POINTS = { '1': 10, '2': 8, '3': 6, '4': 4, '5': 2 };
+                const pointsByCandidate = {};
+                for (const j of juriesOnRound) {
+                    const docId = j.id + '_' + displayRound;
+                    const snap = await getDoc(doc(db, "jury_rankings", docId));
+                    const positions = snap.exists() ? (snap.data().positions || {}) : {};
+                    POSITION_LABELS.forEach(posLabel => {
+                        const candidateId = positions[posLabel];
+                        if (candidateId) {
+                            const pts = POSITION_TO_POINTS[posLabel] || 0;
+                            pointsByCandidate[candidateId] = (pointsByCandidate[candidateId] || 0) + pts;
+                        }
+                    });
+                }
+                const duelWinnerIds = await getDuelWinnerIds(displayRound) || [];
+                const list = [];
+                CANDIDATES.forEach(c => {
+                    const data = aggregatedData[c.id];
+                    if (!data || !data.hasScores) return;
+                    let total = (typeof data.total === 'number' ? data.total : parseFloat(data.total) || 0) + (pointsByCandidate[c.id] || 0);
+                    if (duelWinnerIds.includes(c.id)) total = Math.round(total * 1.1 * 100) / 100;
+                    list.push({ name: c.name || c.id, candidateId: c.id, total: Math.round(total * 100) / 100 });
+                });
+                list.sort((a, b) => b.total - a.total);
+                podiumFinalList = list;
+                podiumFinalListRound = displayRound;
+            } catch (e) {
+                console.warn('[PODIUM] Chargement classement final:', e);
+            }
+
             // L'onglet Résultats n'existe plus, on ne garde que le podium
             // renderMatrix(Array.from(juries).sort());
             renderPodium();
@@ -4784,41 +4824,39 @@
             
             body.innerHTML = "";
             
-            // Vérifier que les données sont chargées
-            if (!aggregatedData || Object.keys(aggregatedData).length === 0) {
+            const displayRound = podiumDisplayRound || activeRoundId || 'round1';
+            // Utiliser le classement final (avec points d'activation et bonus duel +10%) pour la régie, si disponible
+            let list = [];
+            if (podiumFinalList && podiumFinalList.length > 0 && podiumFinalListRound === displayRound) {
+                list = podiumFinalList.filter(e => {
+                    const c = CANDIDATES.find(x => x.id === e.candidateId);
+                    return !c || c.status !== 'Elimine';
+                });
+            }
+            if (list.length === 0 && aggregatedData && Object.keys(aggregatedData).length > 0) {
+                // Fallback : classement à partir des scores bruts (sans bonus)
+                list = Object.values(aggregatedData).filter(c => {
+                    const candidate = CANDIDATES.find(cand => cand.name === c.name);
+                    return c.hasScores && candidate && candidate.status !== 'Elimine';
+                }).sort((a, b) => b.total - a.total);
+            }
+            if (list.length === 0) {
                 const row = body.insertRow();
                 const cell = row.insertCell();
                 cell.colSpan = 3;
-                cell.textContent = "Aucune donnée. Les résultats se calculent automatiquement en ouvrant cet onglet.";
+                cell.textContent = !aggregatedData || Object.keys(aggregatedData).length === 0
+                    ? "Aucune donnée. Les résultats se calculent automatiquement en ouvrant cet onglet."
+                    : "Aucun résultat disponible.";
                 cell.style.textAlign = "center";
                 cell.style.padding = "20px";
                 cell.style.color = "var(--text-secondary)";
                 return;
             }
             
-            // Filtrer les candidats : uniquement ceux qui ont des scores ET qui ne sont pas éliminés
-            let list = Object.values(aggregatedData).filter(c => {
-                // Trouver le candidat correspondant dans CANDIDATES pour vérifier son statut
-                const candidate = CANDIDATES.find(cand => cand.name === c.name);
-                
-                // Inclure uniquement si le candidat a des scores ET n'est pas éliminé
-                return c.hasScores && candidate && candidate.status !== 'Elimine';
-            }).sort((a,b) => b.total - a.total);
-            
             // Limiter le nombre de résultats affichés
             const limitInput = document.getElementById('result-limit');
             const limit = limitInput ? parseInt(limitInput.value || 3) : 3;
             list = list.slice(0, limit);
-            
-            if (list.length === 0) {
-                const row = body.insertRow();
-                const cell = row.insertCell();
-                cell.colSpan = 3;
-                cell.textContent = "Aucun résultat disponible.";
-                cell.style.textAlign = "center";
-                cell.style.padding = "20px";
-                return;
-            }
             
             list.forEach((c, i) => {
                 const row = body.insertRow();
