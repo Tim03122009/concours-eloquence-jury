@@ -89,7 +89,7 @@
             <a href="index.html" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">← Retour à l'accueil</a>
         </p>
         <h2 style="text-align: center; margin-bottom: var(--spacing-sm); color: var(--text-color);">Classement</h2>
-        <p style="text-align: center; color: var(--text-secondary); margin-bottom: var(--spacing-md);">Lecture seule · Mise à jour en temps réel</p>
+        <p style="text-align: center; color: var(--text-secondary); margin-bottom: var(--spacing-md);">Lecture seule · Mise à jour en temps réel · <a id="classement-animations-link" href="?animations=0" style="color: var(--text-secondary);">Sans animation</a> <span id="classement-animations-hint">(si la page lag)</span></p>
         <div id="classement-container" style="background: var(--card-bg); padding: var(--spacing-md); box-shadow: var(--shadow-md); color: var(--text-color); overflow: visible;">
             <p id="classement-loading" style="text-align: center; margin: var(--spacing-sm) 0;">Chargement du classement…</p>
             <table id="classement-table" style="width: 100%; border-collapse: collapse; display: table;">
@@ -129,6 +129,24 @@
             return [];
         }
 
+        (function setupAnimationsLink() {
+            const link = document.getElementById('classement-animations-link');
+            const hint = document.getElementById('classement-animations-hint');
+            if (!link) return;
+            try {
+                const off = new URLSearchParams(location.search).get('animations') === '0';
+                if (off) {
+                    link.href = location.pathname || 'classement.html';
+                    link.textContent = 'Avec animation';
+                    if (hint) hint.style.display = 'none';
+                } else {
+                    link.href = '?animations=0';
+                    link.textContent = 'Sans animation';
+                    if (hint) hint.textContent = ' (si la page lag)';
+                }
+            } catch (e) {}
+        })();
+
         function showState(loadingEl, tableEl, emptyEl, state, emptyMessage) {
             if (loadingEl) loadingEl.style.display = state === 'loading' ? 'block' : 'none';
             if (tableEl) tableEl.style.display = 'table';
@@ -149,15 +167,25 @@
         let lastRenderData = null;
         let lastRenderDuelWinnerIds = null;
 
-        /** Animation : clone en position fixed sur body. onLandStart = appelé au tout début de la phase de réincertion. */
+        /** true si les animations de classement sont activées. Désactivées si préférence système "réduire les animations", localStorage classement_animations=0 ou URL ?animations=0 */
+        function animationsEnabled() {
+            try {
+                if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
+                if (localStorage.getItem('classement_animations') === '0') return false;
+                if (new URLSearchParams(location.search).get('animations') === '0') return false;
+            } catch (e) {}
+            return true;
+        }
+
+        /** Animation : clone en position fixed, déplacement via transform (GPU). Durées raccourcies pour limiter les lags. */
         function runFlyUpAnimationAbsolute(row, oldIndex, newIndex, onComplete, onLandStart) {
             const offsetPx = (oldIndex - newIndex) * ROW_HEIGHT_PX;
             const placesMoved = offsetPx / ROW_HEIGHT_PX;
             const floatPx = Math.min(FLOAT_MAX_PX, Math.max(10, offsetPx * 0.32));
             const totalPx = offsetPx + 2 * floatPx;
             const speedDurationSec = totalPx / (MIN_SPEED_CM_S * PX_PER_CM);
-            const minDurationSec = placesMoved <= 1 ? 6 : placesMoved <= 2 ? 5 : placesMoved <= 3 ? 4.5 : placesMoved <= 4 ? 4 : 3.5;
-            const MAX_DURATION_SEC = 5;
+            const minDurationSec = placesMoved <= 1 ? 2.2 : placesMoved <= 2 ? 1.8 : placesMoved <= 3 ? 1.5 : placesMoved <= 4 ? 1.2 : 1;
+            const MAX_DURATION_SEC = 2.5;
             const totalDurationSec = Math.min(MAX_DURATION_SEC, Math.max(minDurationSec, speedDurationSec));
             const RISE_SHARE = 0.74;
             const LAND_SHARE = 0.22;
@@ -175,8 +203,10 @@
             const tableRect = table.getBoundingClientRect();
             const tbodyTop = tbody.getBoundingClientRect().top;
             const topStartFixed = tbodyTop + topStart;
-            const topFloatFixed = tbodyTop + (newIndex * ROW_HEIGHT_PX - floatPx);
+            const topFloatFixed = tbodyTop + topFloat;
             const topEndFixed = tbodyTop + topEnd;
+            const riseTranslateY = topFloatFixed - topStartFixed;
+            const landTranslateY = topEndFixed - topStartFixed;
 
             row.style.visibility = 'hidden';
             row.style.height = '0';
@@ -187,7 +217,8 @@
 
             const wrapper = document.createElement('div');
             wrapper.className = 'rank-fly-up-wrapper';
-            wrapper.style.cssText = `position:fixed;left:${tableRect.left}px;top:${topStartFixed}px;width:${tableRect.width}px;z-index:1000;pointer-events:none;`;
+            wrapper.style.cssText = 'position:fixed;left:' + tableRect.left + 'px;top:' + topStartFixed + 'px;width:' + tableRect.width + 'px;z-index:1000;pointer-events:none;will-change:transform;';
+            wrapper.style.transform = 'translateY(0)';
             const cloneTable = document.createElement('table');
             cloneTable.style.cssText = 'width:100%;border-collapse:collapse;background:transparent;';
             const cloneTbody = document.createElement('tbody');
@@ -209,22 +240,23 @@
 
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
-                    cloneRow.style.transition = `box-shadow ${riseDurationSec}s ease, transform ${riseDurationSec}s ease-out`;
+                    cloneRow.style.transition = 'box-shadow ' + riseDurationSec + 's ease, transform ' + riseDurationSec + 's ease-out';
                     cloneRow.style.boxShadow = '0 10px 24px rgba(0,0,0,0.2)';
                     cloneRow.style.transform = 'scale(1.05)';
-                    wrapper.style.transition = `top ${riseDurationSec}s ease-out`;
-                    wrapper.style.top = topFloatFixed + 'px';
+                    wrapper.style.transition = 'transform ' + riseDurationSec + 's ease-out';
+                    wrapper.style.transform = 'translateY(' + riseTranslateY + 'px)';
 
                     const landAt = riseDurationSec * 1000 + glidePauseMs;
                     setTimeout(() => {
                         if (typeof onLandStart === 'function') onLandStart();
-                        wrapper.style.transition = `top ${landDurationSec}s ease-in-out`;
-                        cloneRow.style.transition = `box-shadow ${landDurationSec}s ease, transform ${landDurationSec}s ease-in-out`;
+                        wrapper.style.transition = 'transform ' + landDurationSec + 's ease-in-out';
+                        cloneRow.style.transition = 'box-shadow ' + landDurationSec + 's ease, transform ' + landDurationSec + 's ease-in-out';
                         cloneRow.style.boxShadow = '0 2px 6px rgba(0,0,0,0.08)';
                         cloneRow.style.transform = 'scale(1)';
-                        wrapper.style.top = topEndFixed + 'px';
+                        wrapper.style.transform = 'translateY(' + landTranslateY + 'px)';
 
                         setTimeout(() => {
+                            wrapper.style.willChange = '';
                             wrapper.remove();
                             row.style.visibility = '';
                             if (typeof onComplete === 'function') onComplete();
@@ -266,8 +298,8 @@
             lastRenderData = data;
             lastRenderDuelWinnerIds = duelWinnerIds;
             tbody.innerHTML = '';
-            animationsInProgress = movedUp.length;
-            const freezeRanks = movedUp.length > 0;
+            const freezeRanks = movedUp.length > 0 && animationsEnabled();
+            animationsInProgress = freezeRanks ? movedUp.length : 0;
 
             const reRenderWhenAllDone = () => {
                 animationsInProgress--;
