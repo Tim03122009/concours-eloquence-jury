@@ -65,6 +65,10 @@
         #classement-empty, #classement-loading {
             color: var(--text-secondary);
         }
+        #classement-table .classement-row td.classement-name {
+            font-size: 1.25em;
+            font-weight: 700;
+        }
         #classement-container {
             position: relative;
         }
@@ -300,6 +304,7 @@
                         rankCell.style.padding = '12px';
                         rankCell.style.textAlign = 'center';
                         const nameCell = row.insertCell();
+                        nameCell.className = 'classement-name';
                         nameCell.textContent = nameVal;
                         nameCell.style.padding = '12px';
                         const scoreCell = row.insertCell();
@@ -323,6 +328,7 @@
                         rankCell.style.padding = '12px';
                         rankCell.style.textAlign = 'center';
                         const nameCell = row.insertCell();
+                        nameCell.className = 'classement-name';
                         nameCell.textContent = nameVal;
                         nameCell.style.padding = '12px';
                         const scoreCell = row.insertCell();
@@ -346,6 +352,7 @@
                     rankCell.style.padding = '12px';
                     rankCell.style.textAlign = 'center';
                     const nameCell = row.insertCell();
+                    nameCell.className = 'classement-name';
                     nameCell.textContent = nameVal;
                     nameCell.style.padding = '12px';
                     const scoreCell = row.insertCell();

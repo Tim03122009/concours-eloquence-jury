@@ -1,5 +1,7 @@
 # Manuel de Tests - Concours d'Éloquence
 
+> **Checklist synthétique (automatique + manuel)** : voir **[TESTS_A_FAIRE.md](./TESTS_A_FAIRE.md)**.
+
 ## 📋 Table des matières
 
 1. [Introduction](#introduction)

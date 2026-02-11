@@ -2,6 +2,8 @@
 
 Ce répertoire contient la suite complète de tests automatiques pour l'application Concours d'Éloquence.
 
+> **Vue d’ensemble de ce que vous devez faire** (automatique + manuel) : voir **[TESTS_A_FAIRE.md](./TESTS_A_FAIRE.md)**.
+
 ## 📋 Table des matières
 
 - [Installation](#installation)
