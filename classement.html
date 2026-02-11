@@ -150,40 +150,39 @@
         let lastRenderDuelWinnerIds = null;
         let animationReady = false;
         let animationInitScheduled = false;
-        const ANIMATION_INIT_DELAY_MS = 700;
-        const ANIMATION_WARMUP_MS = 120;
-        const prefersReducedMotion = () => typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        /* Délai avant d'autoriser les animations (tous appareils) : la page a le temps de charger complètement, l'animation démarre ensuite sans bug. */
+        const ANIMATION_INIT_DELAY_MS = 1600;
+        /* Délai après construction du tableau avant de lancer le fly-up : le layout est stabilisé, l'animation est fluide. */
+        const ANIMATION_WARMUP_MS = 400;
 
-        /** Animation : wrapper dans le conteneur (position absolute), coordonnées relatives au conteneur = même rendu partout (PC, autre PC, téléphone). */
+        /** Animation : clone en position fixed, déplacement via transform uniquement (fluide, pas de reflow). */
         function runFlyUpAnimationAbsolute(row, oldIndex, newIndex, onComplete, onLandStart) {
-            const container = document.getElementById('classement-container');
-            if (!container) {
-                if (typeof onComplete === 'function') onComplete();
-                return;
-            }
-            const containerRect = container.getBoundingClientRect();
+            const offsetPx = (oldIndex - newIndex) * ROW_HEIGHT_PX;
+            const placesMoved = offsetPx / ROW_HEIGHT_PX;
+            const floatPx = Math.min(FLOAT_MAX_PX, Math.max(10, offsetPx * 0.32));
+            const totalPx = offsetPx + 2 * floatPx;
+            const speedDurationSec = totalPx / (MIN_SPEED_CM_S * PX_PER_CM);
+            const minDurationSec = placesMoved <= 1 ? 1.8 : placesMoved <= 2 ? 1.6 : placesMoved <= 3 ? 1.4 : placesMoved <= 4 ? 1.2 : 1;
+            const MAX_DURATION_SEC = 2.2;
+            const totalDurationSec = Math.min(MAX_DURATION_SEC, Math.max(minDurationSec, speedDurationSec));
+            const RISE_SHARE = 0.74;
+            const LAND_SHARE = 0.22;
+            const GLIDE_SHARE = 0.04;
+            const riseDurationSec = totalDurationSec * RISE_SHARE;
+            const landDurationSec = totalDurationSec * LAND_SHARE;
+            const glidePauseMs = Math.round(totalDurationSec * GLIDE_SHARE * 1000);
+
+            const topStart = oldIndex * ROW_HEIGHT_PX;
+            const topFloat = newIndex * ROW_HEIGHT_PX - floatPx;
+            const topEnd = newIndex * ROW_HEIGHT_PX;
+
             const table = row.closest('table');
             const tbody = row.closest('tbody');
             const tableRect = table.getBoundingClientRect();
-            const tbodyRect = tbody.getBoundingClientRect();
-            const offsetFromContainerTop = tbodyRect.top - containerRect.top;
-            const offsetFromContainerLeft = tableRect.left - containerRect.left;
-
-            const topStart = oldIndex * ROW_HEIGHT_PX;
-            const topFloat = newIndex * ROW_HEIGHT_PX - Math.min(FLOAT_MAX_PX, Math.max(10, (oldIndex - newIndex) * ROW_HEIGHT_PX * 0.32));
-            const topEnd = newIndex * ROW_HEIGHT_PX;
-            const topStartLocal = offsetFromContainerTop + topStart;
-            const topFloatLocal = offsetFromContainerTop + topFloat;
-            const topEndLocal = offsetFromContainerTop + topEnd;
-
-            const offsetPx = (oldIndex - newIndex) * ROW_HEIGHT_PX;
-            const placesMoved = offsetPx / ROW_HEIGHT_PX;
-            const minDurationSec = placesMoved <= 1 ? 1.8 : placesMoved <= 2 ? 1.6 : placesMoved <= 3 ? 1.4 : placesMoved <= 4 ? 1.2 : 1;
-            const MAX_DURATION_SEC = 2.2;
-            const totalDurationSec = Math.min(MAX_DURATION_SEC, Math.max(minDurationSec, 1));
-            const riseDurationSec = totalDurationSec * 0.74;
-            const landDurationSec = totalDurationSec * 0.22;
-            const glidePauseMs = Math.round(totalDurationSec * 0.04 * 1000);
+            const tbodyTop = tbody.getBoundingClientRect().top;
+            const topStartFixed = tbodyTop + topStart;
+            const topFloatFixed = tbodyTop + (newIndex * ROW_HEIGHT_PX - floatPx);
+            const topEndFixed = tbodyTop + topEnd;
 
             row.style.visibility = 'hidden';
             row.style.height = '0';
@@ -194,7 +193,7 @@
 
             const wrapper = document.createElement('div');
             wrapper.className = 'rank-fly-up-wrapper';
-            wrapper.style.cssText = `position:absolute;left:${offsetFromContainerLeft}px;top:0;width:${tableRect.width}px;z-index:1000;pointer-events:none;will-change:transform;transform:translateY(${topStartLocal}px);contain:layout style paint;`;
+            wrapper.style.cssText = `position:fixed;left:${tableRect.left}px;top:0;width:${tableRect.width}px;z-index:1000;pointer-events:none;will-change:transform;transform:translateY(${topStartFixed}px);`;
             const cloneTable = document.createElement('table');
             cloneTable.style.cssText = 'width:100%;border-collapse:collapse;background:transparent;';
             const cloneTbody = document.createElement('tbody');
@@ -212,12 +211,12 @@
             cloneTbody.appendChild(cloneRow);
             cloneTable.appendChild(cloneTbody);
             wrapper.appendChild(cloneTable);
-            container.appendChild(wrapper);
+            document.body.appendChild(wrapper);
 
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
                     wrapper.style.transition = `transform ${riseDurationSec}s ease-out`;
-                    wrapper.style.transform = `translateY(${topFloatLocal}px)`;
+                    wrapper.style.transform = `translateY(${topFloatFixed}px)`;
                     cloneRow.style.transition = `transform ${riseDurationSec}s ease-out`;
                     cloneRow.style.transform = 'scale(1.04)';
 
@@ -225,7 +224,7 @@
                     setTimeout(() => {
                         if (typeof onLandStart === 'function') onLandStart();
                         wrapper.style.transition = `transform ${landDurationSec}s ease-in-out`;
-                        wrapper.style.transform = `translateY(${topEndLocal}px)`;
+                        wrapper.style.transform = `translateY(${topEndFixed}px)`;
                         cloneRow.style.transition = `transform ${landDurationSec}s ease-in-out`;
                         cloneRow.style.transform = 'scale(1)';
 
@@ -275,7 +274,7 @@
                 animationInitScheduled = true;
                 setTimeout(() => { animationReady = true; }, ANIMATION_INIT_DELAY_MS);
             }
-            if (movedUp.length > 0 && (!animationReady || prefersReducedMotion())) {
+            if (movedUp.length > 0 && !animationReady) {
                 tbody.innerHTML = '';
                 sorted.forEach((entry, i) => {
                     const row = tbody.insertRow();
