@@ -89,7 +89,7 @@
             <a href="index.html" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">← Retour à l'accueil</a>
         </p>
         <h2 style="text-align: center; margin-bottom: var(--spacing-sm); color: var(--text-color);">Classement</h2>
-        <p style="text-align: center; color: var(--text-secondary); margin-bottom: var(--spacing-md);">Lecture seule · Mise à jour en temps réel · <a id="classement-animations-link" href="?animations=0" style="color: var(--text-secondary);">Sans animation</a> <span id="classement-animations-hint">(si la page lag)</span></p>
+        <p style="text-align: center; color: var(--text-secondary); margin-bottom: var(--spacing-md);">Lecture seule · Mise à jour en temps réel</p>
         <div id="classement-container" style="background: var(--card-bg); padding: var(--spacing-md); box-shadow: var(--shadow-md); color: var(--text-color); overflow: visible;">
             <p id="classement-loading" style="text-align: center; margin: var(--spacing-sm) 0;">Chargement du classement…</p>
             <table id="classement-table" style="width: 100%; border-collapse: collapse; display: table;">
@@ -129,24 +129,6 @@
             return [];
         }
 
-        (function setupAnimationsLink() {
-            const link = document.getElementById('classement-animations-link');
-            const hint = document.getElementById('classement-animations-hint');
-            if (!link) return;
-            try {
-                const off = new URLSearchParams(location.search).get('animations') === '0';
-                if (off) {
-                    link.href = location.pathname || 'classement.html';
-                    link.textContent = 'Avec animation';
-                    if (hint) hint.style.display = 'none';
-                } else {
-                    link.href = '?animations=0';
-                    link.textContent = 'Sans animation';
-                    if (hint) hint.textContent = ' (si la page lag)';
-                }
-            } catch (e) {}
-        })();
-
         function showState(loadingEl, tableEl, emptyEl, state, emptyMessage) {
             if (loadingEl) loadingEl.style.display = state === 'loading' ? 'block' : 'none';
             if (tableEl) tableEl.style.display = 'table';
@@ -166,26 +148,20 @@
         let animationsInProgress = 0;
         let lastRenderData = null;
         let lastRenderDuelWinnerIds = null;
+        let animationReady = false;
+        let animationInitScheduled = false;
+        const ANIMATION_INIT_DELAY_MS = 700;
+        const ANIMATION_WARMUP_MS = 120;
 
-        /** true si les animations de classement sont activées. Désactivées si préférence système "réduire les animations", localStorage classement_animations=0 ou URL ?animations=0 */
-        function animationsEnabled() {
-            try {
-                if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
-                if (localStorage.getItem('classement_animations') === '0') return false;
-                if (new URLSearchParams(location.search).get('animations') === '0') return false;
-            } catch (e) {}
-            return true;
-        }
-
-        /** Animation : clone en position fixed, déplacement via transform (GPU). Durées raccourcies pour limiter les lags. */
+        /** Animation : clone en position fixed, déplacement via transform uniquement (fluide, pas de reflow). */
         function runFlyUpAnimationAbsolute(row, oldIndex, newIndex, onComplete, onLandStart) {
             const offsetPx = (oldIndex - newIndex) * ROW_HEIGHT_PX;
             const placesMoved = offsetPx / ROW_HEIGHT_PX;
             const floatPx = Math.min(FLOAT_MAX_PX, Math.max(10, offsetPx * 0.32));
             const totalPx = offsetPx + 2 * floatPx;
             const speedDurationSec = totalPx / (MIN_SPEED_CM_S * PX_PER_CM);
-            const minDurationSec = placesMoved <= 1 ? 2.2 : placesMoved <= 2 ? 1.8 : placesMoved <= 3 ? 1.5 : placesMoved <= 4 ? 1.2 : 1;
-            const MAX_DURATION_SEC = 2.5;
+            const minDurationSec = placesMoved <= 1 ? 1.8 : placesMoved <= 2 ? 1.6 : placesMoved <= 3 ? 1.4 : placesMoved <= 4 ? 1.2 : 1;
+            const MAX_DURATION_SEC = 2.2;
             const totalDurationSec = Math.min(MAX_DURATION_SEC, Math.max(minDurationSec, speedDurationSec));
             const RISE_SHARE = 0.74;
             const LAND_SHARE = 0.22;
@@ -203,10 +179,8 @@
             const tableRect = table.getBoundingClientRect();
             const tbodyTop = tbody.getBoundingClientRect().top;
             const topStartFixed = tbodyTop + topStart;
-            const topFloatFixed = tbodyTop + topFloat;
+            const topFloatFixed = tbodyTop + (newIndex * ROW_HEIGHT_PX - floatPx);
             const topEndFixed = tbodyTop + topEnd;
-            const riseTranslateY = topFloatFixed - topStartFixed;
-            const landTranslateY = topEndFixed - topStartFixed;
 
             row.style.visibility = 'hidden';
             row.style.height = '0';
@@ -217,8 +191,7 @@
 
             const wrapper = document.createElement('div');
             wrapper.className = 'rank-fly-up-wrapper';
-            wrapper.style.cssText = 'position:fixed;left:' + tableRect.left + 'px;top:' + topStartFixed + 'px;width:' + tableRect.width + 'px;z-index:1000;pointer-events:none;will-change:transform;';
-            wrapper.style.transform = 'translateY(0)';
+            wrapper.style.cssText = `position:fixed;left:${tableRect.left}px;top:0;width:${tableRect.width}px;z-index:1000;pointer-events:none;will-change:transform;transform:translateY(${topStartFixed}px);`;
             const cloneTable = document.createElement('table');
             cloneTable.style.cssText = 'width:100%;border-collapse:collapse;background:transparent;';
             const cloneTbody = document.createElement('tbody');
@@ -231,8 +204,8 @@
             Array.from(cloneRow.cells).forEach(c => { c.style.padding = '12px'; c.style.height = ''; c.style.border = ''; });
             cloneRow.classList.add('rank-fly-up');
             cloneRow.style.position = 'relative';
-            cloneRow.style.boxShadow = '0 4px 12px rgba(0,0,0,0.12)';
-            cloneRow.style.transform = 'scale(1.04)';
+            cloneRow.style.boxShadow = '0 6px 16px rgba(0,0,0,0.15)';
+            cloneRow.style.transform = 'scale(1.02)';
             cloneTbody.appendChild(cloneRow);
             cloneTable.appendChild(cloneTbody);
             wrapper.appendChild(cloneTable);
@@ -240,23 +213,21 @@
 
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
-                    cloneRow.style.transition = 'box-shadow ' + riseDurationSec + 's ease, transform ' + riseDurationSec + 's ease-out';
-                    cloneRow.style.boxShadow = '0 10px 24px rgba(0,0,0,0.2)';
-                    cloneRow.style.transform = 'scale(1.05)';
-                    wrapper.style.transition = 'transform ' + riseDurationSec + 's ease-out';
-                    wrapper.style.transform = 'translateY(' + riseTranslateY + 'px)';
+                    wrapper.style.transition = `transform ${riseDurationSec}s ease-out`;
+                    wrapper.style.transform = `translateY(${topFloatFixed}px)`;
+                    cloneRow.style.transition = `transform ${riseDurationSec}s ease-out`;
+                    cloneRow.style.transform = 'scale(1.04)';
 
                     const landAt = riseDurationSec * 1000 + glidePauseMs;
                     setTimeout(() => {
                         if (typeof onLandStart === 'function') onLandStart();
-                        wrapper.style.transition = 'transform ' + landDurationSec + 's ease-in-out';
-                        cloneRow.style.transition = 'box-shadow ' + landDurationSec + 's ease, transform ' + landDurationSec + 's ease-in-out';
-                        cloneRow.style.boxShadow = '0 2px 6px rgba(0,0,0,0.08)';
+                        wrapper.style.transition = `transform ${landDurationSec}s ease-in-out`;
+                        wrapper.style.transform = `translateY(${topEndFixed}px)`;
+                        cloneRow.style.transition = `transform ${landDurationSec}s ease-in-out`;
                         cloneRow.style.transform = 'scale(1)';
-                        wrapper.style.transform = 'translateY(' + landTranslateY + 'px)';
 
                         setTimeout(() => {
-                            wrapper.style.willChange = '';
+                            wrapper.style.willChange = 'auto';
                             wrapper.remove();
                             row.style.visibility = '';
                             if (typeof onComplete === 'function') onComplete();
@@ -297,9 +268,42 @@
             });
             lastRenderData = data;
             lastRenderDuelWinnerIds = duelWinnerIds;
+            if (!animationInitScheduled && entries.length > 0) {
+                animationInitScheduled = true;
+                setTimeout(() => { animationReady = true; }, ANIMATION_INIT_DELAY_MS);
+            }
+            if (movedUp.length > 0 && !animationReady) {
+                tbody.innerHTML = '';
+                sorted.forEach((entry, i) => {
+                    const row = tbody.insertRow();
+                    row.classList.add('classement-row');
+                    const nameVal = entry.name || entry.candidateId || '—';
+                    const scoreVal = getDisplayScore(entry, duelWinnerIds);
+                    const scoreStr = scoreVal != null && scoreVal !== '' ? scoreVal : '—';
+                    const rankCell = row.insertCell();
+                    rankCell.textContent = i + 1;
+                    rankCell.style.padding = '12px';
+                    rankCell.style.textAlign = 'center';
+                    const nameCell = row.insertCell();
+                    nameCell.className = 'classement-name';
+                    nameCell.textContent = nameVal;
+                    nameCell.style.padding = '12px';
+                    const scoreCell = row.insertCell();
+                    scoreCell.textContent = scoreStr;
+                    scoreCell.style.padding = '12px';
+                    scoreCell.style.textAlign = 'center';
+                });
+                sorted.forEach((entry, i) => {
+                    const s = getDisplayScore(entry, duelWinnerIds);
+                    previousScores.set(entry.candidateId, s != null && s !== '' ? s : '—');
+                });
+                previousRanks = newRanks;
+                requestAnimationFrame(() => { requestAnimationFrame(fitTableToViewport); });
+                return;
+            }
             tbody.innerHTML = '';
-            const freezeRanks = movedUp.length > 0 && animationsEnabled();
-            animationsInProgress = freezeRanks ? movedUp.length : 0;
+            animationsInProgress = movedUp.length;
+            const freezeRanks = movedUp.length > 0;
 
             const reRenderWhenAllDone = () => {
                 animationsInProgress--;
@@ -309,9 +313,9 @@
             };
 
             if (freezeRanks) {
-                // Ordre ancien : trou à la place de sortie. Glissement vers le bas au début de la réincertion (reboucher le trou + créer le trou d'atterrissage).
                 const sortedOld = [...entries].sort((a, b) => (previousRanks.get(a.candidateId) ?? 999) - (previousRanks.get(b.candidateId) ?? 999));
                 const rowsToSlidePerFly = movedUp.map(() => []);
+                const flyAnimationsToStart = [];
                 sortedOld.forEach((entry, i) => {
                     const fly = movedUp.find(m => m.candidateId === entry.candidateId);
                     const flyIdx = fly ? movedUp.findIndex(m => m.candidateId === entry.candidateId) : -1;
@@ -351,7 +355,7 @@
                                 r.style.transform = `translateY(${ROW_HEIGHT_PX}px)`;
                             });
                         };
-                        runFlyUpAnimationAbsolute(row, i, fly.newIndex, reRenderWhenAllDone, onLandStart);
+                        flyAnimationsToStart.push({ row, oldIndex: i, newIndex: fly.newIndex, onLandStart });
                     } else {
                         const row = tbody.insertRow();
                         row.classList.add('classement-row');
@@ -371,6 +375,17 @@
                             if (f.newIndex <= i && i < f.oldIndex) rowsToSlidePerFly[fIdx].push(row);
                         });
                     }
+                });
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        const table = document.getElementById('classement-table');
+                        if (table) table.getBoundingClientRect();
+                        setTimeout(() => {
+                            flyAnimationsToStart.forEach(({ row, oldIndex, newIndex, onLandStart }) => {
+                                runFlyUpAnimationAbsolute(row, oldIndex, newIndex, reRenderWhenAllDone, onLandStart);
+                            });
+                        }, ANIMATION_WARMUP_MS);
+                    });
                 });
             } else {
                 sorted.forEach((entry, i) => {
