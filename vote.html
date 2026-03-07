@@ -17,12 +17,18 @@
             height: auto !important;
             min-height: 100vh;
             display: block !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100%;
+            box-sizing: border-box;
         }
         .vote-page {
             min-height: 100vh;
-            padding: 0 20px 40px;
+            padding: 0 clamp(10px, 4vw, 20px) 40px;
             background: linear-gradient(180deg, #0f0f14 0%, #131318 30%, #0d0d11 100%);
             position: relative;
+            width: 100%;
+            box-sizing: border-box;
         }
         .vote-page::before {
             content: "";
@@ -37,10 +43,12 @@
         }
         .vote-container {
             max-width: 640px;
+            width: 100%;
             margin: 0 auto;
             position: relative;
             z-index: 1;
             padding-top: 48px;
+            box-sizing: border-box;
         }
         .vote-header {
             margin-bottom: 40px;
@@ -82,6 +90,12 @@
             grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
             gap: 14px;
             margin-bottom: 32px;
+            width: 100%;
+        }
+        @media (max-width: 380px) {
+            .candidates-grid {
+                grid-template-columns: 1fr;
+            }
         }
         .candidate-card {
             display: flex;
