@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -777,6 +778,7 @@
             <button class="tab-btn" onclick="switchTab('podium')">Podium</button>
             <button class="tab-btn" onclick="switchTab('duels')">Duels</button>
             <button class="tab-btn" onclick="switchTab('activation-classements')">Activation classements</button>
+            <button class="tab-btn" onclick="switchTab('vote-public')">Vote public</button>
             <button class="tab-btn" onclick="switchTab('reinitialiser')">Réinitialiser</button>
         </div>
 
@@ -1019,6 +1021,41 @@
         </div>
 
         <!-- TAB 7: REINITIALISER -->
+        <!-- TAB: VOTE PUBLIC -->
+        <div id="tab-vote-public" class="tab-content">
+            <h2>Vote du public</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 20px;">Résultats du vote du public (interface de vote : <a href="vote.html" target="_blank" rel="noopener">vote.html</a>).</p>
+            <div id="vote-public-loading" style="display: none; text-align: center; padding: 20px; color: var(--text-secondary);">Chargement…</div>
+            <div id="vote-public-empty" style="display: none; text-align: center; padding: 20px; color: var(--text-secondary);">Aucun vote pour le moment.</div>
+            <div id="vote-public-content" style="display: none;">
+                <div style="display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 24px; margin-bottom: 24px;">
+                    <div style="flex-shrink: 0;">
+                        <canvas id="vote-pie-chart" width="320" height="320" style="max-width: 100%; height: auto;"></canvas>
+                    </div>
+                    <div id="vote-public-legend" style="min-width: 200px; padding: 12px 0; font-size: 0.95rem; color: var(--text-color);"></div>
+                </div>
+                <div id="vote-public-leader" style="text-align: center; padding: 20px; background: linear-gradient(135deg, var(--info-bg-start) 0%, var(--info-bg-end) 100%); border-radius: var(--radius); border: 2px solid var(--primary);">
+                    <div style="font-size: 0.95rem; color: var(--text-secondary); margin-bottom: 6px;">Candidat ayant reçu le plus de votes</div>
+                    <div id="vote-public-leader-name" style="font-size: 1.5rem; font-weight: 700; color: var(--primary);"></div>
+                    <div id="vote-public-leader-count" style="font-size: 1rem; color: var(--text-secondary); margin-top: 4px;"></div>
+                </div>
+                <div style="margin-top: 20px;">
+                    <button type="button" id="btn-reset-vote-public" onclick="openResetVotePublicModal()" class="action-button" style="background: linear-gradient(135deg, var(--danger) 0%, var(--danger-dark) 100%); color: white;">Réinitialiser les votes du public</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modale de confirmation réinitialisation vote public -->
+        <div id="modal-reset-vote-public" style="display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); padding: 20px; box-sizing: border-box; align-items: center; justify-content: center;">
+            <div style="background: var(--card-bg); border-radius: var(--radius); padding: 24px; max-width: 400px; width: 100%; box-shadow: var(--shadow-lg); border: 2px solid var(--border-color);">
+                <p style="margin: 0 0 20px 0; color: var(--text-color); font-size: 1.05rem;">Réinitialiser tous les votes du public ? Les visiteurs pourront revoter.</p>
+                <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                    <button type="button" id="modal-reset-vote-public-cancel" class="action-button" style="background: var(--neutral); color: white;">Annuler</button>
+                    <button type="button" id="modal-reset-vote-public-confirm" class="action-button" style="background: linear-gradient(135deg, var(--danger) 0%, var(--danger-dark) 100%); color: white;">Confirmer la réinitialisation</button>
+                </div>
+            </div>
+        </div>
+
         <div id="tab-reinitialiser" class="tab-content">
         <h2>Zone de Danger</h2>
             <p style="color: var(--danger-color); font-weight: 600; margin-bottom: 20px;">
@@ -1128,7 +1165,7 @@
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <script type="module">
         import { db } from './firebase-init.js';
-        import { collection, getDocs, deleteDoc, doc, setDoc, getDoc, addDoc, query, where, writeBatch, onSnapshot } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
+        import { collection, getDocs, deleteDoc, doc, setDoc, getDoc, addDoc, query, where, writeBatch, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
 
         let CANDIDATES = [];
         let ROUNDS = [];
@@ -1138,6 +1175,7 @@
         let validatedRounds = {}; // {roundId: true} — verrouillage définitif après validation globale
         let scoresListener = null; // Pour stocker le listener en temps réel
         let candidatesListener = null; // Pour stocker le listener sur les candidats
+        let roundsListener = null; // Listener temps réel sur config/rounds (sync multi-onglets admin)
         let duelsListener = null; // Listener temps réel sur duel_results (mise à jour auto quand un juré enregistre un gagnant)
         let activationClassementUnsubscribes = []; // Unsubscribe des listeners Activation classements (mise à jour auto)
 
@@ -1145,20 +1183,38 @@
         let refreshTimeout = null;
         let isFirstSnapshot = true;
         let isFirstCandidatesSnapshot = true;
+        let isFirstRoundsSnapshot = true;
         let pendingRefresh = false;
         let isManualChange = false; // Flag pour ignorer les listeners pendant un changement manuel
         let isRenderingNotesTable = false; // Flag pour éviter les appels multiples à renderNotesTable
 
-        /** Score base = fond×coef + forme ; pour l'épreuve duel : coef 1 (fond+forme), sinon fond×3 + forme. EL ou - = 0. */
-        function computeScoreBase(score1, score2, roundId) {
-            if (score1 === 'EL' || score2 === 'EL' || score1 === '-' || score2 === '-') return 0;
-            const s1 = parseInt(score1, 10);
-            const s2 = parseInt(score2, 10);
-            if (isNaN(s1) || isNaN(s2)) return 0;
+        /** Score base : duel = fond+forme ; autre = fond×3+forme. Petite finale : score1 + score3 + (score7+score8+score9). */
+        function computeScoreBase(score1, score2, roundId, score3, score4, score5, score6, score7, score8, score9, score10) {
             const r = (typeof ROUNDS !== 'undefined' && Array.isArray(ROUNDS)) ? ROUNDS.find(x => x.id === roundId) : null;
-            const isDuel = r && (r.type === 'Duels' || r.type_epreuve === 'duels');
-            if (isDuel) return s1 + s2;  // duel : fond et forme en coef 1
-            return (s1 * 3) + s2;
+            const isPetiteFinale = r && r.type === 'Petite finale';
+            if (isPetiteFinale) {
+                const toNum = (s) => (s === 'EL' || s === '-' || s == null || s === '') ? 0 : (() => { const n = parseInt(s, 10); return isNaN(n) ? 0 : n; })();
+                const base1 = toNum(score1);
+                const base2 = toNum(score3);
+                const base3 = toNum(score7) + toNum(score8) + toNum(score9);
+                return base1 + base2 + base3;
+            }
+            const base1 = (score1 === 'EL' || score2 === 'EL' || score1 === '-' || score2 === '-') ? 0 : (() => {
+                const s1 = parseInt(score1, 10);
+                const s2 = parseInt(score2, 10);
+                if (isNaN(s1) || isNaN(s2)) return 0;
+                const isDuel = r && (r.type === 'Duels' || r.type_epreuve === 'duels');
+                if (isDuel) return s1 + s2;
+                return (s1 * 3) + s2;
+            })();
+            if (score3 == null && score4 == null) return base1;
+            const base2 = (score3 === 'EL' || score4 === 'EL' || score3 === '-' || score4 === '-') ? 0 : (() => {
+                const s3 = parseInt(score3, 10);
+                const s4 = parseInt(score4, 10);
+                if (isNaN(s3) || isNaN(s4)) return 0;
+                return (s3 * 3) + s4;
+            })();
+            return base1 + base2;
         }
         
         function setupScoresListener() {
@@ -1285,18 +1341,22 @@
                 const notesTab = document.getElementById('tab-notes');
                 const isNotesActive = notesTab && notesTab.classList.contains('active');
                 
-                if (isNotesActive) {
-                    // Débounce: attendre 300ms avant de rafraîchir
-                    if (refreshTimeout) {
-                        clearTimeout(refreshTimeout);
-                    }
-                    refreshTimeout = setTimeout(() => {
+                const candidatsTab = document.getElementById('tab-candidats');
+                const isCandidatsActive = candidatsTab && candidatsTab.classList.contains('active');
+                if (refreshTimeout) clearTimeout(refreshTimeout);
+                refreshTimeout = setTimeout(() => {
+                    if (isNotesActive) {
                         console.log('🔄 Refreshing Notes table after candidate status change...');
                         renderNotesTable();
-                        pendingRefresh = false;
-                    }, 300);
-                } else {
-                    console.log('📋 Notes tab not active, refresh pending');
+                    }
+                    if (isCandidatsActive) {
+                        console.log('🔄 Refreshing Candidats table after list change...');
+                        renderCandidateTable();
+                    }
+                    pendingRefresh = false;
+                }, 50);
+                if (!isNotesActive && !isCandidatsActive) {
+                    console.log('📋 Notes/Candidats tab not active, refresh pending');
                 }
             }, (error) => {
                 console.error('❌ Error listening to candidates:', error);
@@ -1305,9 +1365,45 @@
             console.log('✅ Candidates listener setup complete');
         }
 
+        function setupRoundsListener() {
+            if (roundsListener) {
+                console.log('📡 Rounds listener already active');
+                return;
+            }
+            console.log('🔄 Setting up real-time rounds listener...');
+            const roundsDocRef = doc(db, "config", "rounds");
+            roundsListener = onSnapshot(roundsDocRef, (snapshot) => {
+                if (isFirstRoundsSnapshot) {
+                    isFirstRoundsSnapshot = false;
+                    return;
+                }
+                if (!snapshot.exists()) return;
+                const data = snapshot.data();
+                ROUNDS = (data.rounds || []).map(r => ({
+                    ...r,
+                    type_epreuve: r.type_epreuve != null ? r.type_epreuve : getTypeEpreuveFromType(r.type)
+                }));
+                activeRoundId = data.activeRoundId || null;
+                console.log('✨ Rounds updated from Firestore');
+                renderRoundsTable();
+                populateNotesRoundDropdown();
+                if (typeof populatePodiumRoundDropdown === 'function') populatePodiumRoundDropdown();
+                if (typeof populateDuelsRoundDropdown === 'function') populateDuelsRoundDropdown();
+            }, (error) => {
+                console.error('❌ Error listening to rounds:', error);
+            });
+            console.log('✅ Rounds listener setup complete');
+        }
+
         // --- TAB SWITCHING ---
+        let votePublicUnsubscribe = null;
         window.switchTab = function(tabName) {
             console.log('[CLASSEMENT] switchTab →', tabName);
+            // En quittant l'onglet Vote public, désabonner le listener temps réel
+            if (tabName !== 'vote-public' && votePublicUnsubscribe) {
+                votePublicUnsubscribe();
+                votePublicUnsubscribe = null;
+            }
             // En quittant l'onglet Activation classements, désabonner les listeners pour éviter des rechargements en arrière-plan qui pourraient interférer avec les données
             if (tabName !== 'activation-classements') {
                 if (activationClassementUnsubscribes.length > 0) {
@@ -1328,9 +1424,10 @@
             document.getElementById(`tab-${tabName}`).classList.add('active');
             event.target.classList.add('active');
             
-            // Load tab-specific data
+            // Load tab-specific data (données déjà à jour en mémoire via listeners temps réel)
             if (tabName === 'candidats') {
                 renderCandidateTable();
+                if (pendingRefresh) { pendingRefresh = false; }
             } else if (tabName === 'jury') {
                 renderJuryTable();
                 loadSessionLockState();
@@ -1357,8 +1454,135 @@
             } else if (tabName === 'activation-classements') {
                 populateActivationClassementRoundDropdown();
                 loadActivationClassementsData();
+            } else if (tabName === 'vote-public') {
+                loadVotePublicData();
+                votePublicUnsubscribe = onSnapshot(doc(db, 'vote_public', 'totaux'), function() {
+                    loadVotePublicData();
+                });
             }
         };
+
+        // --- VOTE PUBLIC ---
+        window.loadVotePublicData = async function() {
+            const loadingEl = document.getElementById('vote-public-loading');
+            const emptyEl = document.getElementById('vote-public-empty');
+            const contentEl = document.getElementById('vote-public-content');
+            if (!loadingEl || !emptyEl || !contentEl) return;
+            loadingEl.style.display = 'block';
+            emptyEl.style.display = 'none';
+            contentEl.style.display = 'none';
+            try {
+                const [voteSnap] = await Promise.all([
+                    getDoc(doc(db, 'vote_public', 'totaux'))
+                ]);
+                const data = voteSnap.exists() ? voteSnap.data() : {};
+                const list = Object.entries(data)
+                    .filter(([k, v]) => k !== '_resetAt' && typeof v === 'number' && v > 0)
+                    .map(([id, count]) => ({
+                        id,
+                        count,
+                        name: (CANDIDATES.find(c => c.id === id) || {}).name || ('ID ' + id)
+                    }))
+                    .sort((a, b) => b.count - a.count);
+                const total = list.reduce((s, x) => s + x.count, 0);
+                loadingEl.style.display = 'none';
+                if (list.length === 0) {
+                    emptyEl.style.display = 'block';
+                    return;
+                }
+                contentEl.style.display = 'block';
+                const canvas = document.getElementById('vote-pie-chart');
+                if (canvas && total > 0) {
+                    const ctx = canvas.getContext('2d');
+                    const w = canvas.width, h = canvas.height, cx = w / 2, cy = h / 2, r = Math.min(w, h) / 2 - 10;
+                    let startAngle = -Math.PI / 2;
+                    list.forEach((item, i) => {
+                        const sliceAngle = (item.count / total) * 2 * Math.PI;
+                        const hue = (i * 360 / Math.max(list.length, 1)) % 360;
+                        ctx.fillStyle = 'hsl(' + hue + ', 65%, 55%)';
+                        ctx.beginPath();
+                        ctx.moveTo(cx, cy);
+                        ctx.arc(cx, cy, r, startAngle, startAngle + sliceAngle);
+                        ctx.closePath();
+                        ctx.fill();
+                        const pct = Math.round((item.count / total) * 100);
+                        if (pct >= 3) {
+                            const midAngle = startAngle + sliceAngle / 2;
+                            const tx = cx + (r * 0.65) * Math.cos(midAngle);
+                            const ty = cy + (r * 0.65) * Math.sin(midAngle);
+                            ctx.fillStyle = '#fff';
+                            ctx.font = 'bold 14px sans-serif';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText(pct + '%', tx, ty);
+                        }
+                        startAngle += sliceAngle;
+                    });
+                    ctx.strokeStyle = 'var(--card-bg)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+                    ctx.stroke();
+                }
+                const leader = list[0];
+                const leaderNameEl = document.getElementById('vote-public-leader-name');
+                const leaderCountEl = document.getElementById('vote-public-leader-count');
+                if (leaderNameEl) leaderNameEl.textContent = leader.name;
+                if (leaderCountEl) leaderCountEl.textContent = leader.count + ' vote' + (leader.count > 1 ? 's' : '');
+
+                const legendEl = document.getElementById('vote-public-legend');
+                if (legendEl) {
+                    legendEl.innerHTML = list.map((item, i) => {
+                        const hue = (i * 360 / Math.max(list.length, 1)) % 360;
+                        const color = 'hsl(' + hue + ', 65%, 55%)';
+                        const pct = Math.round((item.count / total) * 100);
+                        return '<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;"><span style="flex-shrink: 0; width: 14px; height: 14px; border-radius: 3px; background: ' + color + ';"></span><span>' + (item.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span> <span style="color: var(--text-secondary); font-size: 0.9em;">' + item.count + ' vote' + (item.count > 1 ? 's' : '') + ' (' + pct + '%)</span></div>';
+                    }).join('');
+                }
+            } catch (e) {
+                console.error('loadVotePublicData', e);
+                loadingEl.style.display = 'none';
+                emptyEl.textContent = 'Erreur lors du chargement des votes.';
+                emptyEl.style.display = 'block';
+            }
+        };
+
+        let resetVotePublicInProgress = false;
+        window.openResetVotePublicModal = function() {
+            if (resetVotePublicInProgress) return;
+            var modal = document.getElementById('modal-reset-vote-public');
+            if (modal) modal.style.display = 'flex';
+        };
+        window.closeResetVotePublicModal = function() {
+            var modal = document.getElementById('modal-reset-vote-public');
+            if (modal) modal.style.display = 'none';
+        };
+        window.resetVotePublic = async function() {
+            if (resetVotePublicInProgress) return;
+            closeResetVotePublicModal();
+            var btn = document.getElementById('btn-reset-vote-public');
+            if (btn) { btn.disabled = true; btn.textContent = 'Réinitialisation…'; }
+            resetVotePublicInProgress = true;
+            try {
+                await setDoc(doc(db, 'vote_public', 'totaux'), { _resetAt: serverTimestamp() });
+                loadVotePublicData();
+                alert('Votes réinitialisés. Le public peut à nouveau voter.');
+            } catch (e) {
+                console.error('resetVotePublic', e);
+                alert('Erreur lors de la réinitialisation.');
+            } finally {
+                resetVotePublicInProgress = false;
+                if (btn) { btn.disabled = false; btn.textContent = 'Réinitialiser les votes du public'; }
+            }
+        };
+        (function initResetVotePublicModal() {
+            var modal = document.getElementById('modal-reset-vote-public');
+            var cancelBtn = document.getElementById('modal-reset-vote-public-cancel');
+            var confirmBtn = document.getElementById('modal-reset-vote-public-confirm');
+            if (cancelBtn) cancelBtn.addEventListener('click', closeResetVotePublicModal);
+            if (confirmBtn) confirmBtn.addEventListener('click', function() { resetVotePublic(); });
+            if (modal) modal.addEventListener('click', function(e) { if (e.target === modal) closeResetVotePublicModal(); });
+        })();
 
         // --- GESTION CANDIDATS ---
         
@@ -2268,6 +2492,7 @@
             if (type === 'Duels') return 'duels';
             if (type === 'Classement') return 'classement';
             if (type === 'Repêchage') return 'repechage';
+            if (type === 'Petite finale' || type === 'Grande finale') return 'notation';
             return 'notation';
         }
         
@@ -2321,6 +2546,8 @@
                             <option value="Notation individuelle" ${round.type === 'Notation individuelle' || round.type === 'Classement' ? 'selected' : ''}>Notation individuelle</option>
                             <option value="Repêchage" ${round.type === 'Repêchage' ? 'selected' : ''}>Repêchage</option>
                             <option value="Duels" ${round.type === 'Duels' ? 'selected' : ''}>Duels</option>
+                            <option value="Petite finale" ${round.type === 'Petite finale' ? 'selected' : ''}>Petite finale</option>
+                            <option value="Grande finale" ${round.type === 'Grande finale' ? 'selected' : ''}>Grande finale</option>
                         </select>
                     </td>
                     <td><input type="text" id="round-next-${round.id}" name="round-next-${round.id}" value="${String(round.nextRoundCandidates ?? '').replace(/"/g, '&quot;')}" onchange="updateRoundField('${round.id}', 'nextRoundCandidates', this.value)" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px;" placeholder="ALL ou nombre"></td>
@@ -2369,14 +2596,18 @@
             const typeNum = {
                 'Notation individuelle': '1',
                 'Repêchage': '2',
-                'Duels': '3'
+                'Duels': '3',
+                'Petite finale': '4',
+                'Grande finale': '5'
             }[round.type] || '1';
             
-            const type = await prompt(`Type du tour:\n1 - Notation individuelle\n2 - Repêchage\n3 - Duels\n\nEntrez le numéro:`, typeNum);
+            const type = await prompt(`Type du tour:\n1 - Notation individuelle\n2 - Repêchage\n3 - Duels\n4 - Petite finale\n5 - Grande finale\n\nEntrez le numéro:`, typeNum);
             const types = {
                 '1': 'Notation individuelle',
                 '2': 'Repêchage',
-                '3': 'Duels'
+                '3': 'Duels',
+                '4': 'Petite finale',
+                '5': 'Grande finale'
             };
             
             if (!types[type]) {
@@ -2635,6 +2866,7 @@
             console.log('🚀 Données admin chargées (ROUNDS, CANDIDATES). Initialisation des listeners...');
             setupScoresListener();
             setupCandidatesListener();
+            setupRoundsListener();
             console.log('%c[CLASSEMENT] Pour déboguer le bonus: filtrez la console par "CLASSEMENT". Puis: Activation classements → activer +5 pour un candidat → Notes → revenir Activation. Copiez toutes les lignes [CLASSEMENT].', 'color: #0a0; font-weight: bold;');
         })();
 
@@ -2676,6 +2908,7 @@
             // Déterminer le type du tour affiché et le tour précédent
             const currentRound = ROUNDS.find(r => r.id === displayRound);
             const isRepechage = currentRound && currentRound.type === 'Repêchage';
+            const isPetiteFinale = currentRound && currentRound.type === 'Petite finale';
             let previousRoundId = null;
             
             if (isRepechage) {
@@ -2736,7 +2969,15 @@
                     id: docSnap.id,
                     score1: data.score1,
                     score2: data.score2,
-                    score_base: data.score_base != null ? data.score_base : computeScoreBase(data.score1, data.score2, displayRound)
+                    score3: data.score3,
+                    score4: data.score4,
+                    score5: data.score5,
+                    score6: data.score6,
+                    score7: data.score7,
+                    score8: data.score8,
+                    score9: data.score9,
+                    score10: data.score10,
+                    score_base: data.score_base != null ? data.score_base : computeScoreBase(data.score1, data.score2, displayRound, data.score3, data.score4, data.score5, data.score6, data.score7, data.score8, data.score9, data.score10)
                 };
             });
             
@@ -2823,21 +3064,20 @@
                         });
                     }
                 } else {
-                    // Pour les autres tours, utiliser les jurys présents sur ce tour
+                    // Pour les autres tours (dont Petite finale), utiliser les jurys présents sur ce tour
                     sortedJuries.forEach(jury => {
                         const scores = scoresByCandidate[candidate.id]?.[jury.id];
                         if (scores) {
-                            // Vérifier si ce jury a noté le candidat (pas de '-')
-                            if (scores.score1 !== '-' && scores.score2 !== '-') {
+                            const base = scores.score_base != null ? scores.score_base : computeScoreBase(scores.score1, scores.score2, displayRound, scores.score3, scores.score4, scores.score5, scores.score6, scores.score7, scores.score8, scores.score9, scores.score10);
+                            const hasExo1 = isPetiteFinale ? (scores.score1 !== '-' && scores.score1 !== '') : (scores.score1 !== '-' && scores.score2 !== '-');
+                            const hasExo2 = isPetiteFinale && (scores.score3 !== '-' && scores.score3 !== '');
+                            const hasExo3 = isPetiteFinale && (scores.score7 !== '-' && scores.score7 !== '' || scores.score8 !== '-' || scores.score9 !== '-');
+                            if (hasExo1 || hasExo2 || hasExo3) {
                                 hasScores = true;
-                                
-                                // Règle : si un jury met "EL", toute sa notation = 0
-                                if (scores.score1 === 'EL' || scores.score2 === 'EL') {
+                                if (scores.score1 === 'EL' || (isPetiteFinale ? false : scores.score2 === 'EL') || (isPetiteFinale && (scores.score3 === 'EL' || scores.score5 === 'EL' || scores.score7 === 'EL'))) {
                                     totalScore += 0;
                                 } else {
-                                    const s1 = parseFloat(scores.score1) || 0;
-                                    const s2 = parseFloat(scores.score2) || 0;
-                                    totalScore += (s1 * 3 + s2);
+                                    totalScore += base;
                                 }
                             }
                         }
@@ -2848,8 +3088,12 @@
                 if (!isRepechage) {
                     sortedJuries.forEach(jury => {
                         const scores = scoresByCandidate[candidate.id]?.[jury.id];
-                        if (scores && scores.score1 !== '-' && scores.score2 !== '-') {
-                            totalScoreBase += (scores.score_base != null ? scores.score_base : computeScoreBase(scores.score1, scores.score2, displayRound));
+                        if (scores) {
+                            const base = scores.score_base != null ? scores.score_base : computeScoreBase(scores.score1, scores.score2, displayRound, scores.score3, scores.score4, scores.score5, scores.score6, scores.score7, scores.score8, scores.score9, scores.score10);
+                            const hasExo1 = isPetiteFinale ? (scores.score1 !== '-' && scores.score1 !== '') : (scores.score1 !== '-' && scores.score2 !== '-');
+                            const hasExo2 = isPetiteFinale && (scores.score3 !== '-' && scores.score3 !== '');
+                            const hasExo3 = isPetiteFinale && (scores.score7 !== '-' && scores.score7 !== '' || scores.score8 !== '-' || scores.score9 !== '-');
+                            if (hasExo1 || hasExo2 || hasExo3) totalScoreBase += base;
                         }
                     });
                 }
@@ -2909,9 +3153,11 @@
                 return '';
             };
             
-            // En-tête différent pour repêchage vs autres tours
+            // En-tête différent pour repêchage / Petite finale (5 notes) / autres tours (2 notes)
             const juryHeaders = isRepechage 
                 ? sortedJuries.map(j => `<th class="col-score" style="min-width: 90px;">${j.name}<br><small>(0 ou 1)</small></th>`).join('')
+                : isPetiteFinale
+                ? sortedJuries.map(j => `<th colspan="5" class="col-score" style="min-width: 300px;">${j.name}<br><small>Prés. | Œuvre (1 note) | Discours: glob./fond/crit.</small></th>`).join('')
                 : sortedJuries.map(j => `<th colspan="2" class="col-score" style="min-width: 180px;">${j.name}<br><small>(Fond | Forme)</small></th>`).join('');
             
             const scoreLabel = isRepechage ? 'Score<br><small>(tour précédent)</small>' : 'Score<br><small>(pondéré)</small>';
@@ -2986,6 +3232,20 @@
                         } else {
                             cell.innerHTML = createRepechageScoreDropdown(null, '-', candidate.id, jury.id, readonly);
                         }
+                    } else if (isPetiteFinale) {
+                        // Petite finale : 5 colonnes (Prés. = score1 ; Œuvre = score3 ; Discours = score7,8,9)
+                        const readonly = isRoundValidated || (candidate.status === 'Elimine' || candidate.status === 'Qualifie');
+                        for (const field of ['score1', 'score3', 'score7', 'score8', 'score9']) {
+                            const cell = row.insertCell();
+                            cell.className = 'col-score';
+                            cell.style.minWidth = '52px';
+                            cell.style.width = '52px';
+                            if (scores) {
+                                cell.innerHTML = createScoreDropdown(scores.id, field, scores[field] != null ? scores[field] : '-', candidate.id, jury.id, readonly);
+                            } else {
+                                cell.innerHTML = createScoreDropdown(null, field, '-', candidate.id, jury.id, readonly);
+                            }
+                        }
                     } else {
                         // Pour autres tours : deux colonnes (Fond | Forme)
                         const cell1 = row.insertCell();
@@ -2997,7 +3257,6 @@
                         cell2.style.minWidth = '90px';
                         cell2.style.width = '90px';
                         
-                        // Lecture seule si tour validé (verrouillage définitif) ou statut Qualifie/Elimine
                         const readonly = isRoundValidated || (candidate.status === 'Elimine' || candidate.status === 'Qualifie');
                         
                         if (scores) {
@@ -3027,7 +3286,7 @@
                 scoresSnap.forEach(d => {
                     const data = d.data();
                     const cid = data.candidateId;
-                    const base = data.score_base != null ? data.score_base : computeScoreBase(data.score1, data.score2, roundId);
+                    const base = data.score_base != null ? data.score_base : computeScoreBase(data.score1, data.score2, roundId, data.score3, data.score4, data.score5, data.score6, data.score7, data.score8, data.score9, data.score10);
                     totalBaseByCandidate[cid] = (totalBaseByCandidate[cid] || 0) + base;
                 });
                 // Charger les candidats depuis Firestore (ne pas dépendre de CANDIDATES en mémoire, qui peut être vide si on n'a pas ouvert l'onglet Candidats)
@@ -3156,7 +3415,7 @@
                 scoresSnap.forEach(d => {
                     const data = d.data();
                     const cid = data.candidateId;
-                    const base = data.score_base != null ? data.score_base : computeScoreBase(data.score1, data.score2, roundId);
+                    const base = data.score_base != null ? data.score_base : computeScoreBase(data.score1, data.score2, roundId, data.score3, data.score4, data.score5, data.score6, data.score7, data.score8, data.score9, data.score10);
                     totalBaseByCandidate[cid] = (totalBaseByCandidate[cid] || 0) + base;
                 });
                 const candidatsSnap = await getDoc(doc(db, "candidats", "liste_actuelle"));
@@ -4165,8 +4424,10 @@
             const displayRound = notesDisplayRound || activeRoundId || 'round1';
             const round = ROUNDS.find(r => r.id === displayRound);
             const isDuels = round && (round.type === 'Duels' || round.type_epreuve === 'duels');
-            const options = isDuels
-                ? ['-'].concat(Array.from({ length: 21 }, (_, i) => String(i)))
+            const isPetiteFinale = round && round.type === 'Petite finale';
+            const optionLength = (isPetiteFinale && (field === 'score3' || field === 'score7')) ? 31 : 21;
+            const options = (isDuels || isPetiteFinale)
+                ? ['-'].concat(Array.from({ length: optionLength }, (_, i) => String(i)))
                 : ['-', '5', '10', '15', '20', 'EL'];
             const selectId = `score-${candidateId}-${juryId}-${field}`;
             const disabledAttr = readonly ? 'disabled' : '';
@@ -4341,16 +4602,32 @@
                     }
                 }
                 
-                const score1 = field === 'score1' ? value : '-';
-                const score2 = field === 'score2' ? value : '-';
+                const s1 = field === 'score1' ? value : '-';
+                const s2 = field === 'score2' ? value : '-';
+                const s3 = field === 'score3' ? value : '-';
+                const s4 = field === 'score4' ? value : '-';
+                const s5 = field === 'score5' ? value : '-';
+                const s6 = field === 'score6' ? value : '-';
+                const s7 = field === 'score7' ? value : '-';
+                const s8 = field === 'score8' ? value : '-';
+                const s9 = field === 'score9' ? value : '-';
+                const s10 = field === 'score10' ? value : '-';
                 const data = {
                     candidateId: candidateId,
                     juryId: juryId,
                     juryName: juryName,
                     roundId: roundId,
-                    score1,
-                    score2,
-                    score_base: computeScoreBase(score1, score2, roundId),
+                    score1: s1,
+                    score2: s2,
+                    score3: s3,
+                    score4: s4,
+                    score5: s5,
+                    score6: s6,
+                    score7: s7,
+                    score8: s8,
+                    score9: s9,
+                    score10: s10,
+                    score_base: computeScoreBase(s1, s2, roundId, s3, s4, s5, s6, s7, s8, s9, s10),
                     timestamp: new Date()
                 };
                 
@@ -4389,7 +4666,7 @@
                 data[field] = value;
                 
                 delete data.totalWeightedScore;
-                data.score_base = computeScoreBase(data.score1, data.score2, data.roundId);
+                data.score_base = computeScoreBase(data.score1, data.score2, data.roundId, data.score3 ?? '-', data.score4 ?? '-', data.score5 ?? '-', data.score6 ?? '-', data.score7 ?? '-', data.score8 ?? '-', data.score9 ?? '-', data.score10 ?? '-');
                 
                 await setDoc(scoreRef, data);
             } catch (e) {
@@ -4432,6 +4709,8 @@
                 await customAlert('Aucun candidat ou jury sur ce tour.');
                 return;
             }
+            const currentRound = ROUNDS.find(r => r.id === displayRound);
+            const isPetiteFinale = currentRound && currentRound.type === 'Petite finale';
             const scoresQuery = query(collection(db, "scores"), where("roundId", "==", displayRound));
             const scoresSnap = await getDocs(scoresQuery);
             const byCandidate = {};
@@ -4440,14 +4719,20 @@
                 const cid = data.candidateId;
                 const jid = data.juryId || data.juryName;
                 if (!byCandidate[cid]) byCandidate[cid] = {};
-                byCandidate[cid][jid] = { score1: data.score1, score2: data.score2 };
+                byCandidate[cid][jid] = { score1: data.score1, score2: data.score2, score3: data.score3, score4: data.score4, score5: data.score5, score6: data.score6, score7: data.score7, score8: data.score8, score9: data.score9, score10: data.score10 };
             });
             let missing = [];
             for (const c of candidatesInRound) {
                 for (const j of juriesOnRound) {
                     const s = byCandidate[c.id] && byCandidate[c.id][j.id];
-                    if (!s || s.score1 === '-' || s.score1 === undefined || s.score2 === '-' || s.score2 === undefined) {
-                        missing.push(`${c.name} (${j.name})`);
+                    if (isPetiteFinale) {
+                        const pfFields = ['score1', 'score3', 'score7', 'score8', 'score9'];
+                        const missingField = !s || pfFields.some(f => s[f] === '-' || s[f] === undefined || s[f] === '');
+                        if (missingField) missing.push(`${c.name} (${j.name})`);
+                    } else {
+                        if (!s || s.score1 === '-' || s.score1 === undefined || s.score2 === '-' || s.score2 === undefined) {
+                            missing.push(`${c.name} (${j.name})`);
+                        }
                     }
                 }
             }
@@ -5165,6 +5450,62 @@
                     backup.data.config.rounds = roundsSnap.data();
                 }
                 
+                // Config: activations (classement actif)
+                const activationsConfigSnap = await getDoc(doc(db, "config", "activations"));
+                if (activationsConfigSnap.exists()) {
+                    backup.data.config.activations = activationsConfigSnap.data();
+                }
+                
+                // Config: validated_rounds, podiumSettings
+                const validatedSnap = await getDoc(doc(db, "config", "validated_rounds"));
+                if (validatedSnap.exists()) {
+                    backup.data.config.validated_rounds = validatedSnap.data();
+                }
+                const podiumSnap = await getDoc(doc(db, "config", "podiumSettings"));
+                if (podiumSnap.exists()) {
+                    backup.data.config.podiumSettings = podiumSnap.data();
+                }
+                
+                // duel_results (un doc par roundId)
+                const duelResultsSnap = await getDocs(collection(db, "duel_results"));
+                backup.data.duel_results = {};
+                duelResultsSnap.forEach(d => {
+                    const data = d.data();
+                    const out = { ...data };
+                    if (out.updatedAt && out.updatedAt.toDate) out.updatedAt = out.updatedAt.toDate().toISOString();
+                    backup.data.duel_results[d.id] = out;
+                });
+                
+                // classements (un doc par classementId)
+                const classementsSnap = await getDocs(collection(db, "classements"));
+                backup.data.classements = {};
+                classementsSnap.forEach(d => {
+                    const data = d.data();
+                    const out = { ...data };
+                    if (out.updatedAt && out.updatedAt.toDate) out.updatedAt = out.updatedAt.toDate().toISOString();
+                    backup.data.classements[d.id] = out;
+                });
+                
+                // classement_activations (un doc par classementId)
+                const classementActivationsSnap = await getDocs(collection(db, "classement_activations"));
+                backup.data.classement_activations = {};
+                classementActivationsSnap.forEach(d => {
+                    const data = d.data();
+                    const out = { ...data };
+                    if (out.updatedAt && out.updatedAt.toDate) out.updatedAt = out.updatedAt.toDate().toISOString();
+                    backup.data.classement_activations[d.id] = out;
+                });
+                
+                // jury_rankings (Mon classement des jurys)
+                const juryRankingsSnap = await getDocs(collection(db, "jury_rankings"));
+                backup.data.jury_rankings = [];
+                juryRankingsSnap.forEach(d => {
+                    const data = d.data();
+                    const out = { id: d.id, ...data };
+                    if (out.updatedAt && out.updatedAt.toDate) out.updatedAt = out.updatedAt.toDate().toISOString();
+                    backup.data.jury_rankings.push(out);
+                });
+                
                 // Créer le fichier JSON
                 const json = JSON.stringify(backup, null, 2);
                 const blob = new Blob([json], { type: 'application/json' });
@@ -5271,9 +5612,67 @@
                         await setDoc(doc(db, "config", "rounds"), backup.data.config.rounds);
                         restored++;
                     }
+                    
+                    if (backup.data.config.activations) {
+                        await setDoc(doc(db, "config", "activations"), backup.data.config.activations);
+                        restored++;
+                    }
+                    
+                    if (backup.data.config.validated_rounds) {
+                        await setDoc(doc(db, "config", "validated_rounds"), backup.data.config.validated_rounds);
+                        restored++;
+                    }
+                    
+                    if (backup.data.config.podiumSettings) {
+                        await setDoc(doc(db, "config", "podiumSettings"), backup.data.config.podiumSettings);
+                        restored++;
+                    }
                 }
-                // Support de l'ancien format (version 1.0)
-                else {
+                
+                // Restaurer duel_results (doc id = roundId)
+                if (backup.data.duel_results && typeof backup.data.duel_results === 'object') {
+                    for (const [roundId, data] of Object.entries(backup.data.duel_results)) {
+                        const out = { ...data };
+                        if (out.updatedAt && typeof out.updatedAt === 'string') out.updatedAt = new Date(out.updatedAt);
+                        await setDoc(doc(db, "duel_results", roundId), out);
+                        restored++;
+                    }
+                }
+                
+                // Restaurer classements (doc id = classementId)
+                if (backup.data.classements && typeof backup.data.classements === 'object') {
+                    for (const [classementId, data] of Object.entries(backup.data.classements)) {
+                        const out = { ...data };
+                        if (out.updatedAt && typeof out.updatedAt === 'string') out.updatedAt = new Date(out.updatedAt);
+                        await setDoc(doc(db, "classements", classementId), out);
+                        restored++;
+                    }
+                }
+                
+                // Restaurer classement_activations (doc id = classementId)
+                if (backup.data.classement_activations && typeof backup.data.classement_activations === 'object') {
+                    for (const [classementId, data] of Object.entries(backup.data.classement_activations)) {
+                        const out = { ...data };
+                        if (out.updatedAt && typeof out.updatedAt === 'string') out.updatedAt = new Date(out.updatedAt);
+                        await setDoc(doc(db, "classement_activations", classementId), out);
+                        restored++;
+                    }
+                }
+                
+                // Restaurer jury_rankings (doc id = juryId_roundId)
+                if (backup.data.jury_rankings && Array.isArray(backup.data.jury_rankings)) {
+                    for (const item of backup.data.jury_rankings) {
+                        const { id, ...data } = item;
+                        if (!id) continue;
+                        const out = { ...data };
+                        if (out.updatedAt && typeof out.updatedAt === 'string') out.updatedAt = new Date(out.updatedAt);
+                        await setDoc(doc(db, "jury_rankings", id), out);
+                        restored++;
+                    }
+                }
+                
+                // Support de l'ancien format (version 1.0 : pas de backup.data.config)
+                if (!backup.data.config) {
                     if (backup.data.locks) {
                         await setDoc(doc(db, "config", "locks"), backup.data.locks);
                         candidateLocks = backup.data.locks.locks || {};
@@ -6797,7 +7196,8 @@
                 const sortedJuries = Array.from(juries).sort();
                 
                 // Créer l'en-tête CSV (avec Tour et Statut)
-                let csv = 'CandidatID,CandidatNom,Tour,Statut';
+                // Ajout de la ligne "sep=," pour qu'Excel (toutes langues) découpe correctement les colonnes.
+                let csv = 'sep=,\nCandidatID,CandidatNom,Tour,Statut';
                 sortedJuries.forEach(jury => {
                     csv += `,${jury}_Note1,${jury}_Note2`;
                 });
@@ -6882,6 +7282,11 @@
                 updateProgress('Lecture du fichier...');
                 const text = await file.text();
                 const lines = text.split('\n').filter(l => l.trim());
+                
+                // Ignorer une éventuelle ligne \"sep=,\" (Excel) en première ligne
+                if (lines[0] && lines[0].trim().toLowerCase().startsWith('sep=')) {
+                    lines.shift();
+                }
                 
                 if (lines.length < 2) {
                     throw new Error('Fichier CSV vide ou invalide');
@@ -7001,18 +7406,28 @@
                             processedNote2 = '-';
                         }
                         
-                        // Déterminer si c'est un tour de repêchage
+                        // Déterminer le type de tour (Repêchage / Duels / autre)
                         const currentRound = ROUNDS.find(r => r.id === (activeRoundId || 'round1'));
                         const isRepechage = currentRound && currentRound.type === 'Repêchage';
+                        const isDuels = currentRound && (currentRound.type === 'Duels' || currentRound.type_epreuve === 'duels');
                         
-                        // Pour les tours NON repêchage : 0 → 'EL'
-                        if (!isRepechage) {
+                        // Pour les tours NON repêchage et NON duels : 0 → 'EL'
+                        // (en duels, 0 est une note valide sur 20)
+                        if (!isRepechage && !isDuels) {
                             if (processedNote1 === '0') processedNote1 = 'EL';
                             if (processedNote2 === '0') processedNote2 = 'EL';
                         }
                         
                         // Valider les notes
-                        const validValues = ['-', '5', '10', '15', '20', 'EL', 'Elimine', '0', '1'];
+                        let validValues;
+                        if (isDuels) {
+                            // Duels : notes entières de 0 à 20 + '-'
+                            validValues = ['-'];
+                            for (let v = 0; v <= 20; v++) validValues.push(String(v));
+                        } else {
+                            // Tours classiques et repêchage : barème discret + codes spéciaux
+                            validValues = ['-', '5', '10', '15', '20', 'EL', 'Elimine', '0', '1'];
+                        }
                         if (!validValues.includes(processedNote1) || !validValues.includes(processedNote2)) {
                             errors.push(`Ligne ${i + 1}, ${juryName}: Notes invalides (${processedNote1}, ${processedNote2})`);
                             continue;
@@ -7103,7 +7518,8 @@
             const sortedJuries = Array.from(juries).sort();
 
             // Créer l'en-tête CSV
-            let csv = 'Candidat,' + sortedJuries.join(',') + ',Total\n';
+            // Ajout de la ligne \"sep=,\" pour qu'Excel (toutes langues) découpe correctement les colonnes.
+            let csv = 'sep=,\nCandidat,' + sortedJuries.join(',') + ',Total\n';
 
             // Ajouter les données des candidats
             CANDIDATES.forEach(c => {

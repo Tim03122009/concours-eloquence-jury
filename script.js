@@ -38,6 +38,21 @@ let selectedScore2 = null;
 let selectedCandidate2Id = null;
 let selectedScore1_c2 = null;
 let selectedScore2_c2 = null;
+// Petite finale — épreuve 2 (Œuvre contemporaine) : 4 notes (globale 30, fond 20, critère, note 20)
+let selectedCandidateIdExo2 = null;
+let selectedScore1Exo2 = null;  // globale /30
+let selectedScore2Exo2 = null;  // fond /20
+let selectedScore3Exo2 = null;   // critère spécifique
+let selectedScore4Exo2 = null;   // note /20
+let selectedCandidate2IdExo2 = null;
+let selectedScore1_c2Exo2 = null;
+let selectedScore2_c2Exo2 = null;
+// Petite finale — épreuve 3 (Le temps des discours) : 4 notes (globale 30, fond 20, critère, note 20)
+let selectedCandidateIdExo3 = null;
+let selectedScore1Exo3 = null;  // globale /30
+let selectedScore2Exo3 = null;  // fond /20
+let selectedScore3Exo3 = null;  // critère spécifique
+let selectedScore4Exo3 = null;  // note /20
 let CANDIDATES = [];
 
 // Variables pour l'interface Repêchage
@@ -498,6 +513,8 @@ function createGrids() {
 }
 
 function createGridsNotationTwo() {
+    // Pour la Petite finale : curseur 0–20 comme les duels, sinon boutons 5/10/15/20/EL
+    const isPetiteFinale = activeRoundType === 'Petite finale';
     const values = [5, 10, 15, 20];
     [1, 2].forEach(candNum => {
         const gridFond = document.getElementById('grid-fond-' + candNum);
@@ -505,24 +522,184 @@ function createGridsNotationTwo() {
         if (!gridFond || !gridForme) return;
         gridFond.innerHTML = '';
         gridForme.innerHTML = '';
-        values.forEach(val => {
-            const bf = document.createElement('button');
-            bf.className = 'score-btn notation-cand' + candNum + ' notation-fond';
-            bf.textContent = val;
-            bf.onclick = () => selectScoreNotation(candNum, 1, val, bf);
-            gridFond.appendChild(bf);
-            const bm = document.createElement('button');
-            bm.className = 'score-btn notation-cand' + candNum + ' notation-forme';
-            bm.textContent = val;
-            bm.onclick = () => selectScoreNotation(candNum, 2, val, bm);
-            gridForme.appendChild(bm);
-        });
-        const elim = document.createElement('button');
-        elim.className = 'score-btn notation-cand' + candNum + ' notation-fond eliminated';
-        elim.textContent = 'Éliminé';
-        elim.onclick = () => selectScoreNotation(candNum, 1, 'EL', elim);
-        gridFond.appendChild(elim);
+
+        if (isPetiteFinale) {
+            gridFond.classList.remove('score-grid');
+            gridForme.classList.remove('score-grid');
+            gridFond.classList.add('duel-grid');
+            gridForme.classList.add('duel-grid');
+            // Petite finale : uniquement Fond (pas de note Forme)
+            const pairs = [{ type: 1, key: 'fond', container: gridFond }];
+            pairs.forEach(({ type, key, container }) => {
+                const wrap = document.createElement('div');
+                wrap.className = 'duel-score-input-wrap';
+                const sliderId = `pf-slider-${key}-${candNum}`;
+                const numId = `pf-num-${key}-${candNum}`;
+                wrap.innerHTML = `
+                    <div class="duel-slider-row">
+                        <span class="duel-slider-endcap">0</span>
+                        <input type="range" id="${sliderId}" min="0" max="20" value="0" class="duel-range-input">
+                        <span class="duel-slider-endcap">20</span>
+                        <input type="number" id="${numId}" min="0" max="20" step="1" value="" placeholder="0" class="duel-num-input" inputmode="numeric">
+                    </div>
+                `;
+                container.appendChild(wrap);
+                const numEl = document.getElementById(numId);
+                const sliderEl = document.getElementById(sliderId);
+                const displayEl = document.getElementById(
+                    key === 'fond'
+                        ? (candNum === 1 ? 'display-score-1-fond' : 'display-score-2-fond')
+                        : (candNum === 1 ? 'display-score-1-forme' : 'display-score-2-forme')
+                );
+                function setValue(v) {
+                    const n = Math.min(20, Math.max(0, typeof v === 'number' ? v : parseInt(v, 10)));
+                    if (isNaN(n)) return;
+                    if (candNum === 1 && key === 'fond') selectedScore1 = String(n);
+                    if (candNum === 1 && key === 'forme') selectedScore2 = String(n);
+                    if (candNum === 2 && key === 'fond') selectedScore1_c2 = String(n);
+                    if (candNum === 2 && key === 'forme') selectedScore2_c2 = String(n);
+                    if (isPetiteFinale && key === 'fond') {
+                        if (candNum === 1) selectedScore2 = '0';
+                        else selectedScore2_c2 = '0';
+                    }
+                    if (numEl) numEl.value = n;
+                    if (sliderEl) sliderEl.value = n;
+                    if (displayEl) {
+                        displayEl.textContent = (key === 'fond' ? 'Note Fond : ' : 'Note Forme : ') + n;
+                    }
+                    checkValidationNotationTwo();
+                }
+                if (numEl) {
+                    numEl.addEventListener('input', () => setValue(numEl.value));
+                    numEl.addEventListener('change', () => setValue(numEl.value));
+                }
+                if (sliderEl) {
+                    sliderEl.addEventListener('input', () => setValue(sliderEl.value));
+                }
+            });
+        } else {
+            gridFond.classList.remove('duel-grid');
+            gridForme.classList.remove('duel-grid');
+            gridFond.classList.add('score-grid');
+            gridForme.classList.add('score-grid');
+            values.forEach(val => {
+                const bf = document.createElement('button');
+                bf.className = 'score-btn notation-cand' + candNum + ' notation-fond';
+                bf.textContent = val;
+                bf.onclick = () => selectScoreNotation(candNum, 1, val, bf);
+                gridFond.appendChild(bf);
+                const bm = document.createElement('button');
+                bm.className = 'score-btn notation-cand' + candNum + ' notation-forme';
+                bm.textContent = val;
+                bm.onclick = () => selectScoreNotation(candNum, 2, val, bm);
+                gridForme.appendChild(bm);
+            });
+            const elim = document.createElement('button');
+            elim.className = 'score-btn notation-cand' + candNum + ' notation-fond eliminated';
+            elim.textContent = 'Éliminé';
+            elim.onclick = () => selectScoreNotation(candNum, 1, 'EL', elim);
+            gridFond.appendChild(elim);
+        }
     });
+    if (isPetiteFinale) {
+        [1, 2].forEach(n => {
+            const formEl = document.getElementById('grid-forme-' + n);
+            if (formEl) formEl.closest('.control-group')?.style.setProperty('display', 'none');
+        });
+    }
+}
+
+/** Grilles Œuvre contemporaine (Petite finale — 1 candidat, 1 note sur 30) */
+function createGridsNotationTwoExo2() {
+    const isPetiteFinale = activeRoundType === 'Petite finale';
+    if (!isPetiteFinale) return;
+    const wrapper = document.getElementById('œuvre-notes-wrapper-2');
+    if (!wrapper) return;
+    wrapper.innerHTML = '';
+    const top = document.createElement('div');
+    top.className = 'œuvre-notes-top';
+    top.innerHTML = `
+        <label>Note globale du discours</label>
+        <div class="duel-score-input-wrap">
+            <div class="duel-slider-row">
+                <span class="duel-slider-endcap">0</span>
+                <input type="range" id="pf2-slider-globale-1" min="0" max="30" value="0" class="duel-range-input">
+                <span class="duel-slider-endcap">30</span>
+                <input type="number" id="pf2-num-globale-1" min="0" max="30" step="1" value="" placeholder="0" class="duel-num-input" inputmode="numeric">
+            </div>
+        </div>
+        <p id="display-oeuvre2-globale" class="selection-info">Note globale : -</p>
+    `;
+    wrapper.appendChild(top);
+    const bindOeuvre2 = (sliderId, numId, displayId, maxVal, setScore) => {
+        const s = document.getElementById(sliderId);
+        const n = document.getElementById(numId);
+        const d = document.getElementById(displayId);
+        const setValue = (v) => {
+            const num = Math.min(maxVal, Math.max(0, parseInt(String(v), 10)));
+            if (isNaN(num)) return;
+            setScore(String(num));
+            if (n) n.value = num;
+            if (s) s.value = num;
+            if (d) d.textContent = num;
+            checkValidationNotationTwoExo2();
+        };
+        if (n) { n.addEventListener('input', () => setValue(n.value)); n.addEventListener('change', () => setValue(n.value)); }
+        if (s) s.addEventListener('input', () => setValue(s.value));
+    };
+    bindOeuvre2('pf2-slider-globale-1', 'pf2-num-globale-1', 'display-oeuvre2-globale', 30, v => { selectedScore1Exo2 = v; });
+}
+
+function selectScoreNotationExo2(candNum, type, value, element) {
+    const suffix = candNum + 'b';
+    if (candNum === 1) {
+        if (type === 1) {
+            selectedScore1Exo2 = value;
+            document.querySelectorAll('#grid-fond-1b .score-btn').forEach(b => b.classList.remove('selected'));
+            element.classList.add('selected');
+            document.getElementById('display-score-1b-fond').textContent = value === 'EL' ? 'Note Fond : Éliminé' : 'Note Fond : ' + value;
+            if (value === 'EL') {
+                selectedScore2Exo2 = 'EL';
+                document.querySelectorAll('#grid-forme-1b .score-btn').forEach(b => { b.classList.remove('selected'); b.disabled = true; b.style.opacity = '0.4'; });
+                document.getElementById('grid-forme-1b').style.opacity = '0.5';
+                document.getElementById('grid-forme-1b').style.pointerEvents = 'none';
+                document.getElementById('display-score-1b-forme').textContent = 'Note Forme : 0 (Éliminé)';
+            } else {
+                document.querySelectorAll('#grid-forme-1b .score-btn').forEach(b => { b.disabled = false; b.style.opacity = '1'; });
+                document.getElementById('grid-forme-1b').style.opacity = '1';
+                document.getElementById('grid-forme-1b').style.pointerEvents = 'auto';
+            }
+        } else {
+            selectedScore2Exo2 = value;
+            document.querySelectorAll('#grid-forme-1b .score-btn').forEach(b => b.classList.remove('selected'));
+            element.classList.add('selected');
+            document.getElementById('display-score-1b-forme').textContent = 'Note Forme : ' + value;
+        }
+    } else {
+        if (type === 1) {
+            selectedScore1_c2Exo2 = value;
+            document.querySelectorAll('#grid-fond-2b .score-btn').forEach(b => b.classList.remove('selected'));
+            element.classList.add('selected');
+            document.getElementById('display-score-2b-fond').textContent = value === 'EL' ? 'Note Fond : Éliminé' : 'Note Fond : ' + value;
+            if (value === 'EL') {
+                selectedScore2_c2Exo2 = 'EL';
+                document.querySelectorAll('#grid-forme-2b .score-btn').forEach(b => { b.classList.remove('selected'); b.disabled = true; b.style.opacity = '0.4'; });
+                document.getElementById('grid-forme-2b').style.opacity = '0.5';
+                document.getElementById('grid-forme-2b').style.pointerEvents = 'none';
+                document.getElementById('display-score-2b-forme').textContent = 'Note Forme : 0 (Éliminé)';
+            } else {
+                document.querySelectorAll('#grid-forme-2b .score-btn').forEach(b => { b.disabled = false; b.style.opacity = '1'; });
+                document.getElementById('grid-forme-2b').style.opacity = '1';
+                document.getElementById('grid-forme-2b').style.pointerEvents = 'auto';
+            }
+        } else {
+            selectedScore2_c2Exo2 = value;
+            document.querySelectorAll('#grid-forme-2b .score-btn').forEach(b => b.classList.remove('selected'));
+            element.classList.add('selected');
+            document.getElementById('display-score-2b-forme').textContent = 'Note Forme : ' + value;
+        }
+    }
+    checkValidationNotationTwoExo2();
 }
 
 /** Crée les 4 contrôles Fond + Forme pour l'interface Duels : saisie manuelle (0-20) + slider 0 — 10 — 20. */
@@ -1155,6 +1332,11 @@ function refreshCurrentJuryPanel() {
     const qualifiedList = document.getElementById('qualified-list');
     if (tabNotation && tabNotation.classList.contains('active')) {
         if (typeof updateNotationTwoSelects === 'function') updateNotationTwoSelects();
+        if (typeof updateNotationTwoSelectsExo2 === 'function') updateNotationTwoSelectsExo2();
+        if (typeof updateNotationSelectsExo3 === 'function') updateNotationSelectsExo3();
+        if (document.getElementById('candidate-select') && typeof updateCandidateSelect === 'function') {
+            updateCandidateSelect(selectedCandidateId);
+        }
     }
     const duelsPanelVisible = (tabDuels && tabDuels.classList.contains('active')) || (juryDuelsList && !tabNotation);
     if (duelsPanelVisible && typeof renderJuryDuelsPanel === 'function') {
@@ -1290,13 +1472,8 @@ function setupRealtimeListeners() {
         }
     });
 
-    let candidatesFirst = true;
     candidatesRealtimeListener = onSnapshot(doc(db, "candidats", "liste_actuelle"), (snap) => {
         if (!snap.exists()) return;
-        if (candidatesFirst) {
-            candidatesFirst = false;
-            return;
-        }
         try {
             CANDIDATES = snap.data().candidates || [];
             refreshCurrentJuryPanel();
@@ -1714,12 +1891,14 @@ function showNotationInterface() {
         <p id="scoring-round-display" style="text-align: center; color: var(--text-secondary); margin-bottom: var(--spacing);"></p>
         <h2 style="text-align: center; margin-bottom: var(--spacing);">Jury: <span id="current-jury-display"></span></h2>
         <div class="jury-tabs-bar">
-            <button type="button" class="jury-tab-btn active" data-jury-tab="notation">Notation</button>
+            <button type="button" class="jury-tab-btn active" data-jury-tab="notation">${activeRoundType === 'Petite finale' ? 'Le temps des présentations' : 'Notation'}</button>
+            <button type="button" class="jury-tab-btn jury-tab-notation2" data-jury-tab="notation2" style="display: none;">Œuvre contemporaine</button>
+            <button type="button" class="jury-tab-btn jury-tab-notation3" data-jury-tab="notation3" style="display: none;">Le temps des discours</button>
             <button type="button" class="jury-tab-btn" data-jury-tab="duels">Gagnants de duel</button>
             <button type="button" class="jury-tab-btn" data-jury-tab="mon-classement">Mon classement</button>
         </div>
         <div id="jury-tab-notation" class="jury-tab-content active">
-            <p class="jury-notation-intro">Noter deux candidats : Fond (×3) et Forme (×1) pour chacun.</p>
+            <p class="jury-notation-intro">Noter deux candidats : Fond et Forme pour chacun.</p>
             <div class="jury-notation-cols">
                 <div class="jury-notation-card">
                     <label for="candidate-select-1" class="card-title">Candidat 1</label>
@@ -1735,7 +1914,7 @@ function showNotationInterface() {
         </div>
                     <hr class="jury-notation-sep">
         <div class="control-group">
-                        <label>Forme / Éloquence (Coefficient ×1)</label>
+                        <label>Forme / Éloquence</label>
                         <div class="score-grid" id="grid-forme-1"></div>
                         <p id="display-score-1-forme" class="selection-info">Note Forme : -</p>
         </div>
@@ -1754,13 +1933,47 @@ function showNotationInterface() {
         </div>
                     <hr class="jury-notation-sep">
                     <div class="control-group">
-                        <label>Forme / Éloquence (Coefficient ×1)</label>
+                        <label>Forme / Éloquence</label>
                         <div class="score-grid" id="grid-forme-2"></div>
                         <p id="display-score-2-forme" class="selection-info">Note Forme : -</p>
                     </div>
                 </div>
             </div>
             <button id="validate-button" class="jury-notation-validate" disabled>Valider les deux notations</button>
+        </div>
+        <div id="jury-tab-notation2" class="jury-tab-content" style="display: none;">
+            <div class="jury-notation-cols">
+                <div class="jury-notation-card">
+                    <label for="candidate-select-1b" class="card-title">Candidat</label>
+                    <select id="candidate-select-1b">
+                        <option value="">-- Choisir --</option>
+                    </select>
+                    <p id="selected-candidate-display-1b" class="selection-info">Aucun</p>
+                    <p class="jury-notation-intro">Œuvre contemporaine — Une note : note globale du discours.</p>
+                    <hr class="jury-notation-sep">
+                    <div id="œuvre-notes-wrapper-2" class="œuvre-notes-wrapper"></div>
+                    <div id="grid-fond-1b" style="display: none;"></div>
+                    <div id="grid-forme-1b" style="display: none;"></div>
+                </div>
+            </div>
+            <button id="validate-button-2" class="jury-notation-validate" disabled>Valider la notation</button>
+        </div>
+        <div id="jury-tab-notation3" class="jury-tab-content" style="display: none;">
+            <div class="jury-notation-cols">
+                <div class="jury-notation-card">
+                    <label for="candidate-select-1c" class="card-title">Candidat</label>
+                    <select id="candidate-select-1c">
+                        <option value="">-- Choisir --</option>
+                    </select>
+                    <p id="selected-candidate-display-1c" class="selection-info">Aucun</p>
+                    <p class="jury-notation-intro">Le temps des discours — Trois notes : note globale du discours, note de fond, note critère spécifique.</p>
+                    <hr class="jury-notation-sep">
+                    <div id="œuvre-notes-wrapper-3" class="œuvre-notes-wrapper"></div>
+                    <div id="grid-fond-1c" style="display: none;"></div>
+                    <div id="grid-forme-1c" style="display: none;"></div>
+                </div>
+            </div>
+            <button id="validate-button-3" class="jury-notation-validate" disabled>Valider la notation</button>
         </div>
         <div id="jury-tab-duels" class="jury-tab-content">
             <p id="jury-duels-message" style="text-align: center; color: var(--text-secondary);">Chargement des duels…</p>
@@ -1775,6 +1988,26 @@ function showNotationInterface() {
         </div>
     `;
     setupJuryTabs();
+    // Petite finale : onglets Notation 2 et Notation 3 visibles, pas d'onglet "Gagnants de duel"
+    const notation2TabBtn = document.querySelector('.jury-tab-notation2');
+    const notation2Panel = document.getElementById('jury-tab-notation2');
+    const notation3TabBtn = document.querySelector('.jury-tab-notation3');
+    const notation3Panel = document.getElementById('jury-tab-notation3');
+    const duelsTabBtn = document.querySelector('.jury-tab-btn[data-jury-tab="duels"]');
+    const duelsPanel = document.getElementById('jury-tab-duels');
+    if (activeRoundType === 'Petite finale') {
+        if (notation2TabBtn) notation2TabBtn.style.display = '';
+        if (notation2Panel) notation2Panel.style.display = '';
+        if (notation3TabBtn) notation3TabBtn.style.display = '';
+        if (notation3Panel) notation3Panel.style.display = '';
+        if (duelsTabBtn) duelsTabBtn.style.display = 'none';
+        if (duelsPanel) duelsPanel.style.display = 'none';
+    } else {
+        if (notation2TabBtn) notation2TabBtn.style.display = 'none';
+        if (notation2Panel) notation2Panel.style.display = 'none';
+        if (notation3TabBtn) notation3TabBtn.style.display = 'none';
+        if (notation3Panel) notation3Panel.style.display = 'none';
+    }
     
     // Mettre à jour les informations affichées
     document.getElementById('current-jury-display').textContent = currentJuryDisplayName;
@@ -1785,7 +2018,26 @@ function showNotationInterface() {
     
     initTheme();
     createGridsNotationTwo();
+    if (activeRoundType === 'Petite finale') {
+        const intro1 = document.querySelector('#jury-tab-notation .jury-notation-intro');
+if (intro1) intro1.textContent = 'Noter deux candidats : Fond pour chacun.';
+            document.querySelectorAll('#jury-tab-notation .control-group label').forEach(lab => { if (lab.textContent.includes('Fond')) lab.textContent = 'Fond'; });
+    }
     updateNotationTwoSelects();
+    if (activeRoundType === 'Petite finale') {
+        createGridsNotationTwoExo2();
+        updateNotationTwoSelectsExo2();
+        const sel1b = document.getElementById('candidate-select-1b');
+        if (sel1b) sel1b.addEventListener('change', function() { loadCandidateNotationSideExo2(1, this.value || null); });
+        const validateBtn2 = document.getElementById('validate-button-2');
+        if (validateBtn2) validateBtn2.addEventListener('click', validateNotationTwoExo2);
+        createGridsNotationExo3();
+        updateNotationSelectsExo3();
+        const sel1c = document.getElementById('candidate-select-1c');
+        if (sel1c) sel1c.addEventListener('change', function() { loadCandidateNotationSideExo3(1, this.value || null); });
+        const validateBtn3 = document.getElementById('validate-button-3');
+        if (validateBtn3) validateBtn3.addEventListener('click', validateNotationExo3);
+    }
 
     async function loadCandidateNotationSide(candNum, candidateId) {
         const c = CANDIDATES.find(x => x.id === candidateId);
@@ -1817,10 +2069,33 @@ function showNotationInterface() {
                 if (scores.score1 === 'EL') document.getElementById('grid-forme-1').style.opacity = '0.5';
             } else {
                 selectedScore1 = null; selectedScore2 = null;
+                // Réinitialiser l'UI boutons (tours classiques)
                 document.querySelectorAll('#grid-fond-1 .score-btn, #grid-forme-1 .score-btn').forEach(b => { b.classList.remove('selected'); b.disabled = false; b.style.opacity = '1'; });
                 document.getElementById('grid-forme-1').style.opacity = '1'; document.getElementById('grid-forme-1').style.pointerEvents = 'auto';
                 document.getElementById('display-score-1-fond').textContent = 'Note Fond : -';
                 document.getElementById('display-score-1-forme').textContent = 'Note Forme : -';
+            }
+            // Petite finale : synchroniser les curseurs 0–20 si présents
+            if (activeRoundType === 'Petite finale') {
+                const fondSlider = document.getElementById('pf-slider-fond-1');
+                const fondNum = document.getElementById('pf-num-fond-1');
+                const formeSlider = document.getElementById('pf-slider-forme-1');
+                const formeNum = document.getElementById('pf-num-forme-1');
+                const s1Val = scores && scores.score1 !== '-' ? parseInt(scores.score1, 10) : null;
+                const s2Val = scores && scores.score2 !== '-' ? parseInt(scores.score2, 10) : null;
+                if (fondSlider && fondNum && s1Val != null && !isNaN(s1Val)) {
+                    fondSlider.value = s1Val;
+                    fondNum.value = s1Val;
+                    document.getElementById('display-score-1-fond').textContent = 'Note Fond : ' + s1Val;
+                    selectedScore1 = String(s1Val);
+                    selectedScore2 = '0';
+                }
+                if (formeSlider && formeNum && s2Val != null && !isNaN(s2Val)) {
+                    formeSlider.value = s2Val;
+                    formeNum.value = s2Val;
+                    document.getElementById('display-score-1-forme').textContent = 'Note Forme : ' + s2Val;
+                    selectedScore2 = String(s2Val);
+                }
             }
         } else {
             selectedCandidate2Id = candidateId;
@@ -1838,6 +2113,27 @@ function showNotationInterface() {
                 document.getElementById('grid-forme-2').style.opacity = '1'; document.getElementById('grid-forme-2').style.pointerEvents = 'auto';
                 document.getElementById('display-score-2-fond').textContent = 'Note Fond : -';
                 document.getElementById('display-score-2-forme').textContent = 'Note Forme : -';
+            }
+            if (activeRoundType === 'Petite finale') {
+                const fondSlider = document.getElementById('pf-slider-fond-2');
+                const fondNum = document.getElementById('pf-num-fond-2');
+                const formeSlider = document.getElementById('pf-slider-forme-2');
+                const formeNum = document.getElementById('pf-num-forme-2');
+                const s1Val = scores && scores.score1 !== '-' ? parseInt(scores.score1, 10) : null;
+                const s2Val = scores && scores.score2 !== '-' ? parseInt(scores.score2, 10) : null;
+                if (fondSlider && fondNum && s1Val != null && !isNaN(s1Val)) {
+                    fondSlider.value = s1Val;
+                    fondNum.value = s1Val;
+                    document.getElementById('display-score-2-fond').textContent = 'Note Fond : ' + s1Val;
+                    selectedScore1_c2 = String(s1Val);
+                    selectedScore2_c2 = '0';
+                }
+                if (formeSlider && formeNum && s2Val != null && !isNaN(s2Val)) {
+                    formeSlider.value = s2Val;
+                    formeNum.value = s2Val;
+                    document.getElementById('display-score-2-forme').textContent = 'Note Forme : ' + s2Val;
+                    selectedScore2_c2 = String(s2Val);
+                }
             }
         }
         updateNotationTwoSelects();
@@ -1878,8 +2174,10 @@ function showNotationInterface() {
             }
         }
 
-        await saveOneScore(selectedCandidateId, selectedScore1, selectedScore2);
-        await saveOneScore(selectedCandidate2Id, selectedScore1_c2, selectedScore2_c2);
+        const s2a = activeRoundType === 'Petite finale' ? (selectedScore2 || '0') : selectedScore2;
+        const s2b = activeRoundType === 'Petite finale' ? (selectedScore2_c2 || '0') : selectedScore2_c2;
+        await saveOneScore(selectedCandidateId, selectedScore1, s2a);
+        await saveOneScore(selectedCandidate2Id, selectedScore1_c2, s2b);
 
         selectedCandidateId = null; selectedScore1 = null; selectedScore2 = null;
         selectedCandidate2Id = null; selectedScore1_c2 = null; selectedScore2_c2 = null;
@@ -1888,6 +2186,19 @@ function showNotationInterface() {
         document.querySelectorAll('#grid-fond-1 .score-btn, #grid-forme-1 .score-btn, #grid-fond-2 .score-btn, #grid-forme-2 .score-btn').forEach(b => { b.classList.remove('selected'); b.disabled = false; b.style.opacity = '1'; });
         document.getElementById('grid-forme-1').style.opacity = '1'; document.getElementById('grid-forme-1').style.pointerEvents = 'auto';
         document.getElementById('grid-forme-2').style.opacity = '1'; document.getElementById('grid-forme-2').style.pointerEvents = 'auto';
+        // Petite finale : reset curseurs épreuve 1
+        const pf1Ids = [
+            ['pf-slider-fond-1', 'pf-num-fond-1'],
+            ['pf-slider-forme-1', 'pf-num-forme-1'],
+            ['pf-slider-fond-2', 'pf-num-fond-2'],
+            ['pf-slider-forme-2', 'pf-num-forme-2']
+        ];
+        pf1Ids.forEach(([sid, nid]) => {
+            const s = document.getElementById(sid);
+            const n = document.getElementById(nid);
+            if (s) s.value = 0;
+            if (n) n.value = '';
+        });
         document.getElementById('display-score-1-fond').textContent = 'Note Fond : -'; document.getElementById('display-score-1-forme').textContent = 'Note Forme : -';
         document.getElementById('display-score-2-fond').textContent = 'Note Fond : -'; document.getElementById('display-score-2-forme').textContent = 'Note Forme : -';
         updateNotationTwoSelects();
@@ -1909,6 +2220,7 @@ async function updateNotationTwoSelects() {
     sel2.innerHTML = '<option value="">-- Choisir --</option>' + opts(cur1).map(o => `<option value="${o.value}">${o.text}</option>`).join('');
     if (cur1) sel1.value = cur1;
     if (cur2) sel2.value = cur2;
+    if (document.getElementById('candidate-select-1b')) updateNotationTwoSelectsExo2();
 }
 
 function checkValidationNotationTwo() {
@@ -1918,6 +2230,254 @@ function checkValidationNotationTwo() {
                selectedCandidate2Id && selectedScore1_c2 != null && selectedScore2_c2 != null &&
                selectedCandidateId !== selectedCandidate2Id;
     btn.disabled = !ok;
+}
+
+function updateNotationTwoSelectsExo2() {
+    const filtered = CANDIDATES.filter(c => c.tour === (activeRoundId || 'round1'));
+    const sorted = [...filtered].sort((a, b) => (parseInt(a.id, 10) || 0) - (parseInt(b.id, 10) || 0));
+    const opts = (excludeId) => sorted.filter(c => c.id !== excludeId).map(c => ({ value: c.id, text: c.id + ' - ' + (c.name || c.id) }));
+    const sel1 = document.getElementById('candidate-select-1b');
+    if (!sel1) return;
+    const cur1 = sel1.value;
+    // Œuvre contemporaine : 1 seul candidat (pas de sel2b)
+    const sel2 = document.getElementById('candidate-select-2b');
+    const optionsFor1 = sel2 ? opts(sel2.value) : sorted.map(c => ({ value: c.id, text: c.id + ' - ' + (c.name || c.id) }));
+    sel1.innerHTML = '<option value="">-- Choisir --</option>' + optionsFor1.map(o => `<option value="${o.value}">${o.text}</option>`).join('');
+    if (cur1) sel1.value = cur1;
+    if (sel2) {
+        const cur2 = sel2.value;
+        sel2.innerHTML = '<option value="">-- Choisir --</option>' + opts(cur1).map(o => `<option value="${o.value}">${o.text}</option>`).join('');
+        if (cur2) sel2.value = cur2;
+    }
+}
+
+function checkValidationNotationTwoExo2() {
+    const btn = document.getElementById('validate-button-2');
+    if (!btn) return;
+    const ok = selectedCandidateIdExo2 && selectedScore1Exo2 != null;
+    btn.disabled = !ok;
+}
+
+async function loadCandidateNotationSideExo2(candNum, candidateId) {
+    if (!candidateId) {
+        selectedCandidateIdExo2 = null;
+        document.getElementById('selected-candidate-display-1b').textContent = 'Aucun';
+        selectedScore1Exo2 = null;
+        ['pf2-slider-globale-1', 'pf2-num-globale-1'].forEach(id => { const el = document.getElementById(id); if (el) el.value = el.type === 'range' ? 0 : 0; });
+        const d = document.getElementById('display-oeuvre2-globale'); if (d) d.textContent = 'Note globale : -';
+        updateNotationTwoSelectsExo2();
+        checkValidationNotationTwoExo2();
+        return;
+    }
+    const c = CANDIDATES.find(x => x.id === candidateId);
+    if (!c) return;
+    const q = query(collection(db, "scores"), where("candidateId", "==", candidateId), where("juryId", "==", currentJuryName), where("roundId", "==", activeRoundId || 'round1'));
+    const snap = await getDocs(q);
+    const scores = snap.docs[0]?.data();
+    const s3 = scores && (scores.score3 != null && scores.score3 !== '') ? scores.score3 : '-';
+    const s4 = scores && (scores.score4 != null && scores.score4 !== '') ? scores.score4 : '-';
+    const allSet = s3 !== '-';
+    selectedCandidateIdExo2 = candidateId;
+    document.getElementById('selected-candidate-display-1b').textContent = allSet ? c.name + ' (déjà noté)' : 'Candidat : ' + c.name;
+    selectedScore1Exo2 = s3 !== '-' ? s3 : null;
+    const setEl = (sid, nid, did, val) => {
+        const v = val !== '-' ? parseInt(val, 10) : null;
+        const s = document.getElementById(sid);
+        const n = document.getElementById(nid);
+        const d = document.getElementById(did);
+        if (s && v != null && !isNaN(v)) s.value = v;
+        if (n) n.value = v != null ? v : '';
+        if (d) d.textContent = v != null ? v : 'Note globale : -';
+    };
+    setEl('pf2-slider-globale-1', 'pf2-num-globale-1', 'display-oeuvre2-globale', s3);
+    updateNotationTwoSelectsExo2();
+    checkValidationNotationTwoExo2();
+}
+
+async function validateNotationTwoExo2() {
+    const roundId = activeRoundId || 'round1';
+    async function mergeScoreExo2(candidateId, score3, score4, score5, score6) {
+        const q = query(collection(db, "scores"), where("candidateId", "==", candidateId), where("juryId", "==", currentJuryName), where("roundId", "==", roundId));
+        const existing = await getDocs(q);
+        if (!existing.empty) {
+            await setDoc(doc(db, "scores", existing.docs[0].id), { score3, score4, score5, score6, timestamp: new Date() }, { merge: true });
+        } else {
+            const juryDoc = await getDoc(doc(db, "accounts", currentJuryName));
+            const juryName = juryDoc.exists() ? juryDoc.data().name : currentJuryName;
+            await addDoc(collection(db, "scores"), { juryId: currentJuryName, juryName, candidateId, roundId, score1: '-', score2: '-', score3, score4, score5, score6, timestamp: new Date() });
+        }
+    }
+    await mergeScoreExo2(selectedCandidateIdExo2, selectedScore1Exo2, '-', '-', '-');
+    selectedCandidateIdExo2 = null; selectedScore1Exo2 = null;
+    const sel1b = document.getElementById('candidate-select-1b');
+    if (sel1b) sel1b.value = '';
+    document.getElementById('selected-candidate-display-1b').textContent = 'Aucun';
+    ['pf2-slider-globale-1', 'pf2-num-globale-1'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = el.type === 'range' ? 0 : 0;
+    });
+    document.getElementById('display-oeuvre2-globale').textContent = 'Note globale : -';
+    updateNotationTwoSelectsExo2();
+    checkValidationNotationTwoExo2();
+    await customAlert("✓ La notation (œuvre contemporaine) a été enregistrée.");
+}
+
+/** Grilles Le temps des discours (Petite finale — 1 candidat, 4 notes) */
+function createGridsNotationExo3() {
+    const wrapper = document.getElementById('œuvre-notes-wrapper-3');
+    if (!wrapper) return;
+    wrapper.innerHTML = '';
+    const bottom = document.createElement('div');
+    bottom.className = 'œuvre-notes-bottom';
+    bottom.innerHTML = `
+        <div class="œuvre-note-cell">
+            <label>Note de fond</label>
+            <div class="duel-score-input-wrap">
+                <div class="duel-slider-row">
+                    <span class="duel-slider-endcap">0</span>
+                    <input type="range" id="pf3-slider-fond-1" min="0" max="20" value="0" class="duel-range-input">
+                    <span class="duel-slider-endcap">20</span>
+                    <input type="number" id="pf3-num-fond-1" min="0" max="20" step="1" value="" placeholder="0" class="duel-num-input" inputmode="numeric">
+                </div>
+            </div>
+            <p id="display-oeuvre3-fond" class="selection-info">-</p>
+        </div>
+        <div class="œuvre-note-cell">
+            <label>Note critère spécifique</label>
+            <div class="duel-score-input-wrap">
+                <div class="duel-slider-row">
+                    <span class="duel-slider-endcap">0</span>
+                    <input type="range" id="pf3-slider-critere-1" min="0" max="20" value="0" class="duel-range-input">
+                    <span class="duel-slider-endcap">20</span>
+                    <input type="number" id="pf3-num-critere-1" min="0" max="20" step="1" value="" placeholder="0" class="duel-num-input" inputmode="numeric">
+                </div>
+            </div>
+            <p id="display-oeuvre3-critere" class="selection-info">-</p>
+        </div>
+    `;
+    wrapper.appendChild(bottom);
+    const top = document.createElement('div');
+    top.className = 'œuvre-notes-top';
+    top.innerHTML = `
+        <label>Note globale du discours</label>
+        <div class="duel-score-input-wrap">
+            <div class="duel-slider-row">
+                <span class="duel-slider-endcap">0</span>
+                <input type="range" id="pf3-slider-globale-1" min="0" max="30" value="0" class="duel-range-input">
+                <span class="duel-slider-endcap">30</span>
+                <input type="number" id="pf3-num-globale-1" min="0" max="30" step="1" value="" placeholder="0" class="duel-num-input" inputmode="numeric">
+            </div>
+        </div>
+        <p id="display-oeuvre3-globale" class="selection-info">Note globale : -</p>
+    `;
+    wrapper.appendChild(top);
+    const bindOeuvre3 = (sliderId, numId, displayId, maxVal, setScore) => {
+        const s = document.getElementById(sliderId);
+        const n = document.getElementById(numId);
+        const d = document.getElementById(displayId);
+        const setValue = (v) => {
+            const num = Math.min(maxVal, Math.max(0, parseInt(String(v), 10)));
+            if (isNaN(num)) return;
+            setScore(String(num));
+            if (n) n.value = num;
+            if (s) s.value = num;
+            if (d) d.textContent = num;
+            checkValidationNotationExo3();
+        };
+        if (n) { n.addEventListener('input', () => setValue(n.value)); n.addEventListener('change', () => setValue(n.value)); }
+        if (s) s.addEventListener('input', () => setValue(s.value));
+    };
+    bindOeuvre3('pf3-slider-globale-1', 'pf3-num-globale-1', 'display-oeuvre3-globale', 30, v => { selectedScore1Exo3 = v; });
+    bindOeuvre3('pf3-slider-fond-1', 'pf3-num-fond-1', 'display-oeuvre3-fond', 20, v => { selectedScore2Exo3 = v; });
+    bindOeuvre3('pf3-slider-critere-1', 'pf3-num-critere-1', 'display-oeuvre3-critere', 20, v => { selectedScore3Exo3 = v; });
+}
+
+function updateNotationSelectsExo3() {
+    const filtered = CANDIDATES.filter(c => c.tour === (activeRoundId || 'round1'));
+    const sorted = [...filtered].sort((a, b) => (parseInt(a.id, 10) || 0) - (parseInt(b.id, 10) || 0));
+    const sel1 = document.getElementById('candidate-select-1c');
+    if (!sel1) return;
+    const cur1 = sel1.value;
+    sel1.innerHTML = '<option value="">-- Choisir --</option>' + sorted.map(c => ({ value: c.id, text: c.id + ' - ' + (c.name || c.id) })).map(o => `<option value="${o.value}">${o.text}</option>`).join('');
+    if (cur1) sel1.value = cur1;
+}
+
+function checkValidationNotationExo3() {
+    const btn = document.getElementById('validate-button-3');
+    if (!btn) return;
+    btn.disabled = !(selectedCandidateIdExo3 && selectedScore1Exo3 != null && selectedScore2Exo3 != null && selectedScore3Exo3 != null);
+}
+
+async function loadCandidateNotationSideExo3(candNum, candidateId) {
+    if (!candidateId) {
+        selectedCandidateIdExo3 = null;
+        document.getElementById('selected-candidate-display-1c').textContent = 'Aucun';
+        selectedScore1Exo3 = null; selectedScore2Exo3 = null; selectedScore3Exo3 = null;
+        ['pf3-slider-globale-1', 'pf3-num-globale-1', 'pf3-slider-fond-1', 'pf3-num-fond-1', 'pf3-slider-critere-1', 'pf3-num-critere-1'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = el.type === 'range' ? 0 : 0;
+        });
+        document.getElementById('display-oeuvre3-globale').textContent = 'Note globale : -';
+        ['display-oeuvre3-fond', 'display-oeuvre3-critere'].forEach(id => { const e = document.getElementById(id); if (e) e.textContent = '-'; });
+        updateNotationSelectsExo3();
+        checkValidationNotationExo3();
+        return;
+    }
+    const cand = CANDIDATES.find(x => x.id === candidateId);
+    if (!cand) return;
+    const q = query(collection(db, "scores"), where("candidateId", "==", candidateId), where("juryId", "==", currentJuryName), where("roundId", "==", activeRoundId || 'round1'));
+    const snap = await getDocs(q);
+    const data = snap.docs[0]?.data();
+    const s7 = data && (data.score7 != null && data.score7 !== '') ? data.score7 : '-';
+    const s8 = data && (data.score8 != null && data.score8 !== '') ? data.score8 : '-';
+    const s9 = data && (data.score9 != null && data.score9 !== '') ? data.score9 : '-';
+    const allSet = s7 !== '-' && s8 !== '-' && s9 !== '-';
+    selectedCandidateIdExo3 = candidateId;
+    document.getElementById('selected-candidate-display-1c').textContent = allSet ? cand.name + ' (déjà noté)' : 'Candidat : ' + cand.name;
+    selectedScore1Exo3 = s7 !== '-' ? s7 : null;
+    selectedScore2Exo3 = s8 !== '-' ? s8 : null;
+    selectedScore3Exo3 = s9 !== '-' ? s9 : null;
+    const setEl = (sid, nid, did, val) => {
+        const v = val !== '-' ? parseInt(val, 10) : null;
+        const s = document.getElementById(sid);
+        const n = document.getElementById(nid);
+        const d = document.getElementById(did);
+        if (s && v != null && !isNaN(v)) s.value = v;
+        if (n) n.value = v != null ? v : '';
+        if (d) d.textContent = v != null ? v : (did === 'display-oeuvre3-globale' ? 'Note globale : -' : '-');
+    };
+    setEl('pf3-slider-globale-1', 'pf3-num-globale-1', 'display-oeuvre3-globale', s7);
+    setEl('pf3-slider-fond-1', 'pf3-num-fond-1', 'display-oeuvre3-fond', s8);
+    setEl('pf3-slider-critere-1', 'pf3-num-critere-1', 'display-oeuvre3-critere', s9);
+    updateNotationSelectsExo3();
+    checkValidationNotationExo3();
+}
+
+async function validateNotationExo3() {
+    const roundId = activeRoundId || 'round1';
+    const q = query(collection(db, "scores"), where("candidateId", "==", selectedCandidateIdExo3), where("juryId", "==", currentJuryName), where("roundId", "==", roundId));
+    const existing = await getDocs(q);
+    const payload = { score7: selectedScore1Exo3, score8: selectedScore2Exo3, score9: selectedScore3Exo3, score10: '-', timestamp: new Date() };
+    if (!existing.empty) {
+        await setDoc(doc(db, "scores", existing.docs[0].id), payload, { merge: true });
+    } else {
+        const juryDoc = await getDoc(doc(db, "accounts", currentJuryName));
+        const juryName = juryDoc.exists() ? juryDoc.data().name : currentJuryName;
+        await addDoc(collection(db, "scores"), { juryId: currentJuryName, juryName, candidateId: selectedCandidateIdExo3, roundId, score1: '-', score2: '-', score3: '-', score4: '-', score5: '-', score6: '-', score7: selectedScore1Exo3, score8: selectedScore2Exo3, score9: selectedScore3Exo3, score10: '-', timestamp: new Date() });
+    }
+    selectedCandidateIdExo3 = null; selectedScore1Exo3 = null; selectedScore2Exo3 = null; selectedScore3Exo3 = null;
+    const sel1c = document.getElementById('candidate-select-1c');
+    if (sel1c) sel1c.value = '';
+    document.getElementById('selected-candidate-display-1c').textContent = 'Aucun';
+    ['pf3-slider-globale-1', 'pf3-num-globale-1', 'pf3-slider-fond-1', 'pf3-num-fond-1', 'pf3-slider-critere-1', 'pf3-num-critere-1'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = el.type === 'range' ? 0 : 0;
+    });
+    document.getElementById('display-oeuvre3-globale').textContent = 'Note globale : -';
+    ['display-oeuvre3-fond', 'display-oeuvre3-critere'].forEach(id => { const e = document.getElementById(id); if (e) e.textContent = '-'; });
+    updateNotationSelectsExo3();
+    checkValidationNotationExo3();
+    await customAlert("✓ La notation (Le temps des discours) a été enregistrée.");
 }
 
 /** Gestion des onglets jury : Notation | Duels | Mon classement */
@@ -3189,7 +3749,7 @@ async function showDuelsInterface() {
             <button type="button" class="jury-tab-btn" data-jury-tab="mon-classement">Mon classement</button>
         </div>
         <div id="jury-tab-notation" class="jury-tab-content active">
-            <p class="jury-notation-intro">Duel - Notez les deux candidats : Fond (×1) et Forme (×1) pour chacun. Note de 0 à 20 pour chaque critère.</p>
+            <p class="jury-notation-intro">Duel — Notez les deux candidats : Fond et Forme pour chacun (0 à 20 par critère).</p>
             <div class="jury-notation-cols">
                 <div class="jury-notation-card">
                     <label for="duel-candidate-1" class="card-title">Candidat 1</label>
@@ -3199,13 +3759,13 @@ async function showDuelsInterface() {
                     </select>
                     <hr class="jury-notation-sep">
                     <div class="control-group">
-                        <label>Fond / Argumentation (Coefficient ×1)</label>
+                        <label>Fond / Argumentation</label>
                         <div class="score-grid" id="duel-grid-fond-1"></div>
                         <p id="duel-display-1-fond" class="selection-info">Note Fond : -</p>
                 </div>
                     <hr class="jury-notation-sep">
                     <div class="control-group">
-                        <label>Forme / Éloquence (Coefficient ×1)</label>
+                        <label>Forme / Éloquence</label>
                         <div class="score-grid" id="duel-grid-forme-1"></div>
                         <p id="duel-display-1-forme" class="selection-info">Note Forme : -</p>
                     </div>
@@ -3218,13 +3778,13 @@ async function showDuelsInterface() {
                     </select>
                     <hr class="jury-notation-sep">
                     <div class="control-group">
-                        <label>Fond / Argumentation (Coefficient ×1)</label>
+                        <label>Fond / Argumentation</label>
                         <div class="score-grid" id="duel-grid-fond-2"></div>
                         <p id="duel-display-2-fond" class="selection-info">Note Fond : -</p>
                 </div>
                     <hr class="jury-notation-sep">
                     <div class="control-group">
-                        <label>Forme / Éloquence (Coefficient ×1)</label>
+                        <label>Forme / Éloquence</label>
                         <div class="score-grid" id="duel-grid-forme-2"></div>
                         <p id="duel-display-2-forme" class="selection-info">Note Forme : -</p>
                     </div>
@@ -3323,13 +3883,5 @@ async function confirmDuel() {
 
 checkSessionAndStart();
 
-// Rafraîchir automatiquement la liste des candidats toutes les 30 secondes
-// pour détecter les modifications faites dans l'interface admin
-setInterval(async () => {
-    // Ne rafraîchir que si on est sur la page de notation
-    const scoringPage = document.getElementById('scoring-page');
-    if (scoringPage && scoringPage.classList.contains('active')) {
-        console.log('🔄 Auto-rafraîchissement de la liste des candidats...');
-        await updateCandidateSelect(selectedCandidateId);
-    }
-}, 30000); // 30 secondes
+// La liste des candidats est synchronisée en temps réel via Firebase onSnapshot (setupRealtimeListeners).
+// Plus besoin de rafraîchissement périodique.

@@ -447,7 +447,7 @@ h2 {
 .jury-tabs-bar {
     display: flex;
     gap: 0;
-    margin-bottom: var(--spacing);
+    margin-bottom: 4px;
     flex-wrap: wrap;
     border-bottom: 2px solid var(--border-color);
 }
@@ -482,16 +482,38 @@ h2 {
 /* Onglet Notation jury : deux candidats (style type épreuve 1) */
 .jury-notation-intro {
     text-align: center;
-    color: var(--text-secondary);
-    margin-bottom: var(--spacing);
-    font-size: clamp(0.9rem, 2vw, 1rem);
+    color: var(--text-color);
+    margin-bottom: 2px;
+    font-size: clamp(0.9rem, 2vw, 1.05rem);
+    line-height: 1.3;
+    font-weight: 600;
+}
+/* Intro placée dans la carte : centrée entre encadré candidat et la ligne, légèrement descendue */
+.jury-notation-card .jury-notation-intro {
+    margin-top: 10px;
+    margin-bottom: 10px;
+    padding-top: 4px;
+    display: block;
+}
+/* Ligne entre la phrase d'intro et les notes (trois notes ou note sur 30) */
+.jury-notation-card .jury-notation-intro + .jury-notation-sep {
+    border: none;
+    border-top: 1px solid var(--border-color);
+    margin: 6px 0 8px 0;
+    padding: 0;
+    height: 0;
 }
 
 .jury-notation-cols {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: var(--spacing-md);
-    margin-bottom: var(--spacing);
+    margin-bottom: 4px;
+}
+/* Une seule carte (ex. Œuvre contemporaine) : occupe toute la largeur */
+.jury-notation-cols .jury-notation-card:only-child {
+    grid-column: 1 / -1;
+    max-width: 100%;
 }
 
 @media (max-width: 767px) {
@@ -503,7 +525,7 @@ h2 {
 .jury-notation-card {
     border: 2px solid var(--primary-color);
     border-radius: var(--radius);
-    padding: var(--spacing);
+    padding: 6px var(--spacing-md) 8px;
     background: var(--card-bg);
     box-shadow: var(--shadow-sm);
     transition: var(--transition);
@@ -514,7 +536,7 @@ h2 {
 }
 
 .jury-notation-card .control-group {
-    margin-top: var(--spacing);
+    margin-top: var(--spacing-sm);
 }
 
 .jury-notation-card .control-group:first-of-type {
@@ -525,13 +547,20 @@ h2 {
     display: block;
     color: var(--primary-color);
     font-weight: 600;
-    margin-bottom: var(--spacing-xs);
-    font-size: 1rem;
+    margin-bottom: 2px;
+    font-size: 0.95rem;
+}
+/* Masquer l'encadré bleu "Aucun" / nom du candidat sous le select (inutile) */
+#selected-candidate-display-1,
+#selected-candidate-display-2,
+#selected-candidate-display-1b,
+#selected-candidate-display-1c {
+    display: none !important;
 }
 
 .jury-notation-card select {
     width: 100%;
-    padding: var(--spacing-sm);
+    padding: 4px 8px;
     border: 2px solid var(--border-color);
     border-radius: var(--radius-sm);
     background: var(--input-bg);
@@ -550,13 +579,14 @@ h2 {
 .jury-notation-card .jury-notation-sep {
     border: none;
     border-top: 1px solid var(--border-color);
-    margin: var(--spacing) 0;
+    margin: 4px 0;
 }
 
 .jury-notation-validate {
     width: 100%;
-    padding: 14px;
-    font-size: 1.1em;
+    padding: 10px 14px;
+    margin-top: var(--spacing-xs);
+    font-size: 1.05em;
     font-weight: 600;
     border-radius: var(--radius);
     border: 2px solid var(--success-dark);
@@ -586,6 +616,96 @@ h2 {
     width: 100%;
     min-width: 0;
 }
+/* Petite finale : on réutilise le même widget curseur que les duels,
+   mais dans des conteneurs 'grid-*' (notation). On force donc le même layout "pleine largeur". */
+.jury-notation-card .duel-grid {
+    display: block;
+    width: 100%;
+    min-width: 0;
+}
+
+/* Œuvre : 4 notes — note globale toute la largeur en haut, 3 notes en dessous */
+.œuvre-notes-wrapper {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+.œuvre-notes-top {
+    width: 100%;
+    grid-column: 1 / -1;
+    padding-bottom: 0;
+    margin-bottom: 0;
+}
+.œuvre-notes-top label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: var(--text-primary, #333);
+}
+.œuvre-notes-top .duel-score-input-wrap {
+    margin: 2px 0;
+}
+.œuvre-notes-bottom .œuvre-note-cell label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--text-primary, #333);
+}
+.œuvre-notes-bottom {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    width: 100%;
+    min-height: 100px;
+    padding-bottom: 6px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+.œuvre-note-cell {
+    min-width: 0;
+    min-height: 90px;
+    padding: 6px var(--spacing-md) 8px;
+    border-left: 1px solid rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+}
+.œuvre-note-cell:first-child {
+    border-left: none;
+    padding-left: 0;
+}
+.œuvre-note-cell:last-child {
+    padding-right: 0;
+}
+.œuvre-notes-bottom .duel-score-input-wrap {
+    margin: 4px 0;
+    flex: 1;
+    min-height: 36px;
+    justify-content: center;
+    display: flex;
+    flex-direction: column;
+}
+.œuvre-notes-wrapper .duel-score-input-wrap {
+    margin: var(--spacing-xs) 0;
+}
+.œuvre-notes-wrapper .œuvre-notes-top .duel-score-input-wrap {
+    margin: 2px 0;
+}
+.œuvre-notes-wrapper .selection-info {
+    margin: 2px 0;
+}
+.œuvre-critere-input {
+    width: 100%;
+    max-width: 80px;
+    padding: 8px;
+    font-size: 1rem;
+    text-align: center;
+    border: 1px solid var(--border-color, #ccc);
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
 .duel-score-input-wrap {
     display: flex;
     flex-direction: column;
