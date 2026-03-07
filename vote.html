@@ -2,33 +2,40 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes, viewport-fit=cover">
     <meta name="description" content="Vote du public - Choisissez votre candidat préféré">
     <meta name="theme-color" content="#0f0f14">
     <title>Vote du public — Concours d'éloquence</title>
-    <link rel="stylesheet" href="style.css">
     <style>
-        /* ——— Thème sombre, visuel type bulletin ——— */
-        body.vote-page-dark {
-            background: #0f0f14 !important;
-            color: #e8e8ec;
-            overflow-y: auto !important;
-            overflow-x: hidden !important;
-            height: auto !important;
-            min-height: 100vh;
-            display: block !important;
-            margin: 0 !important;
-            padding: 0 !important;
+        *, *::before, *::after { box-sizing: border-box; }
+        html {
             width: 100%;
-            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            -webkit-text-size-adjust: 100%;
+        }
+        body.vote-page-dark {
+            background: #0f0f14;
+            color: #e8e8ec;
+            overflow-y: auto;
+            overflow-x: hidden;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            max-width: 100vw;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
         .vote-page {
             min-height: 100vh;
-            padding: 0 clamp(10px, 4vw, 20px) 40px;
+            padding: 0 8px 40px;
+            padding-left: max(8px, env(safe-area-inset-left));
+            padding-right: max(8px, env(safe-area-inset-right));
             background: linear-gradient(180deg, #0f0f14 0%, #131318 30%, #0d0d11 100%);
             position: relative;
             width: 100%;
-            box-sizing: border-box;
+            max-width: 100vw;
         }
         .vote-page::before {
             content: "";
@@ -44,11 +51,11 @@
         .vote-container {
             max-width: 640px;
             width: 100%;
+            min-width: 0;
             margin: 0 auto;
             position: relative;
             z-index: 1;
             padding-top: 48px;
-            box-sizing: border-box;
         }
         .vote-header {
             margin-bottom: 40px;
