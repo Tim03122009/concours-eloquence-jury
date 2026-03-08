@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1a1a24">
+    <title>Saisie des malus — Concours d'éloquence</title>
+    <style>
+        * { box-sizing: border-box; }
+        :root {
+            --malus-bg: #1a1a24;
+            --malus-surface: #252532;
+            --malus-border: #3a3a4a;
+            --malus-text: #e8e8ec;
+            --malus-muted: #9ca3af;
+            --malus-accent: #6366f1;
+            --malus-radius: 10px;
+            --malus-shadow: 0 4px 24px rgba(0,0,0,0.35);
+        }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(180deg, #0f0f14 0%, #1a1a24 50%, #131318 100%);
+            color: var(--malus-text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 24px 16px;
+        }
+        .malus-header {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+        .malus-header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 0 0 4px 0;
+            color: var(--malus-text);
+        }
+        .malus-header p {
+            font-size: 0.9rem;
+            color: var(--malus-muted);
+            margin: 0;
+        }
+        .malus-card {
+            width: 100%;
+            max-width: 560px;
+            background: var(--malus-surface);
+            border: 1px solid var(--malus-border);
+            border-radius: var(--malus-radius);
+            box-shadow: var(--malus-shadow);
+            padding: 24px;
+        }
+        .malus-card-inner {
+            display: flex;
+            align-items: stretch;
+            gap: 16px;
+        }
+        .malus-card-left {
+            flex: 1;
+            min-width: 0;
+        }
+        .malus-field {
+            margin-bottom: 14px;
+        }
+        .malus-field label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--malus-muted);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .malus-field select {
+            width: 100%;
+            padding: 8px 12px;
+            font-size: 0.95rem;
+            border: 1px solid var(--malus-border);
+            border-radius: 8px;
+            background: var(--malus-bg);
+            color: var(--malus-text);
+            cursor: pointer;
+            min-height: 38px;
+        }
+        .malus-field select:focus {
+            outline: none;
+            border-color: var(--malus-accent);
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+        }
+        .malus-row {
+            display: flex;
+            align-items: stretch;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 16px;
+        }
+        .malus-reason-wrap {
+            flex: 1;
+            min-width: 180px;
+            display: flex;
+            align-items: stretch;
+            border: 1px solid var(--malus-border);
+            border-radius: 8px;
+            background: var(--malus-bg);
+            overflow: hidden;
+        }
+        .malus-reason-input {
+            flex: 1;
+            min-width: 0;
+            padding: 12px 14px;
+            border: none;
+            background: transparent;
+            color: var(--malus-text);
+            font-size: 1rem;
+        }
+        .malus-reason-input::placeholder {
+            color: var(--malus-muted);
+        }
+        .malus-reason-input:focus {
+            outline: none;
+        }
+        .malus-reason-trigger {
+            width: 36px;
+            min-width: 36px;
+            padding: 12px 8px;
+            border: none;
+            border-left: 1px solid var(--malus-border);
+            background: var(--malus-text);
+            mask: url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 12 8%22%3E%3Cpath fill=%22black%22 d=%22M1 1L6 7L11 1%22/%3E%3C/svg%3E') no-repeat center;
+            mask-size: 10px 6px;
+            -webkit-mask: url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 12 8%22%3E%3Cpath fill=%22black%22 d=%22M1 1L6 7L11 1%22/%3E%3C/svg%3E') no-repeat center;
+            -webkit-mask-size: 10px 6px;
+            cursor: pointer;
+        }
+        .malus-points-input {
+            width: 80px;
+            min-width: 80px;
+            padding: 12px 14px;
+            border: 1px solid var(--malus-border);
+            border-radius: 8px;
+            background: var(--malus-bg);
+            color: var(--malus-text);
+            font-size: 1rem;
+            text-align: center;
+        }
+        .malus-points-input:focus {
+            outline: none;
+            border-color: var(--malus-accent);
+        }
+        .malus-add-btn {
+            padding: 12px 20px;
+            border: 1px solid var(--malus-border);
+            border-radius: 8px;
+            background: var(--malus-accent);
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .malus-add-btn:hover {
+            background: #5558e3;
+            border-color: #5558e3;
+        }
+        .malus-add-btn:active {
+            transform: scale(0.98);
+        }
+        .malus-dropdown {
+            position: fixed;
+            z-index: 99999;
+            min-width: 200px;
+            max-height: 280px;
+            overflow-y: auto;
+            background: var(--malus-surface);
+            border: 1px solid var(--malus-border);
+            border-radius: 8px;
+            box-shadow: var(--malus-shadow);
+            padding: 6px 0;
+            list-style: none;
+            margin: 0;
+        }
+        .malus-dropdown li {
+            padding: 10px 14px;
+            cursor: pointer;
+            color: var(--malus-text);
+            font-size: 0.95rem;
+        }
+        .malus-dropdown li:hover {
+            background: rgba(99, 102, 241, 0.15);
+        }
+        .malus-back {
+            display: inline-block;
+            margin-top: 24px;
+            font-size: 0.9rem;
+            color: var(--malus-muted);
+            text-decoration: none;
+        }
+        .malus-back:hover {
+            color: var(--malus-accent);
+        }
+        .malus-active-round {
+            margin: 0 0 4px 0;
+            font-size: 0.85rem;
+            color: var(--malus-muted);
+        }
+        .malus-active-round strong {
+            color: var(--malus-text);
+        }
+        .malus-msg {
+            margin-top: 12px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            display: none;
+        }
+        .malus-msg.success {
+            display: block;
+            background: rgba(34, 197, 94, 0.15);
+            border: 1px solid rgba(34, 197, 94, 0.4);
+            color: #86efac;
+        }
+        .malus-msg.error {
+            display: block;
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            color: #fca5a5;
+        }
+        .malus-list-section {
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid var(--malus-border);
+        }
+        .malus-list-section h3 {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--malus-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin: 0 0 10px 0;
+        }
+        .malus-list-empty {
+            font-size: 0.9rem;
+            color: var(--malus-muted);
+            font-style: italic;
+        }
+        .malus-list-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            margin-bottom: 6px;
+            background: rgba(220, 53, 69, 0.08);
+            border: 1px solid rgba(220, 53, 69, 0.2);
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        .malus-list-item span:first-child {
+            flex: 1;
+            margin-right: 12px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .malus-list-item .malus-points {
+            font-weight: 600;
+            color: #f87171;
+        }
+        .malus-points-slider {
+            width: 44px;
+            flex: 0 0 44px;
+            align-self: stretch;
+            min-height: 120px;
+            padding: 0;
+            box-sizing: border-box;
+            background: var(--malus-bg);
+            border: 1px solid var(--malus-border);
+            border-radius: 8px;
+            position: relative;
+            cursor: ns-resize;
+            user-select: none;
+            touch-action: none;
+        }
+        .malus-points-slider-track {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 6px;
+            margin-left: -3px;
+            height: 100%;
+            background: var(--malus-border);
+            border-radius: 3px;
+        }
+        .malus-points-slider-thumb {
+            position: absolute;
+            left: 50%;
+            width: 28px;
+            height: 18px;
+            margin-left: -14px;
+            background: var(--malus-accent);
+            border-radius: 6px;
+            cursor: grab;
+            transition: top 0.15s ease-out;
+            z-index: 1;
+        }
+        .malus-points-slider-thumb:active {
+            cursor: grabbing;
+        }
+        .malus-points-slider-thumb.dragging {
+            transition: none;
+        }
+        .malus-slider-with-scale {
+            display: flex;
+            align-items: stretch;
+            gap: 0;
+            flex: 0 0 auto;
+        }
+        .malus-points-scale {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 120px;
+            flex-shrink: 0;
+        }
+        .malus-points-scale-labels {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            flex: 1;
+            min-height: 120px;
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.95);
+            font-weight: 500;
+        }
+        .malus-scale-tick {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            line-height: 1;
+        }
+        .malus-scale-tick .malus-scale-line {
+            width: 10px;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.95);
+            flex-shrink: 0;
+        }
+        .malus-scale-tick .malus-scale-value {
+            line-height: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="malus-header">
+        <h1>Saisie des malus</h1>
+        <p>Choisissez le tour, le candidat, la raison et les points.</p>
+    </div>
+    <div class="malus-card">
+        <div class="malus-card-inner">
+            <div class="malus-card-left">
+                <div class="malus-field">
+                    <p id="malus-active-round" class="malus-active-round">Tour actuel : Chargement…</p>
+                </div>
+                <div class="malus-field">
+                    <label for="malus-candidate">Candidat</label>
+                    <select id="malus-candidate">
+                        <option value="">Chargement…</option>
+                    </select>
+                </div>
+                <div class="malus-row">
+                    <div class="malus-reason-wrap">
+                        <input type="text" id="malus-reason-input" class="malus-reason-input" placeholder="Raison du malus (saisie libre)" autocomplete="off">
+                        <button type="button" id="malus-reason-trigger" class="malus-reason-trigger" title="Choisir une raison prédéfinie"></button>
+                    </div>
+                    <input type="number" id="malus-points-input" class="malus-points-input" placeholder="Points" min="0" step="0.5" title="Points enlevés">
+                    <button type="button" id="malus-add-btn" class="malus-add-btn">Ajouter</button>
+                </div>
+                <div id="malus-msg" class="malus-msg"></div>
+                <div id="malus-list-section" class="malus-list-section" style="display: none;">
+                    <h3>Malus déjà enregistrés pour ce candidat</h3>
+                    <div id="malus-list"></div>
+                </div>
+            </div>
+            <div class="malus-slider-with-scale">
+                <div id="malus-points-slider" class="malus-points-slider" title="Tirer vers le haut pour augmenter, vers le bas pour diminuer">
+                    <div class="malus-points-slider-track"></div>
+                    <div id="malus-points-slider-thumb" class="malus-points-slider-thumb"></div>
+                </div>
+                <div class="malus-points-scale">
+                    <div class="malus-points-scale-labels">
+                        <div class="malus-scale-tick"><span class="malus-scale-line"></span><span class="malus-scale-value">+1,5</span></div>
+                        <div class="malus-scale-tick"><span class="malus-scale-line"></span><span class="malus-scale-value">+1</span></div>
+                        <div class="malus-scale-tick"><span class="malus-scale-line"></span><span class="malus-scale-value">+0,5</span></div>
+                        <div class="malus-scale-tick"><span class="malus-scale-line"></span><span class="malus-scale-value">0</span></div>
+                        <div class="malus-scale-tick"><span class="malus-scale-line"></span><span class="malus-scale-value">-0,5</span></div>
+                        <div class="malus-scale-tick"><span class="malus-scale-line"></span><span class="malus-scale-value">-1</span></div>
+                        <div class="malus-scale-tick"><span class="malus-scale-line"></span><span class="malus-scale-value">-1,5</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <a href="index.html" class="malus-back">← Retour à la connexion</a>
+
+    <script type="module">
+        import { db } from './firebase-init.js';
+        import { getDoc, setDoc, doc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js';
+
+        const MALUS_REASONS = [
+            'Dépassement du temps imparti',
+            'Retard',
+            'Incident micro / son',
+            'Non-respect du scénario'
+        ];
+
+        let activeRoundId = null;
+        let activeRoundName = '';
+        let CANDIDATES = [];
+
+        const activeRoundEl = document.getElementById('malus-active-round');
+        const candidateSelect = document.getElementById('malus-candidate');
+        const reasonInput = document.getElementById('malus-reason-input');
+        const pointsInput = document.getElementById('malus-points-input');
+        const addBtn = document.getElementById('malus-add-btn');
+        const reasonTrigger = document.getElementById('malus-reason-trigger');
+        const msgEl = document.getElementById('malus-msg');
+        const malusListSection = document.getElementById('malus-list-section');
+        const malusListEl = document.getElementById('malus-list');
+        const pointsSlider = document.getElementById('malus-points-slider');
+        const pointsSliderThumb = document.getElementById('malus-points-slider-thumb');
+
+        const THUMB_HEIGHT = 18;
+        const ZONE_INTERVAL_MS = 450;
+
+        function getSliderHeight() { return pointsSlider ? pointsSlider.getBoundingClientRect().height : 56; }
+        function getSliderCenterTop() { return (getSliderHeight() - THUMB_HEIGHT) / 2; }
+
+        function getPointsValue() {
+            const v = pointsInput.value.trim();
+            if (v === '') return 0;
+            const n = parseFloat(v);
+            return isNaN(n) ? 0 : Math.max(0, n);
+        }
+
+        function setPointsValue(val) {
+            const n = Math.max(0, typeof val === 'number' ? val : parseFloat(val));
+            pointsInput.value = n === 0 ? '' : String(n);
+        }
+
+        function setThumbPosition(topPx) {
+            const h = getSliderHeight();
+            const clamped = Math.max(0, Math.min(h - THUMB_HEIGHT, topPx));
+            pointsSliderThumb.style.top = clamped + 'px';
+        }
+
+        /** ratio 0 = haut du slider, 1 = bas. Retourne { zone, step } avec step dans {-1.5,-1,-0.5,0,+0.5,+1,+1.5}. */
+        function getZoneAndStep(thumbTopPx) {
+            const h = getSliderHeight();
+            const maxTop = h - THUMB_HEIGHT;
+            if (maxTop <= 0) return { zone: 'middle', step: 0 };
+            const ratio = thumbTopPx / maxTop;
+            if (ratio < 1/7) return { zone: 'top', step: 1.5 };
+            if (ratio < 2/7) return { zone: 'topMid', step: 1 };
+            if (ratio < 3/7) return { zone: 'topLow', step: 0.5 };
+            if (ratio < 4/7) return { zone: 'middle', step: 0 };
+            if (ratio < 5/7) return { zone: 'bottomLow', step: -0.5 };
+            if (ratio < 6/7) return { zone: 'bottomMid', step: -1 };
+            return { zone: 'bottom', step: -1.5 };
+        }
+
+        function setupPointsSlider() {
+            setThumbPosition(getSliderCenterTop());
+            let isDragging = false;
+            let zoneTimer = null;
+
+            function clearZoneTimer() {
+                if (zoneTimer) {
+                    clearInterval(zoneTimer);
+                    zoneTimer = null;
+                }
+            }
+
+            function startZoneTimer(step) {
+                clearZoneTimer();
+                if (step > 0) {
+                    zoneTimer = setInterval(() => { setPointsValue(getPointsValue() + step); }, ZONE_INTERVAL_MS);
+                } else if (step < 0) {
+                    zoneTimer = setInterval(() => { setPointsValue(Math.max(0, getPointsValue() + step)); }, ZONE_INTERVAL_MS);
+                }
+            }
+
+            function onMove(clientY) {
+                if (!isDragging) return;
+                const rect = pointsSlider.getBoundingClientRect();
+                const y = clientY - rect.top;
+                const thumbTop = Math.max(0, Math.min(getSliderHeight() - THUMB_HEIGHT, y - THUMB_HEIGHT / 2));
+                setThumbPosition(thumbTop);
+                const { step } = getZoneAndStep(thumbTop);
+                if (step === 0) clearZoneTimer();
+                else startZoneTimer(step);
+            }
+
+            function onEnd() {
+                if (!isDragging) return;
+                isDragging = false;
+                clearZoneTimer();
+                pointsSliderThumb.classList.remove('dragging');
+                setThumbPosition(getSliderCenterTop());
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onEnd);
+                document.removeEventListener('touchmove', onTouchMove, { passive: false });
+                document.removeEventListener('touchend', onTouchEnd);
+            }
+
+            function onMouseMove(e) { onMove(e.clientY); }
+            function onTouchMove(e) { e.preventDefault(); if (e.touches.length) onMove(e.touches[0].clientY); }
+            function onTouchEnd(e) { if (e.touches.length === 0) onEnd(); }
+
+            pointsSliderThumb.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                isDragging = true;
+                pointsSliderThumb.classList.add('dragging');
+                const rect = pointsSlider.getBoundingClientRect();
+                const y = e.clientY - rect.top;
+                const thumbTop = Math.max(0, Math.min(getSliderHeight() - THUMB_HEIGHT, y - THUMB_HEIGHT / 2));
+                setThumbPosition(thumbTop);
+                const { step } = getZoneAndStep(thumbTop);
+                startZoneTimer(step);
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onEnd);
+            });
+
+            pointsSlider.addEventListener('mousedown', function(e) {
+                if (e.target !== pointsSliderThumb) {
+                    e.preventDefault();
+                    isDragging = true;
+                    pointsSliderThumb.classList.add('dragging');
+                    const rect = pointsSlider.getBoundingClientRect();
+                    const h = rect.height;
+                    const y = Math.max(0, Math.min(h, e.clientY - rect.top));
+                    const thumbTop = Math.max(0, Math.min(h - THUMB_HEIGHT, y - THUMB_HEIGHT / 2));
+                    setThumbPosition(thumbTop);
+                    const { step } = getZoneAndStep(thumbTop);
+                    startZoneTimer(step);
+                    document.addEventListener('mousemove', onMouseMove);
+                    document.addEventListener('mouseup', onEnd);
+                }
+            });
+
+            pointsSliderThumb.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                isDragging = true;
+                pointsSliderThumb.classList.add('dragging');
+                const rect = pointsSlider.getBoundingClientRect();
+                const y = e.touches[0].clientY - rect.top;
+                const thumbTop = Math.max(0, Math.min(getSliderHeight() - THUMB_HEIGHT, y - THUMB_HEIGHT / 2));
+                setThumbPosition(thumbTop);
+                const { step } = getZoneAndStep(thumbTop);
+                startZoneTimer(step);
+                document.addEventListener('touchmove', onTouchMove, { passive: false });
+                document.addEventListener('touchend', onTouchEnd);
+            }, { passive: false });
+        }
+
+        function showMsg(text, isError) {
+            msgEl.textContent = text;
+            msgEl.className = 'malus-msg ' + (isError ? 'error' : 'success');
+            msgEl.style.display = 'block';
+            setTimeout(() => { msgEl.style.display = 'none'; }, 4000);
+        }
+
+        async function loadActiveRound() {
+            try {
+                const snap = await getDoc(doc(db, 'config', 'rounds'));
+                if (snap.exists()) {
+                    const data = snap.data();
+                    const rounds = data.rounds || [];
+                    activeRoundId = data.activeRoundId || null;
+                    if (!activeRoundId && rounds.length > 0) activeRoundId = rounds[0].id;
+                    const activeRound = rounds.find(r => r.id === activeRoundId);
+                    activeRoundName = activeRound ? (activeRound.name || activeRoundId) : (activeRoundId || '—');
+                } else {
+                    activeRoundId = 'round1';
+                    activeRoundName = '1er tour';
+                }
+                if (activeRoundEl) activeRoundEl.innerHTML = 'Tour actuel : <strong>' + (activeRoundName || '—') + '</strong>';
+            } catch (e) {
+                console.error(e);
+                if (activeRoundEl) activeRoundEl.textContent = 'Tour actuel : Erreur de chargement';
+            }
+        }
+
+        async function loadCandidates() {
+            try {
+                const snap = await getDoc(doc(db, 'candidats', 'liste_actuelle'));
+                CANDIDATES = (snap.exists() && snap.data().candidates) ? snap.data().candidates : [];
+                CANDIDATES.sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function fillCandidateSelect() {
+            candidateSelect.innerHTML = '<option value="">— Choisir un candidat —</option>';
+            CANDIDATES.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.name || c.id;
+                candidateSelect.appendChild(opt);
+            });
+        }
+
+        async function loadMalusForCandidate(roundId, candidateId) {
+            if (!roundId || !candidateId) return [];
+            try {
+                const snap = await getDoc(doc(db, 'config', 'malus'));
+                const data = snap.exists() ? snap.data() : {};
+                const byRound = data.byRound || {};
+                const byCandidate = byRound[roundId] || {};
+                return Array.isArray(byCandidate[candidateId]) ? byCandidate[candidateId] : [];
+            } catch (e) {
+                console.error(e);
+                return [];
+            }
+        }
+
+        function renderMalusList(items) {
+            if (!malusListEl || !malusListSection) return;
+            malusListEl.innerHTML = '';
+            if (!items || items.length === 0) {
+                malusListEl.innerHTML = '<p class="malus-list-empty">Aucun malus pour ce candidat sur ce tour.</p>';
+            } else {
+                items.forEach(m => {
+                    const div = document.createElement('div');
+                    div.className = 'malus-list-item';
+                    div.innerHTML = '<span>' + (m.reason || '(sans raison)').replace(/</g, '&lt;') + '</span><span class="malus-points">−' + (typeof m.points === 'number' ? m.points : m.points) + ' pt</span>';
+                    malusListEl.appendChild(div);
+                });
+            }
+            malusListSection.style.display = 'block';
+        }
+
+        async function refreshMalusListForSelectedCandidate() {
+            const candidateId = candidateSelect.value;
+            if (!candidateId || !activeRoundId) {
+                if (malusListSection) malusListSection.style.display = 'none';
+                return;
+            }
+            const list = await loadMalusForCandidate(activeRoundId, candidateId);
+            renderMalusList(list);
+        }
+
+        function openReasonsDropdown() {
+            const existing = document.getElementById('malus-reasons-dropdown-root');
+            if (existing) existing.remove();
+            const rect = reasonTrigger.getBoundingClientRect();
+            const list = document.createElement('ul');
+            list.id = 'malus-reasons-dropdown-root';
+            list.className = 'malus-dropdown';
+            list.style.left = Math.max(8, rect.left) + 'px';
+            list.style.top = (rect.bottom + 6) + 'px';
+            MALUS_REASONS.forEach(label => {
+                const li = document.createElement('li');
+                li.textContent = label;
+                li.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    reasonInput.value = label;
+                    if (label !== 'Dépassement du temps imparti') pointsInput.value = '10';
+                    list.remove();
+                    document.removeEventListener('click', closeOutside);
+                });
+                list.appendChild(li);
+            });
+            document.body.appendChild(list);
+            function closeOutside(e) {
+                if (!list.contains(e.target) && e.target !== reasonTrigger) {
+                    list.remove();
+                    document.removeEventListener('click', closeOutside);
+                }
+            }
+            setTimeout(() => document.addEventListener('click', closeOutside), 0);
+        }
+
+        reasonTrigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openReasonsDropdown();
+        });
+
+        reasonInput.addEventListener('input', () => {
+            if ((reasonInput.value || '').trim() === '') pointsInput.value = '';
+        });
+
+        async function addMalus() {
+            const roundId = activeRoundId;
+            const candidateId = candidateSelect.value;
+            const reason = (reasonInput.value || '').trim();
+            const pointsVal = pointsInput.value;
+            const points = typeof pointsVal === 'string' && pointsVal !== '' ? parseFloat(pointsVal) : NaN;
+
+            if (!roundId || !candidateId) {
+                showMsg('Veuillez choisir un candidat. (Le tour actuel est utilisé.)', true);
+                return;
+            }
+            if (!reason) {
+                showMsg('Veuillez saisir une raison.', true);
+                return;
+            }
+            if (isNaN(points) || points < 0) {
+                showMsg('Veuillez entrer un nombre de points valide (≥ 0).', true);
+                return;
+            }
+
+            try {
+                const snap = await getDoc(doc(db, 'config', 'malus'));
+                const data = snap.exists() ? snap.data() : {};
+                const byRound = data.byRound || {};
+                if (!byRound[roundId]) byRound[roundId] = {};
+                if (!byRound[roundId][candidateId]) byRound[roundId][candidateId] = [];
+                byRound[roundId][candidateId].push({ reason: reason || '(sans raison)', points });
+                await setDoc(doc(db, 'config', 'malus'), { byRound }, { merge: true });
+                showMsg('Malus enregistré.');
+                reasonInput.value = '';
+                pointsInput.value = '';
+                await refreshMalusListForSelectedCandidate();
+            } catch (e) {
+                console.error(e);
+                showMsg('Erreur : ' + (e.message || e), true);
+            }
+        }
+
+        addBtn.addEventListener('click', addMalus);
+
+        candidateSelect.addEventListener('change', refreshMalusListForSelectedCandidate);
+
+        (async () => {
+            await loadActiveRound();
+            await loadCandidates();
+            fillCandidateSelect();
+            if (pointsSlider && pointsSliderThumb) setupPointsSlider();
+            onSnapshot(doc(db, 'config', 'malus'), () => {
+                refreshMalusListForSelectedCandidate();
+            }, (err) => console.error('malus listener', err));
+        })();
+    </script>
+</body>
+</html>

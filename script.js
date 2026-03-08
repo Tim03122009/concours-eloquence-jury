@@ -74,6 +74,9 @@ let duelScore2Forme = null;
 let classementListener = null;
 let isCurrentUserPresident = false;
 
+/** Critère à évaluer pour la note « critère spécifique » en petite finale (assigné par l'admin). */
+let currentJuryCriterePetiteFinale = '';
+
 // Listeners temps réel (admin → jury : mise à jour sans recharger la page)
 let roundsRealtimeListener = null;
 let candidatesRealtimeListener = null;
@@ -967,6 +970,16 @@ document.getElementById('start-scoring-button').onclick = async () => {
             return;
         }
 
+        // Accès interface malus : identifiant "malus" et mot de passe vide
+        if (name.toLowerCase() === 'malus') {
+            if (password && password.trim() !== '') {
+                alert('Pour l\'interface malus, laissez le mot de passe vide.');
+                return;
+            }
+            window.location.href = 'malus.html';
+            return;
+        }
+
         // Vérification mode admin
         if (name.toLowerCase() === 'admin') {
             const adminDoc = await getDoc(doc(db, "config", "admin"));
@@ -1356,6 +1369,7 @@ async function startScoring() {
     // Vérifier que le jury a accès au tour actif et si c'est le président (bonus victoire)
     const juryDoc = await getDoc(doc(db, "accounts", currentJuryName));
     isCurrentUserPresident = juryDoc.exists() && juryDoc.data().isPresident === true;
+    currentJuryCriterePetiteFinale = (juryDoc.exists() && juryDoc.data().criterePetiteFinale) ? String(juryDoc.data().criterePetiteFinale).trim() : '';
     if (juryDoc.exists()) {
         const juryData = juryDoc.data();
         const juryRounds = juryData.rounds || [];
@@ -1485,13 +1499,21 @@ function setupRealtimeListeners() {
     let accountFirst = true;
     juryAccountRealtimeListener = onSnapshot(doc(db, "accounts", currentJuryName), (snap) => {
         if (!snap.exists()) return;
-        if (accountFirst) {
-            accountFirst = false;
-            return;
-        }
         try {
-            isCurrentUserPresident = snap.data().isPresident === true;
-            refreshCurrentJuryPanel();
+            const data = snap.data();
+            isCurrentUserPresident = data.isPresident === true;
+            currentJuryCriterePetiteFinale = (data.criterePetiteFinale) ? String(data.criterePetiteFinale).trim() : '';
+            if (!accountFirst) refreshCurrentJuryPanel();
+            else accountFirst = false;
+            const labelCritere = document.getElementById('label-critere-exo3');
+            if (labelCritere) {
+                labelCritere.textContent = currentJuryCriterePetiteFinale ? `Note critère spécifique (${currentJuryCriterePetiteFinale})` : 'Note critère spécifique';
+            }
+            const critereAssigneEl = document.getElementById('jury-critere-assigne');
+            if (critereAssigneEl) {
+                critereAssigneEl.textContent = currentJuryCriterePetiteFinale ? 'Critère à évaluer : ' + currentJuryCriterePetiteFinale : '';
+                critereAssigneEl.style.display = currentJuryCriterePetiteFinale ? '' : 'none';
+            }
         } catch (e) {
             console.error('juryAccountRealtime listener', e);
         }
@@ -1967,6 +1989,7 @@ function showNotationInterface() {
                     </select>
                     <p id="selected-candidate-display-1c" class="selection-info">Aucun</p>
                     <p class="jury-notation-intro">Le temps des discours — Trois notes : note globale du discours, note de fond, note critère spécifique.</p>
+                    <p id="jury-critere-assigne" class="selection-info" style="font-weight: 600; margin-top: 4px; display: none;"></p>
                     <hr class="jury-notation-sep">
                     <div id="œuvre-notes-wrapper-3" class="œuvre-notes-wrapper"></div>
                     <div id="grid-fond-1c" style="display: none;"></div>
@@ -2032,6 +2055,11 @@ if (intro1) intro1.textContent = 'Noter deux candidats : Fond pour chacun.';
         const validateBtn2 = document.getElementById('validate-button-2');
         if (validateBtn2) validateBtn2.addEventListener('click', validateNotationTwoExo2);
         createGridsNotationExo3();
+        const critereAssigneEl = document.getElementById('jury-critere-assigne');
+        if (critereAssigneEl) {
+            critereAssigneEl.textContent = currentJuryCriterePetiteFinale ? 'Critère à évaluer : ' + currentJuryCriterePetiteFinale : '';
+            critereAssigneEl.style.display = currentJuryCriterePetiteFinale ? '' : 'none';
+        }
         updateNotationSelectsExo3();
         const sel1c = document.getElementById('candidate-select-1c');
         if (sel1c) sel1c.addEventListener('change', function() { loadCandidateNotationSideExo3(1, this.value || null); });
@@ -2343,7 +2371,7 @@ function createGridsNotationExo3() {
             <p id="display-oeuvre3-fond" class="selection-info">-</p>
         </div>
         <div class="œuvre-note-cell">
-            <label>Note critère spécifique</label>
+            <label id="label-critere-exo3">${currentJuryCriterePetiteFinale ? `Note critère spécifique (${currentJuryCriterePetiteFinale})` : 'Note critère spécifique'}</label>
             <div class="duel-score-input-wrap">
                 <div class="duel-slider-row">
                     <span class="duel-slider-endcap">0</span>
