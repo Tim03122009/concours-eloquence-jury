@@ -563,6 +563,38 @@
             position: relative;
             overflow: visible;
         }
+        .notes-malus-dropdown {
+            min-width: 160px;
+        }
+        .notes-malus-dropdown-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+            padding: 6px 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: var(--input-bg);
+            color: var(--text-color);
+            font-size: 13px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .notes-malus-dropdown-header:hover {
+            background: var(--border-color);
+        }
+        .notes-malus-dropdown-header .chevron {
+            font-size: 0.7em;
+            opacity: 0.8;
+        }
+        .notes-malus-dropdown.closed .notes-malus-dropdown-body {
+            display: none;
+        }
+        .notes-malus-dropdown .notes-malus-dropdown-body {
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px solid var(--border-color);
+        }
 
         /* Menu déroulant personnalisé des raisons de malus (position: fixed, au-dessus de tout) */
         .malus-reasons-dropdown {
@@ -1365,6 +1397,31 @@
             } catch (e) {
                 console.error('removeMalus', e);
                 await customAlert('Erreur lors de la suppression du malus : ' + (e.message || e));
+            }
+        };
+
+        /** Modifie un malus (index dans la liste du candidat). Préserve fromMalusPage si présent. */
+        window.updateMalus = async function(roundId, candidateId, index, reason, points) {
+            const r = (String(reason || '')).trim();
+            const p = typeof points === 'number' ? points : parseFloat(points);
+            if (isNaN(p) || p < 0) {
+                await customAlert('Veuillez entrer un nombre de points valide (≥ 0).');
+                return;
+            }
+            try {
+                const snap = await getDoc(doc(db, "config", "malus"));
+                const data = snap.exists() ? snap.data() : {};
+                const byRound = data.byRound || {};
+                if (!byRound[roundId] || !byRound[roundId][candidateId] || !byRound[roundId][candidateId][index]) return;
+                const existing = byRound[roundId][candidateId][index];
+                byRound[roundId][candidateId][index] = { reason: r || '(sans raison)', points: p };
+                if (existing && existing.fromMalusPage === true) byRound[roundId][candidateId][index].fromMalusPage = true;
+                await setDoc(doc(db, "config", "malus"), { byRound }, { merge: true });
+                if (typeof updateClassementFromScoresForRound === 'function') await updateClassementFromScoresForRound(roundId);
+                await renderNotesTable();
+            } catch (e) {
+                console.error('updateMalus', e);
+                await customAlert('Erreur lors de la modification du malus : ' + (e.message || e));
             }
         };
 
@@ -3500,25 +3557,28 @@
                 const statusCell = row.insertCell();
                 statusCell.innerHTML = createStatusDropdown(candidate);
                 
-                // Malus : liste + formulaire d'ajout
+                // Malus : menu déroulant par candidat (liste + formulaire d'ajout)
                 const malusCell = row.insertCell();
                 malusCell.className = 'notes-malus-cell';
-                malusCell.style.minWidth = '220px';
+                malusCell.style.minWidth = '180px';
                 malusCell.style.verticalAlign = 'top';
                 const malusList = item.malusList || [];
                 const candId = candidate.id;
                 const roundIdVal = displayRound;
-                let malusHtml = '';
+                const totalMalusPts = item.totalMalus != null ? item.totalMalus : malusList.reduce((s, m) => s + (typeof m.points === 'number' ? m.points : parseFloat(m.points) || 0), 0);
+                let malusBodyHtml = '';
                 malusList.forEach((m, idx) => {
                     const reason = (m.reason || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-                    malusHtml += `<div class="malus-item" style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px; padding: 4px 6px; background: rgba(220, 53, 69, 0.08); border-radius: 4px; font-size: 0.85em;">
+                    const reasonAttr = (m.reason || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/'/g, '&#39;');
+                    const pts = typeof m.points === 'number' ? m.points : m.points;
+                    malusBodyHtml += `<div class="malus-item" data-round="${roundIdVal}" data-candidate="${candId}" data-index="${idx}" data-reason="${reasonAttr}" data-points="${pts}" style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px; padding: 4px 6px; background: rgba(220, 53, 69, 0.08); border-radius: 4px; font-size: 0.85em; cursor: pointer;" title="Double-cliquer pour modifier">
                         <span style="flex: 1; overflow: hidden; text-overflow: ellipsis;" title="${reason}">${reason || '(sans raison)'}</span>
-                        <span style="font-weight: 600; color: var(--danger);">−${typeof m.points === 'number' ? m.points : m.points}</span>
-                        <button type="button" onclick="removeMalus('${roundIdVal}', '${candId}', ${idx})" style="padding: 2px 6px; font-size: 0.75em; cursor: pointer;" title="Supprimer ce malus">✕</button>
+                        <span style="font-weight: 600; color: var(--danger);">−${pts}</span>
+                        <button type="button" onclick="event.stopPropagation(); removeMalus('${roundIdVal}', '${candId}', ${idx})" style="padding: 2px 6px; font-size: 0.75em; cursor: pointer;" title="Supprimer ce malus">✕</button>
                     </div>`;
                 });
                 const chevronSvg = "url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 12 8%22%3E%3Cpath fill=%22none%22 stroke=%22black%22 stroke-width=%221.8%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 d=%22M1 1L6 7L11 1%22/%3E%3C/svg%3E')";
-                malusHtml += `<div class="malus-add" style="margin-top: 6px; display: flex; align-items: center; flex-wrap: wrap; gap: 6px;">
+                malusBodyHtml += `<div class="malus-add" style="margin-top: 6px; display: flex; align-items: center; flex-wrap: wrap; gap: 6px;">
                     <div style="display: flex; align-items: stretch; flex: 1; min-width: 130px; max-width: 220px; border: 1px solid var(--border-color); border-radius: 3px; background: var(--input-bg);">
                         <input type="text" class="malus-reason-input" placeholder="Raison du malus (saisie libre)" data-round="${roundIdVal}" data-candidate="${candId}" style="flex: 1; min-width: 0; padding: 6px 8px; border: none; background: transparent; color: var(--text-color); font-size: 13px; font-family: inherit;">
                         <button type="button" class="malus-reason-trigger" data-candidate="${candId}" title="Choisir une raison prédéfinie" style="width: 20px; min-width: 20px; padding: 6px 2px; border: none; background: var(--text-color); mask: ${chevronSvg} no-repeat center; mask-size: 9px 6px; -webkit-mask: ${chevronSvg} no-repeat center; -webkit-mask-size: 9px 6px; cursor: pointer; font-size: 0;"></button>
@@ -3526,7 +3586,15 @@
                     <input type="number" class="malus-points-input" placeholder="Points" title="Points enlevés" min="0" step="0.5" data-round="${roundIdVal}" data-candidate="${candId}" style="width: 72px; min-width: 72px; padding: 6px 8px; border: 1px solid var(--border-color); border-radius: 3px; background: var(--input-bg); color: var(--text-color); font-size: 13px;">
                     <button type="button" class="malus-add-btn" data-round="${roundIdVal}" data-candidate="${candId}" style="padding: 6px 12px; border: 1px solid var(--border-color); border-radius: 3px; background: var(--input-bg); color: var(--text-color); font-size: 13px; cursor: pointer;">Ajouter</button>
                 </div>`;
-                malusCell.innerHTML = malusHtml;
+                const summaryLabel = malusList.length === 0 ? 'Malus (0)' : ('Malus (' + malusList.length + ')' + (totalMalusPts > 0 ? ' −' + totalMalusPts + ' pt' : ''));
+                malusCell.innerHTML = '<div class="notes-malus-dropdown closed"><div class="notes-malus-dropdown-header" title="Cliquer pour afficher ou masquer les malus">' + summaryLabel + ' <span class="chevron">▼</span></div><div class="notes-malus-dropdown-body">' + malusBodyHtml + '</div></div>';
+                const dropdownWrap = malusCell.querySelector('.notes-malus-dropdown');
+                const dropdownHeader = malusCell.querySelector('.notes-malus-dropdown-header');
+                const chevronEl = dropdownHeader && dropdownHeader.querySelector('.chevron');
+                dropdownHeader && dropdownHeader.addEventListener('click', function() {
+                    dropdownWrap.classList.toggle('closed');
+                    if (chevronEl) chevronEl.textContent = dropdownWrap.classList.contains('closed') ? '▼' : '▲';
+                });
                 malusCell.querySelectorAll('.malus-reason-trigger').forEach(btn => {
                     btn.addEventListener('click', function(e) {
                         e.stopPropagation();
@@ -3557,6 +3625,34 @@
                             if (pointsInput) pointsInput.value = '';
                         }
                     });
+                });
+                malusCell.addEventListener('dblclick', function(e) {
+                    const div = e.target.closest('.malus-item');
+                    if (!div || e.target.tagName === 'BUTTON') return;
+                    const roundId = div.getAttribute('data-round');
+                    const candidateId = div.getAttribute('data-candidate');
+                    const index = parseInt(div.getAttribute('data-index'), 10);
+                    const reason = (div.getAttribute('data-reason') || '').replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
+                    const points = div.getAttribute('data-points') || '';
+                    div.innerHTML = '<div class="malus-item-edit" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">' +
+                        '<input type="text" class="malus-edit-reason" value="' + (reason || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;') + '" placeholder="Raison" style="flex: 1; min-width: 80px; padding: 4px 6px; font-size: 0.85em; border: 1px solid var(--border-color); border-radius: 3px; background: var(--input-bg); color: var(--text-color);">' +
+                        '<input type="number" class="malus-edit-points" min="0" step="0.5" value="' + (points !== '' ? String(points).replace(/"/g, '&quot;') : '') + '" placeholder="Pt" style="width: 56px; padding: 4px 6px; font-size: 0.85em; border: 1px solid var(--border-color); border-radius: 3px; background: var(--input-bg); color: var(--text-color);">' +
+                        '<button type="button" class="malus-btn-save" style="padding: 2px 8px; font-size: 0.75em; cursor: pointer;">Enregistrer</button>' +
+                        '<button type="button" class="malus-btn-cancel" style="padding: 2px 8px; font-size: 0.75em; cursor: pointer;">Annuler</button>' +
+                        '</div>';
+                    const reasonInput = div.querySelector('.malus-edit-reason');
+                    const pointsInput = div.querySelector('.malus-edit-points');
+                    div.querySelector('.malus-btn-save').addEventListener('click', async function() {
+                        const newReason = (reasonInput.value || '').trim();
+                        const newPoints = pointsInput.value;
+                        if (isNaN(parseFloat(newPoints)) || parseFloat(newPoints) < 0) {
+                            await customAlert('Veuillez entrer un nombre de points valide (≥ 0).');
+                            return;
+                        }
+                        await updateMalus(roundId, candidateId, index, newReason, newPoints);
+                    });
+                    div.querySelector('.malus-btn-cancel').addEventListener('click', function() { renderNotesTable(); });
+                    if (reasonInput) reasonInput.focus();
                 });
                 
                 // Notes par jury

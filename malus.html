@@ -266,6 +266,44 @@
             font-weight: 600;
             color: #f87171;
         }
+        .malus-list-item-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .malus-list-item-actions button {
+            padding: 4px 8px;
+            font-size: 0.75rem;
+            border: 1px solid var(--malus-border);
+            border-radius: 4px;
+            background: var(--malus-bg);
+            color: var(--malus-text);
+            cursor: pointer;
+        }
+        .malus-list-item-actions button:hover {
+            background: var(--malus-border);
+        }
+        .malus-list-item-actions button.malus-btn-delete {
+            color: #f87171;
+            border-color: rgba(248, 113, 113, 0.4);
+        }
+        .malus-list-item-edit {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .malus-list-item-edit input {
+            padding: 4px 8px;
+            font-size: 0.85rem;
+            border: 1px solid var(--malus-border);
+            border-radius: 4px;
+            background: var(--malus-bg);
+            color: var(--malus-text);
+        }
+        .malus-list-item-edit .malus-edit-reason { flex: 1; min-width: 100px; }
+        .malus-list-item-edit .malus-edit-points { width: 56px; }
         .malus-points-slider {
             width: 44px;
             flex: 0 0 44px;
@@ -624,20 +662,87 @@
             }
         }
 
-        function renderMalusList(items) {
+        function renderMalusList(items, roundId, candidateId) {
             if (!malusListEl || !malusListSection) return;
             malusListEl.innerHTML = '';
             if (!items || items.length === 0) {
                 malusListEl.innerHTML = '<p class="malus-list-empty">Aucun malus pour ce candidat sur ce tour.</p>';
             } else {
-                items.forEach(m => {
+                items.forEach((m, idx) => {
                     const div = document.createElement('div');
                     div.className = 'malus-list-item';
-                    div.innerHTML = '<span>' + (m.reason || '(sans raison)').replace(/</g, '&lt;') + '</span><span class="malus-points">−' + (typeof m.points === 'number' ? m.points : m.points) + ' pt</span>';
+                    div.dataset.index = String(idx);
+                    const reasonEsc = (m.reason || '(sans raison)').replace(/</g, '&lt;');
+                    const pointsStr = typeof m.points === 'number' ? m.points : m.points;
+                    const canEdit = m.fromMalusPage === true;
+                    let inner = '<span>' + reasonEsc + '</span><span class="malus-points">−' + pointsStr + ' pt</span>';
+                    if (canEdit) {
+                        inner += '<div class="malus-list-item-actions"><button type="button" class="malus-btn-edit" title="Modifier">Modifier</button><button type="button" class="malus-btn-delete" title="Supprimer">✕</button></div>';
+                    }
+                    div.innerHTML = inner;
+                    if (canEdit) {
+                        div.querySelector('.malus-btn-delete').addEventListener('click', () => removeMalusFromMalusPage(roundId, candidateId, idx));
+                        div.querySelector('.malus-btn-edit').addEventListener('click', () => switchMalusToEdit(div, roundId, candidateId, idx, m.reason, m.points));
+                    }
                     malusListEl.appendChild(div);
                 });
             }
             malusListSection.style.display = 'block';
+        }
+
+        function switchMalusToEdit(rowEl, roundId, candidateId, index, currentReason, currentPoints) {
+            const pointsStr = typeof currentPoints === 'number' ? String(currentPoints) : (currentPoints || '');
+            const safeReason = (currentReason || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+            rowEl.innerHTML = '<div class="malus-list-item-edit">' +
+                '<input type="text" class="malus-edit-reason" value="' + safeReason + '" placeholder="Raison">' +
+                '<input type="number" class="malus-edit-points" min="0" step="0.5" value="' + pointsStr.replace(/"/g, '&quot;') + '" placeholder="Pt">' +
+                '<button type="button" class="malus-btn-save">Enregistrer</button>' +
+                '<button type="button" class="malus-btn-cancel">Annuler</button>' +
+                '</div>';
+            const reasonInput = rowEl.querySelector('.malus-edit-reason');
+            const pointsInput = rowEl.querySelector('.malus-edit-points');
+            rowEl.querySelector('.malus-btn-save').addEventListener('click', async () => {
+                const reason = (reasonInput.value || '').trim();
+                const points = parseFloat(pointsInput.value);
+                if (!reason) { showMsg('Veuillez saisir une raison.', true); return; }
+                if (isNaN(points) || points < 0) { showMsg('Veuillez entrer des points valides (≥ 0).', true); return; }
+                await updateMalusFromMalusPage(roundId, candidateId, index, reason, points);
+                await refreshMalusListForSelectedCandidate();
+            });
+            rowEl.querySelector('.malus-btn-cancel').addEventListener('click', () => refreshMalusListForSelectedCandidate());
+        }
+
+        async function removeMalusFromMalusPage(roundId, candidateId, index) {
+            try {
+                const snap = await getDoc(doc(db, 'config', 'malus'));
+                const data = snap.exists() ? snap.data() : {};
+                const byRound = data.byRound || {};
+                if (!byRound[roundId] || !byRound[roundId][candidateId]) return;
+                byRound[roundId][candidateId].splice(index, 1);
+                if (byRound[roundId][candidateId].length === 0) delete byRound[roundId][candidateId];
+                if (Object.keys(byRound[roundId]).length === 0) delete byRound[roundId];
+                await setDoc(doc(db, 'config', 'malus'), { byRound }, { merge: true });
+                showMsg('Malus supprimé.');
+                await refreshMalusListForSelectedCandidate();
+            } catch (e) {
+                console.error(e);
+                showMsg('Erreur : ' + (e.message || e), true);
+            }
+        }
+
+        async function updateMalusFromMalusPage(roundId, candidateId, index, reason, points) {
+            try {
+                const snap = await getDoc(doc(db, 'config', 'malus'));
+                const data = snap.exists() ? snap.data() : {};
+                const byRound = data.byRound || {};
+                if (!byRound[roundId] || !byRound[roundId][candidateId] || !byRound[roundId][candidateId][index]) return;
+                byRound[roundId][candidateId][index] = { reason: reason || '(sans raison)', points, fromMalusPage: true };
+                await setDoc(doc(db, 'config', 'malus'), { byRound }, { merge: true });
+                showMsg('Malus modifié.');
+            } catch (e) {
+                console.error(e);
+                showMsg('Erreur : ' + (e.message || e), true);
+            }
         }
 
         async function refreshMalusListForSelectedCandidate() {
@@ -647,7 +752,7 @@
                 return;
             }
             const list = await loadMalusForCandidate(activeRoundId, candidateId);
-            renderMalusList(list);
+            renderMalusList(list, activeRoundId, candidateId);
         }
 
         function openReasonsDropdown() {
@@ -716,7 +821,7 @@
                 const byRound = data.byRound || {};
                 if (!byRound[roundId]) byRound[roundId] = {};
                 if (!byRound[roundId][candidateId]) byRound[roundId][candidateId] = [];
-                byRound[roundId][candidateId].push({ reason: reason || '(sans raison)', points });
+                byRound[roundId][candidateId].push({ reason: reason || '(sans raison)', points, fromMalusPage: true });
                 await setDoc(doc(db, 'config', 'malus'), { byRound }, { merge: true });
                 showMsg('Malus enregistré.');
                 reasonInput.value = '';
