@@ -1093,6 +1093,9 @@
         <div id="tab-vote-public" class="tab-content">
             <h2>Vote du public</h2>
             <p style="color: var(--text-secondary); margin-bottom: 20px;">Résultats du vote du public (interface de vote : <a href="vote.html" target="_blank" rel="noopener">vote.html</a>).</p>
+            <div id="vote-public-stats" style="display: none; margin-bottom: 16px; padding: 12px 16px; background: var(--info-bg-start); border-radius: var(--radius); border: 1px solid var(--primary); font-size: 1.05rem; color: var(--text-color);">
+                <strong id="vote-public-stats-text"></strong>
+            </div>
             <div id="vote-public-loading" style="display: none; text-align: center; padding: 20px; color: var(--text-secondary);">Chargement…</div>
             <div id="vote-public-empty" style="display: none; text-align: center; padding: 20px; color: var(--text-secondary);">Aucun vote pour le moment.</div>
             <div id="vote-public-content" style="display: none;">
@@ -1147,6 +1150,8 @@
                 <button onclick="autoFillActiveRound()" class="action-button" style="background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); color: #212529;">✓ Auto-remplir et qualifier le tour actif</button>
                 <p style="color: #212529; margin-top: 15px;">Remplir <strong>tous les scores</strong> (tous tours, tous jurys, tous candidats) et <strong>bonus</strong> des classements avec des valeurs aléatoires — pour tests uniquement.</p>
                 <button onclick="fillAllScoresAndBonusesRandomly()" class="action-button" style="background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%); color: white; margin-top: 8px;">🎲 Remplir tous les scores et bonus aléatoirement (tests)</button>
+                <p style="color: #212529; margin-top: 15px;">Générer <strong>300 votes du public</strong> répartis aléatoirement entre les candidats (pour tester le camembert / vote public).</p>
+                <button type="button" id="btn-generate-300-votes" onclick="generate300VotePublic()" class="action-button" style="background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%); color: white; margin-top: 8px;">Générer 300 votes du public</button>
             </div>
 
             <div class="reset-zone" style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border: 2px solid #28a745;">
@@ -1717,9 +1722,9 @@
                 loadActivationClassementsData();
             } else if (tabName === 'vote-public') {
                 loadVotePublicData();
-                votePublicUnsubscribe = onSnapshot(doc(db, 'vote_public', 'totaux'), function() {
-                    loadVotePublicData();
-                });
+                var unsubTotaux = onSnapshot(doc(db, 'vote_public', 'totaux'), function() { loadVotePublicData(); });
+                var unsubStats = onSnapshot(doc(db, 'vote_public', 'stats'), function() { loadVotePublicData(); });
+                votePublicUnsubscribe = function() { unsubTotaux(); unsubStats(); };
             }
         };
 
@@ -1733,9 +1738,11 @@
             emptyEl.style.display = 'none';
             contentEl.style.display = 'none';
             try {
-                const [voteSnap] = await Promise.all([
-                    getDoc(doc(db, 'vote_public', 'totaux'))
+                const [voteSnap, statsSnap] = await Promise.all([
+                    getDoc(doc(db, 'vote_public', 'totaux')),
+                    getDoc(doc(db, 'vote_public', 'stats'))
                 ]);
+                const visitors = (statsSnap.exists() && typeof statsSnap.data().visitorCount === 'number') ? statsSnap.data().visitorCount : null;
                 const data = voteSnap.exists() ? voteSnap.data() : {};
                 const list = Object.entries(data)
                     .filter(([k, v]) => k !== '_resetAt' && typeof v === 'number' && v > 0)
@@ -1747,6 +1754,16 @@
                     .sort((a, b) => b.count - a.count);
                 const total = list.reduce((s, x) => s + x.count, 0);
                 loadingEl.style.display = 'none';
+                const statsEl = document.getElementById('vote-public-stats');
+                const statsTextEl = document.getElementById('vote-public-stats-text');
+                if (statsEl && statsTextEl) {
+                    statsEl.style.display = 'block';
+                    if (visitors != null) {
+                        statsTextEl.textContent = total + ' vote' + (total !== 1 ? 's' : '') + ' / ' + visitors + ' personne' + (visitors !== 1 ? 's' : '') + ' connectée' + (visitors !== 1 ? 's' : '') + ' à vote.html';
+                    } else {
+                        statsTextEl.textContent = total + ' vote' + (total !== 1 ? 's' : '') + ' (nombre de connexions non disponible)';
+                    }
+                }
                 if (list.length === 0) {
                     emptyEl.style.display = 'block';
                     return;
@@ -1826,8 +1843,9 @@
             resetVotePublicInProgress = true;
             try {
                 await setDoc(doc(db, 'vote_public', 'totaux'), { _resetAt: serverTimestamp() });
+                await setDoc(doc(db, 'vote_public', 'stats'), { visitorCount: 0 }, { merge: true });
                 loadVotePublicData();
-                alert('Votes réinitialisés. Le public peut à nouveau voter.');
+                alert('Votes et nombre de personnes connectées réinitialisés. Le public peut à nouveau voter.');
             } catch (e) {
                 console.error('resetVotePublic', e);
                 alert('Erreur lors de la réinitialisation.');
@@ -1844,6 +1862,45 @@
             if (confirmBtn) confirmBtn.addEventListener('click', function() { resetVotePublic(); });
             if (modal) modal.addEventListener('click', function(e) { if (e.target === modal) closeResetVotePublicModal(); });
         })();
+
+        let generate300VotePublicInProgress = false;
+        window.generate300VotePublic = async function() {
+            if (generate300VotePublicInProgress) return;
+            if (!CANDIDATES || CANDIDATES.length === 0) {
+                alert('Aucun candidat dans la liste. Ajoutez des candidats avant de générer des votes.');
+                return;
+            }
+            var btn = document.getElementById('btn-generate-300-votes');
+            if (btn) { btn.disabled = true; btn.textContent = 'Génération…'; }
+            generate300VotePublicInProgress = true;
+            try {
+                var snap = await getDoc(doc(db, 'vote_public', 'totaux'));
+                var data = snap.exists() ? snap.data() : {};
+                var totaux = {};
+                Object.keys(data).forEach(function(k) {
+                    if (k !== '_resetAt' && typeof data[k] === 'number' && data[k] > 0) totaux[k] = data[k];
+                });
+                var ids = CANDIDATES.map(function(c) { return String(c.id); }).filter(Boolean);
+                var leaderId = ids[Math.floor(Math.random() * ids.length)];
+                var leaderVotes = 130 + Math.floor(Math.random() * 50);
+                totaux[leaderId] = (totaux[leaderId] || 0) + leaderVotes;
+                var rest = 300 - leaderVotes;
+                var others = ids.filter(function(id) { return id !== leaderId; });
+                for (var i = 0; i < rest; i++) {
+                    var id = others.length > 0 ? others[Math.floor(Math.random() * others.length)] : leaderId;
+                    totaux[id] = (totaux[id] || 0) + 1;
+                }
+                await setDoc(doc(db, 'vote_public', 'totaux'), totaux, { merge: true });
+                loadVotePublicData();
+                alert('300 votes du public ont été générés avec un candidat en tête (environ 43–60 % des votes).');
+            } catch (e) {
+                console.error('generate300VotePublic', e);
+                alert('Erreur lors de la génération des votes.');
+            } finally {
+                generate300VotePublicInProgress = false;
+                if (btn) { btn.disabled = false; btn.textContent = 'Générer 300 votes du public'; }
+            }
+        };
 
         // --- GESTION CANDIDATS ---
         

@@ -275,6 +275,39 @@
 
         const VOTE_DOC = { collection: 'vote_public', id: 'totaux' };
         const STORAGE_KEY = 'concours_eloquence_vote';
+        const VISITOR_STORAGE_KEY = 'concours_eloquence_vote_visitor';
+
+        async function registerVisitor() {
+            try {
+                if (localStorage.getItem(VISITOR_STORAGE_KEY)) return;
+            } catch (_) {}
+            const statsRef = doc(db, 'vote_public', 'stats');
+            for (let attempt = 1; attempt <= 4; attempt++) {
+                try {
+                    await setDoc(statsRef, { visitorCount: increment(1) }, { merge: true });
+                    try { localStorage.setItem(VISITOR_STORAGE_KEY, '1'); } catch (_) {}
+                    return;
+                } catch (_) {
+                    await new Promise(r => setTimeout(r, 600 * attempt));
+                }
+            }
+            try {
+                var snap = await getDoc(statsRef);
+                var n = (snap.exists() && typeof snap.data().visitorCount === 'number') ? snap.data().visitorCount : 0;
+                await setDoc(statsRef, { visitorCount: n + 1 }, { merge: true });
+                try { localStorage.setItem(VISITOR_STORAGE_KEY, '1'); } catch (_) {}
+            } catch (_) {}
+        }
+        function runWhenReady() {
+            if (document.readyState === 'complete') registerVisitor();
+            else window.addEventListener('load', function once() { window.removeEventListener('load', once); registerVisitor(); });
+        }
+        runWhenReady();
+        setTimeout(registerVisitor, 1500);
+        setTimeout(registerVisitor, 4000);
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'visible') registerVisitor();
+        });
 
         function getResetAtFromData(data) {
             if (!data || !data._resetAt) return null;

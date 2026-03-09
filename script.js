@@ -980,6 +980,16 @@ document.getElementById('start-scoring-button').onclick = async () => {
             return;
         }
 
+        // Accès interface QR code : identifiant "qr code" et mot de passe vide
+        if (name.toLowerCase() === 'qr code') {
+            if (password && password.trim() !== '') {
+                alert('Pour l\'interface QR code, laissez le mot de passe vide.');
+                return;
+            }
+            window.location.href = 'qr.html';
+            return;
+        }
+
         // Vérification mode admin
         if (name.toLowerCase() === 'admin') {
             const adminDoc = await getDoc(doc(db, "config", "admin"));

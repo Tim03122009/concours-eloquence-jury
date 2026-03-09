@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#667eea">
+    <title>QR Code — Vote du public | Concours d'éloquence</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .qr-page {
+            text-align: center;
+            padding: var(--spacing-lg);
+            max-width: 520px;
+            margin: 0 auto;
+            font-size: 1rem;
+        }
+        .qr-page h1 {
+            font-size: 2.4rem;
+            margin: 0 0 8px 0;
+            color: #fff;
+            cursor: pointer;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.4);
+            font-weight: 700;
+        }
+        .qr-page p {
+            color: #fff;
+            font-size: 1rem;
+            margin: 0 0 24px 0;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.4);
+            font-weight: 500;
+        }
+        #qrcode {
+            display: inline-block;
+            padding: 20px;
+            background: #fff;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            margin: 16px 0;
+        }
+        /* Un seul QR affiché : la lib peut ajouter canvas + img, on garde seulement le premier */
+        #qrcode > *:not(:first-child) {
+            display: none !important;
+        }
+        #qrcode canvas,
+        #qrcode img,
+        #qrcode table {
+            display: block !important;
+            margin: 0 auto;
+        }
+        .qr-countdown {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #fff;
+            margin: 16px 0 0 0;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.4);
+        }
+        .qr-link {
+            font-size: 0.95rem;
+            width: 100%;
+            box-sizing: border-box;
+            word-break: break-word;
+            overflow-wrap: break-word;
+            color: #e8e0ff;
+            margin-top: 12px;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.4);
+            font-weight: 600;
+        }
+        /* Mode minimisé : écritures cachées, QR en petit dans le coin */
+        .qr-page.minimized #qr-title,
+        .qr-page.minimized .qr-instruction,
+        .qr-page.minimized #countdown,
+        .qr-page.minimized .qr-link {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity 0.5s ease-out;
+        }
+        #qrcode {
+            transition: transform 0.7s cubic-bezier(0.34, 1.2, 0.64, 1), top 0.7s cubic-bezier(0.34, 1.2, 0.64, 1), right 0.7s cubic-bezier(0.34, 1.2, 0.64, 1), padding 0.7s ease-out;
+        }
+        .qr-page.minimized #qrcode {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            margin: 0;
+            padding: 12px;
+            width: auto;
+            height: auto;
+            transform: scale(0.42);
+            transform-origin: top right;
+            cursor: pointer;
+            z-index: 100;
+        }
+        /* En minimisé aussi : un seul QR (pas canvas + img) */
+        .qr-page.minimized #qrcode > *:not(:first-child) {
+            display: none !important;
+        }
+        /* Camembert vote du public au centre en mode minimisé */
+        .qr-pie-container {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+        }
+        .qr-page.minimized .qr-pie-container {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
+        .qr-pie-container canvas {
+            display: block;
+            max-width: min(320px, 85vw);
+            height: auto;
+            background: transparent;
+        }
+        .qr-pie-legend {
+            margin-top: 12px;
+            padding: 8px 0;
+            background: transparent;
+            font-size: 0.9rem;
+            color: #fff;
+            max-width: 320px;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+        }
+        .qr-pie-legend div {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+        .qr-pie-legend div:last-child { margin-bottom: 0; }
+        .qr-pie-legend .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+        .qr-pie-empty {
+            color: rgba(255,255,255,0.9);
+            font-size: 1.1rem;
+            text-align: center;
+            padding: 24px;
+        }
+    </style>
+</head>
+<body>
+    <div class="qr-page">
+        <h1 id="qr-title">Vote du public</h1>
+        <p class="qr-instruction">Scannez le QR code pour accéder à la page de vote.<br>Le QR code figure également sur le programme de la soirée.</p>
+        <div id="qrcode"></div>
+        <p class="qr-countdown" id="countdown">10</p>
+        <p class="qr-link" id="vote-url"></p>
+        <div class="qr-pie-container" id="qr-pie-container">
+            <canvas id="qr-vote-pie-chart" width="320" height="320"></canvas>
+            <div id="qr-vote-legend" class="qr-pie-legend"></div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs@gh-pages/qrcode.min.js"></script>
+    <script>
+        (function () {
+            var VOTE_URL = 'https://tim03122009.github.io/concours-eloquence-jury/vote.html';
+            var container = document.getElementById('qrcode');
+
+            function renderQRCode() {
+                if (typeof QRCode === 'undefined') return;
+                container.innerHTML = '';
+                new QRCode(container, {
+                    text: VOTE_URL,
+                    width: 256,
+                    height: 256,
+                    colorDark: '#1a1a1a',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+            }
+
+            // Premier affichage
+            renderQRCode();
+
+            // Double-clic sur le QR : régénérer le QR code (mode normal uniquement)
+            container.addEventListener('dblclick', function (e) {
+                if (document.querySelector('.qr-page').classList.contains('minimized')) return;
+                renderQRCode();
+            });
+            // Clic sur le QR en mode minimisé : revenir à l'affichage normal
+            container.addEventListener('click', function (e) {
+                if (document.querySelector('.qr-page').classList.contains('minimized')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (votePieUnsubscribe) { votePieUnsubscribe(); votePieUnsubscribe = null; }
+                    document.querySelector('.qr-page').classList.remove('minimized');
+                }
+            });
+
+            // Double-clic sur "Vote du public" : retour à l'identification
+            document.getElementById('qr-title').addEventListener('dblclick', function () {
+                window.location.href = 'index.html';
+            });
+
+            document.getElementById('vote-url').textContent = VOTE_URL;
+
+            var votePieUnsubscribe = null;
+
+            // Décompte : +5s uniquement quand arrêté ; arrière-plan relance au "nombre de lancement"
+            var countdownEl = document.getElementById('countdown');
+            var countdownInterval = null;
+            var countdownValue = 10;
+            var launchValue = 10;  // valeur au prochain lancement (arrière-plan)
+            var countdownStopped = false;
+
+            function runCountdownTick() {
+                countdownValue--;
+                countdownEl.textContent = countdownValue;
+                if (countdownValue <= 0) {
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
+                    countdownEl.textContent = launchValue;
+                    countdownStopped = true;
+                    document.querySelector('.qr-page').classList.add('minimized');
+                    loadVotePieChart();
+                    setupVotePieRealtime();
+                }
+            }
+
+            function startCountdown() {
+                if (countdownInterval) clearInterval(countdownInterval);
+                countdownStopped = false;
+                countdownValue = launchValue;
+                countdownEl.textContent = countdownValue;
+                countdownInterval = setInterval(runCountdownTick, 1000);
+            }
+
+            startCountdown();
+
+            countdownEl.style.cursor = 'pointer';
+
+            countdownEl.addEventListener('click', function () {
+                var current = countdownStopped ? launchValue : countdownValue;
+                var newVal;
+                if (current >= 90) {
+                    newVal = 10;
+                } else {
+                    newVal = Math.round((current + 5) / 5) * 5;  // +5 puis palier de 5 le plus proche
+                }
+                launchValue = newVal;
+                if (!countdownStopped) countdownValue = newVal;
+                countdownEl.textContent = newVal;
+            });
+
+            document.querySelector('.qr-page').addEventListener('click', function (e) {
+                if (e.target.closest('#qrcode') || e.target.closest('#qr-title') || e.target.closest('#countdown')) return;
+                startCountdown();  // relance au nombre de lancement (launchValue)
+            });
+
+            // Camembert vote du public (même logique qu'admin) — visible uniquement en minimisé
+            async function loadVotePieChart() {
+                var canvas = document.getElementById('qr-vote-pie-chart');
+                var legendEl = document.getElementById('qr-vote-legend');
+                var container = document.getElementById('qr-pie-container');
+                if (!canvas || !legendEl) return;
+                if (container) {
+                    container.style.transition = 'opacity 0.2s ease';
+                    container.style.opacity = '0.35';
+                    await new Promise(function (r) { setTimeout(r, 200); });
+                }
+                try {
+                    var firestore = await import('https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js');
+                    var dbModule = await import('./firebase-init.js');
+                    var db = dbModule.db;
+                    var getDoc = firestore.getDoc, doc = firestore.doc;
+
+                    var candSnap = await getDoc(doc(db, 'candidats', 'liste_actuelle'));
+                    var candidates = (candSnap.exists() && candSnap.data().candidates) ? candSnap.data().candidates : [];
+                    var voteSnap = await getDoc(doc(db, 'vote_public', 'totaux'));
+                    var data = voteSnap.exists() ? voteSnap.data() : {};
+                    var list = Object.entries(data)
+                        .filter(function (kv) { var k = kv[0], v = kv[1]; return k !== '_resetAt' && typeof v === 'number' && v > 0; })
+                        .map(function (kv) {
+                            var id = kv[0], count = kv[1];
+                            var c = candidates.find(function (x) { return x.id === id; });
+                            return { id: id, count: count, name: (c && c.name) ? c.name : ('ID ' + id) };
+                        })
+                        .sort(function (a, b) { return b.count - a.count; });
+                    var total = list.reduce(function (s, x) { return s + x.count; }, 0);
+
+                    var ctx = canvas.getContext('2d');
+                    legendEl.innerHTML = '';
+                    legendEl.classList.remove('qr-pie-empty');
+                    var w = canvas.width, h = canvas.height, cx = w / 2, cy = h / 2, r = Math.min(w, h) / 2 - 10;
+                    if (list.length === 0) {
+                        ctx.clearRect(0, 0, w, h);
+                        ctx.fillStyle = '#fff';
+                        ctx.beginPath();
+                        ctx.moveTo(cx, cy);
+                        ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.strokeStyle = '#000';
+                        ctx.lineWidth = 1.5;
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+                        ctx.stroke();
+                        if (container) container.style.opacity = '1';
+                        return;
+                    }
+                    legendEl.innerHTML = list.map(function (item, i) {
+                        var hue = (i * 360 / Math.max(list.length, 1)) % 360;
+                        var color = 'hsl(' + hue + ', 65%, 55%)';
+                        var pct = Math.round((item.count / total) * 100);
+                        var name = (item.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                        return '<div><span class="dot" style="background:' + color + '"></span><span>' + name + '</span> <span style="color:rgba(255,255,255,0.85);font-size:0.85em">' + item.count + ' vote' + (item.count > 1 ? 's' : '') + ' (' + pct + '%)</span></div>';
+                    }).join('');
+                    var angles = list.map(function (item) { return (item.count / total) * 2 * Math.PI; });
+                    var duration = 500;
+                    var startTime = Date.now();
+                    function drawFrame() {
+                        var elapsed = Date.now() - startTime;
+                        var t = Math.min(1, elapsed / duration);
+                        var ease = 1 - Math.pow(1 - t, 2);
+                        var progress = 0.015 + 0.985 * ease;
+                        ctx.clearRect(0, 0, w, h);
+                        var base = -Math.PI / 2;
+                        for (var i = 0; i < list.length; i++) {
+                            var sliceAngle = angles[i] * progress;
+                            var hue = (i * 360 / Math.max(list.length, 1)) % 360;
+                            ctx.fillStyle = 'hsl(' + hue + ', 65%, 55%)';
+                            ctx.beginPath();
+                            ctx.moveTo(cx, cy);
+                            ctx.arc(cx, cy, r, base, base + sliceAngle);
+                            ctx.closePath();
+                            ctx.fill();
+                            var pct = Math.round((list[i].count / total) * 100);
+                            if (pct >= 3 && sliceAngle > 0.06) {
+                                var midAngle = base + sliceAngle / 2;
+                                var tx = cx + (r * 0.65) * Math.cos(midAngle);
+                                var ty = cy + (r * 0.65) * Math.sin(midAngle);
+                                ctx.fillStyle = '#fff';
+                                ctx.font = 'bold 14px sans-serif';
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'middle';
+                                ctx.fillText(pct + '%', tx, ty);
+                            }
+                            base += sliceAngle;
+                        }
+                        ctx.strokeStyle = '#000';
+                        ctx.lineWidth = 1.5;
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+                        ctx.stroke();
+                        if (t < 1) requestAnimationFrame(drawFrame);
+                        else if (container) container.style.opacity = '1';
+                    }
+                    drawFrame();
+                } catch (e) {
+                    console.error('loadVotePieChart', e);
+                    if (legendEl) {
+                        legendEl.classList.add('qr-pie-empty');
+                        legendEl.textContent = 'Chargement des votes…';
+                    }
+                    if (container) container.style.opacity = '1';
+                }
+            }
+            async function setupVotePieRealtime() {
+                if (votePieUnsubscribe) return;
+                try {
+                    var firestore = await import('https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js');
+                    var dbModule = await import('./firebase-init.js');
+                    var db = dbModule.db;
+                    var onSnapshot = firestore.onSnapshot, doc = firestore.doc;
+                    votePieUnsubscribe = onSnapshot(doc(db, 'vote_public', 'totaux'), function () { loadVotePieChart(); });
+                } catch (e) { console.error('setupVotePieRealtime', e); }
+            }
+        })();
+    </script>
+</body>
+</html>
