@@ -14,6 +14,10 @@
             margin: 0 auto;
             font-size: 1rem;
         }
+        .qr-page:not(.minimized) {
+            transform: scale(0.9);
+            transform-origin: center center;
+        }
         .qr-page h1 {
             font-size: 2.4rem;
             margin: 0 0 8px 0;
@@ -86,7 +90,7 @@
             padding: 12px;
             width: auto;
             height: auto;
-            transform: scale(0.42);
+            transform: scale(0.6);
             transform-origin: top right;
             cursor: pointer;
             z-index: 100;
@@ -95,16 +99,19 @@
         .qr-page.minimized #qrcode > *:not(:first-child) {
             display: none !important;
         }
-        /* Camembert vote du public au centre en mode minimisé */
+        /* Camembert vote du public en mode minimisé
+           - grande disposition : camembert agrandi à gauche, légende à droite
+           - sur petits écrans : pile le camembert au-dessus de la légende */
         .qr-pie-container {
             position: fixed;
-            left: 50%;
+            left: 1cm;
             top: 50%;
-            transform: translate(-50%, -50%);
+            transform: translateY(-50%) scale(0.9);
             z-index: 50;
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             align-items: center;
+            gap: 32px;
             opacity: 0;
             visibility: hidden;
             pointer-events: none;
@@ -115,39 +122,85 @@
             visibility: visible;
             pointer-events: auto;
         }
-        .qr-pie-container canvas {
+        .qr-pie-canvas-wrap {
+            position: relative;
+            display: inline-block;
+        }
+        .qr-pie-container .qr-pie-canvas-wrap canvas {
             display: block;
-            max-width: min(320px, 85vw);
+            max-width: min(600px, 80vw);
             height: auto;
             background: transparent;
         }
         .qr-pie-legend {
-            margin-top: 12px;
-            padding: 8px 0;
-            background: transparent;
-            font-size: 0.9rem;
-            color: #fff;
-            max-width: 320px;
-            text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+            margin-top: 0;
+            padding: 10px 12px;
+            background: #fff;
+            border-radius: var(--radius-lg);
+            font-size: 1.43rem;
+            max-width: 560px;
+            min-width: 360px;
+            min-height: 220px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
         }
-        .qr-pie-legend div {
+        @media (max-width: 900px) {
+            .qr-pie-container {
+                flex-direction: column;
+                align-items: center;
+                gap: 12px;
+            }
+            .qr-pie-legend {
+                margin-top: 8px;
+            }
+        }
+        .qr-pie-legend-inner {
+            color: #000;
+            position: relative;
+            z-index: 1;
+        }
+        .qr-pie-legend .legend-item {
             display: flex;
             align-items: center;
-            gap: 8px;
-            margin-bottom: 6px;
+            gap: 6px;
+            margin-bottom: 4px;
         }
-        .qr-pie-legend div:last-child { margin-bottom: 0; }
+        .qr-pie-legend .legend-item:last-child { margin-bottom: 0; }
         .qr-pie-legend .dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 3px;
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
             flex-shrink: 0;
+        }
+        .qr-pie-legend-cover {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 0;
+            height: 100%;
+            background: #fff;
+            pointer-events: none;
+            z-index: 2;
+            transition: height 1s ease;
         }
         .qr-pie-empty {
             color: rgba(255,255,255,0.9);
-            font-size: 1.1rem;
+            font-size: 1.3rem;
             text-align: center;
-            padding: 24px;
+            padding: 16px;
+        }
+        .qr-pie-countdown {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3.38rem;
+            font-weight: 800;
+            color: #000;
+            text-shadow: 0 1px 2px rgba(255,255,255,0.5);
+            pointer-events: none;
         }
     </style>
 </head>
@@ -159,14 +212,42 @@
         <p class="qr-countdown" id="countdown">10</p>
         <p class="qr-link" id="vote-url"></p>
         <div class="qr-pie-container" id="qr-pie-container">
-            <canvas id="qr-vote-pie-chart" width="320" height="320"></canvas>
-            <div id="qr-vote-legend" class="qr-pie-legend"></div>
+            <div class="qr-pie-canvas-wrap">
+                <canvas id="qr-vote-pie-chart" width="600" height="600"></canvas>
+                <div id="qr-pie-countdown" class="qr-pie-countdown"></div>
+            </div>
+            <div id="qr-vote-legend" class="qr-pie-legend">
+            <div class="qr-pie-legend-inner"></div>
+            <div class="qr-pie-legend-cover"></div>
+        </div>
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs@gh-pages/qrcode.min.js"></script>
     <script>
         (function () {
             var VOTE_URL = 'https://tim03122009.github.io/concours-eloquence-jury/vote.html';
+
+            // ========== PALETTE COULEURS CANDIDATS (camembert + légende) ==========
+            // Modifier les couleurs ci-dessous (format hex #rrggbb). Au-delà du 10e candidat, les couleurs sont générées automatiquement.
+            // 10 teintes réparties uniformément sur le cercle chromatique (écart 36°) — toutes très distinctes
+            var PIE_COLORS = [
+                '#E53935',   // 1 — Rouge (0°)
+                '#FF8F00',   // 2 — Orange (36°)
+                '#FDD835',   // 3 — Jaune (72°)
+                '#7CB342',   // 4 — Vert-jaune (108°)
+                '#00ACC1',   // 5 — Cyan (144°)
+                '#1E88E5',   // 6 — Bleu (180°)
+                '#5E35B1',   // 7 — Violet (216°)
+                '#8E24AA',   // 8 — Magenta (252°)
+                '#D81B60',   // 9 — Rose (288°)
+                '#AD1457'    // 10 — Rose foncé (324°)
+            ];
+
+            function getPieColor(i, n) {
+                if (i < PIE_COLORS.length) return PIE_COLORS[i];
+                var hue = (i * 360 / Math.max(n, 1)) % 360;
+                return 'hsl(' + hue + ', 65%, 55%)';
+            }
             var container = document.getElementById('qrcode');
 
             function renderQRCode() {
@@ -196,6 +277,20 @@
                     e.preventDefault();
                     e.stopPropagation();
                     if (votePieUnsubscribe) { votePieUnsubscribe(); votePieUnsubscribe = null; }
+                    if (pieCountdownTimer) { clearInterval(pieCountdownTimer); pieCountdownTimer = null; }
+                    if (pieRevealInterval) { clearInterval(pieRevealInterval); pieRevealInterval = null; }
+                    pieRevealComplete = false;
+                    var pieCdEl = document.getElementById('qr-pie-countdown');
+                    if (pieCdEl) pieCdEl.textContent = '';
+                    legendRevealIndex = 0;
+                    voteLockTimerStarted = false;
+                    if (voteLockTimerId) { clearTimeout(voteLockTimerId); voteLockTimerId = null; }
+                    var leg = document.getElementById('qr-vote-legend');
+                    if (leg) {
+                        leg.classList.remove('qr-pie-legend-reveal');
+                        var cov = leg.querySelector('.qr-pie-legend-cover');
+                        if (cov) cov.style.height = '100%';
+                    }
                     document.querySelector('.qr-page').classList.remove('minimized');
                 }
             });
@@ -208,13 +303,21 @@
             document.getElementById('vote-url').textContent = VOTE_URL;
 
             var votePieUnsubscribe = null;
+            var pieCountdownRunning = false;
+            var pieCountdownTimer = null;
+            var pieCountdownValue = 10;
+            var pieRevealInterval = null;
+            var pieRevealComplete = false;
+            var legendRevealIndex = 0;
+            var voteLockTimerId = null;
+            var voteLockTimerStarted = false;
 
             // Décompte : +5s uniquement quand arrêté ; arrière-plan relance au "nombre de lancement"
             var countdownEl = document.getElementById('countdown');
             var countdownInterval = null;
             var countdownValue = 10;
             var launchValue = 10;  // valeur au prochain lancement (arrière-plan)
-            var countdownStopped = false;
+            var countdownStopped = true;  // arrêté par défaut : lancer manuellement (clic arrière-plan ou Espace)
 
             function runCountdownTick() {
                 countdownValue--;
@@ -225,8 +328,21 @@
                     countdownEl.textContent = launchValue;
                     countdownStopped = true;
                     document.querySelector('.qr-page').classList.add('minimized');
-                    loadVotePieChart();
+                    startPieCountdown();
                     setupVotePieRealtime();
+                    if (!voteLockTimerStarted) {
+                        voteLockTimerStarted = true;
+                        voteLockTimerId = setTimeout(function () {
+                            (function () {
+                                import('https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js').then(function (firestore) {
+                                    return import('./firebase-init.js').then(function (m) {
+                                        var setDoc = firestore.setDoc, doc = firestore.doc;
+                                        return setDoc(doc(m.db, 'vote_public', 'stats'), { locked: true }, { merge: true });
+                                    });
+                                }).catch(function (e) { console.error('vote lock', e); });
+                            })();
+                        }, 30000);
+                    }
                 }
             }
 
@@ -238,7 +354,7 @@
                 countdownInterval = setInterval(runCountdownTick, 1000);
             }
 
-            startCountdown();
+            countdownEl.textContent = launchValue;
 
             countdownEl.style.cursor = 'pointer';
 
@@ -260,12 +376,67 @@
                 startCountdown();  // relance au nombre de lancement (launchValue)
             });
 
+            document.addEventListener('keydown', function (e) {
+                if (e.key !== ' ' && e.code !== 'Space') return;
+                var isMinimized = document.querySelector('.qr-page').classList.contains('minimized');
+                if (!isMinimized) {
+                    e.preventDefault();
+                    startCountdown();
+                    return;
+                }
+                if (!pieRevealComplete) return;
+                e.preventDefault();
+                var leg = document.getElementById('qr-vote-legend');
+                if (!leg || leg.style.display === 'none') return;
+                var items = leg.querySelectorAll('.legend-item');
+                if (items.length === 0) return;
+                if (legendRevealIndex >= items.length) return;
+                legendRevealIndex++;
+                if (legendRevealIndex === items.length - 1) legendRevealIndex = items.length;
+                var cover = leg.querySelector('.qr-pie-legend-cover');
+                if (cover) {
+                    if (legendRevealIndex >= items.length) {
+                        cover.style.height = '0';
+                    } else {
+                        var legRect = leg.getBoundingClientRect();
+                        var firstRevealed = items[items.length - legendRevealIndex];
+                        var topPxScaled = firstRevealed.getBoundingClientRect().top - legRect.top;
+                        var topPx = topPxScaled / 0.9;
+                        cover.style.height = topPx + 'px';
+                    }
+                }
+            });
+
+            function startPieCountdown() {
+                pieCountdownRunning = true;
+                pieCountdownValue = 10;
+                var pieCdEl = document.getElementById('qr-pie-countdown');
+                if (pieCdEl) pieCdEl.textContent = pieCountdownValue;
+                loadVotePieChart();
+                if (pieCountdownTimer) clearInterval(pieCountdownTimer);
+                pieCountdownTimer = setInterval(function () {
+                    pieCountdownValue--;
+                    if (pieCdEl) pieCdEl.textContent = pieCountdownValue;
+                    if (pieCountdownValue <= 0) {
+                        clearInterval(pieCountdownTimer);
+                        pieCountdownTimer = null;
+                        pieCountdownRunning = false;
+                        if (pieCdEl) pieCdEl.textContent = '';
+                        loadVotePieChart();
+                    }
+                }, 1000);
+            }
+
             // Camembert vote du public (même logique qu'admin) — visible uniquement en minimisé
             async function loadVotePieChart() {
                 var canvas = document.getElementById('qr-vote-pie-chart');
                 var legendEl = document.getElementById('qr-vote-legend');
+                var legendInner = legendEl ? legendEl.querySelector('.qr-pie-legend-inner') : null;
+                if (!legendInner) legendInner = legendEl;
                 var container = document.getElementById('qr-pie-container');
                 if (!canvas || !legendEl) return;
+                legendEl.style.display = 'none';
+                if (pieRevealInterval) { clearInterval(pieRevealInterval); pieRevealInterval = null; }
                 if (container) {
                     container.style.transition = 'opacity 0.2s ease';
                     container.style.opacity = '0.35';
@@ -292,9 +463,30 @@
                     var total = list.reduce(function (s, x) { return s + x.count; }, 0);
 
                     var ctx = canvas.getContext('2d');
-                    legendEl.innerHTML = '';
+                    legendInner.innerHTML = '';
                     legendEl.classList.remove('qr-pie-empty');
+                    legendEl.classList.remove('qr-pie-legend-reveal');
+                    legendRevealIndex = 0;
+                    var coverReset = legendEl.querySelector('.qr-pie-legend-cover');
+                    if (coverReset) coverReset.style.height = '100%';
                     var w = canvas.width, h = canvas.height, cx = w / 2, cy = h / 2, r = Math.min(w, h) / 2 - 10;
+                    if (pieCountdownRunning) {
+                        ctx.clearRect(0, 0, w, h);
+                        ctx.fillStyle = '#fff';
+                        ctx.beginPath();
+                        ctx.moveTo(cx, cy);
+                        ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.strokeStyle = '#000';
+                        ctx.lineWidth = 1.5;
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+                        ctx.stroke();
+                        if (container) container.style.opacity = '1';
+                        legendEl.style.display = '';
+                        return;
+                    }
                     if (list.length === 0) {
                         ctx.clearRect(0, 0, w, h);
                         ctx.fillStyle = '#fff';
@@ -309,61 +501,122 @@
                         ctx.arc(cx, cy, r, 0, 2 * Math.PI);
                         ctx.stroke();
                         if (container) container.style.opacity = '1';
+                        if (legendEl) legendEl.style.display = 'none';
                         return;
                     }
-                    legendEl.innerHTML = list.map(function (item, i) {
-                        var hue = (i * 360 / Math.max(list.length, 1)) % 360;
-                        var color = 'hsl(' + hue + ', 65%, 55%)';
-                        var pct = Math.round((item.count / total) * 100);
-                        var name = (item.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                        return '<div><span class="dot" style="background:' + color + '"></span><span>' + name + '</span> <span style="color:rgba(255,255,255,0.85);font-size:0.85em">' + item.count + ' vote' + (item.count > 1 ? 's' : '') + ' (' + pct + '%)</span></div>';
-                    }).join('');
-                    var angles = list.map(function (item) { return (item.count / total) * 2 * Math.PI; });
-                    var duration = 500;
-                    var startTime = Date.now();
-                    function drawFrame() {
-                        var elapsed = Date.now() - startTime;
-                        var t = Math.min(1, elapsed / duration);
-                        var ease = 1 - Math.pow(1 - t, 2);
-                        var progress = 0.015 + 0.985 * ease;
+                    if (container) container.style.opacity = '1';
+                    pieRevealComplete = false;
+                    legendRevealIndex = 0;
+                    legendEl.style.display = list.length ? '' : 'none';
+                    var coverInit = legendEl.querySelector('.qr-pie-legend-cover');
+                    if (coverInit) coverInit.style.height = '100%';
+                    var idToName = {};
+                    list.forEach(function (item) { idToName[item.id] = item.name || ('ID ' + item.id); });
+                    var voteQueue = [];
+                    list.forEach(function (item) {
+                        for (var k = 0; k < item.count; k++) voteQueue.push(item.id);
+                    });
+                    for (var s = voteQueue.length - 1; s > 0; s--) {
+                        var j = Math.floor(Math.random() * (s + 1));
+                        var tmp = voteQueue[s];
+                        voteQueue[s] = voteQueue[j];
+                        voteQueue[j] = tmp;
+                    }
+                    var currentCounts = {};
+                    list.forEach(function (item) { currentCounts[item.id] = 0; });
+                    var voteIndex = 0;
+                    function buildCurrentList() {
+                        return Object.keys(currentCounts)
+                            .filter(function (id) { return currentCounts[id] > 0; })
+                            .map(function (id) { return { id: id, count: currentCounts[id], name: idToName[id] }; })
+                            .sort(function (a, b) { return b.count - a.count; });
+                    }
+                    function drawCurrentPie() {
+                        var currentList = buildCurrentList();
+                        var currentTotal = voteIndex;
                         ctx.clearRect(0, 0, w, h);
-                        var base = -Math.PI / 2;
-                        for (var i = 0; i < list.length; i++) {
-                            var sliceAngle = angles[i] * progress;
-                            var hue = (i * 360 / Math.max(list.length, 1)) % 360;
-                            ctx.fillStyle = 'hsl(' + hue + ', 65%, 55%)';
+                        if (currentList.length === 0) {
+                            ctx.fillStyle = '#fff';
                             ctx.beginPath();
                             ctx.moveTo(cx, cy);
-                            ctx.arc(cx, cy, r, base, base + sliceAngle);
+                            ctx.arc(cx, cy, r, 0, 2 * Math.PI);
                             ctx.closePath();
                             ctx.fill();
-                            var pct = Math.round((list[i].count / total) * 100);
-                            if (pct >= 3 && sliceAngle > 0.06) {
-                                var midAngle = base + sliceAngle / 2;
-                                var tx = cx + (r * 0.65) * Math.cos(midAngle);
-                                var ty = cy + (r * 0.65) * Math.sin(midAngle);
-                                ctx.fillStyle = '#fff';
-                                ctx.font = 'bold 14px sans-serif';
-                                ctx.textAlign = 'center';
-                                ctx.textBaseline = 'middle';
-                                ctx.fillText(pct + '%', tx, ty);
+                        } else {
+                            var base = -Math.PI / 2;
+                            for (var i = 0; i < currentList.length; i++) {
+                                var sliceAngle = (currentList[i].count / currentTotal) * 2 * Math.PI;
+                                ctx.fillStyle = getPieColor(i, currentList.length);
+                                ctx.beginPath();
+                                ctx.moveTo(cx, cy);
+                                ctx.arc(cx, cy, r, base, base + sliceAngle);
+                                ctx.closePath();
+                                ctx.fill();
+                                var pct = Math.round((currentList[i].count / currentTotal) * 100);
+                                if (pct >= 3 && sliceAngle > 0.06) {
+                                    var midAngle = base + sliceAngle / 2;
+                                    var tx = cx + (r * 0.65) * Math.cos(midAngle);
+                                    var ty = cy + (r * 0.65) * Math.sin(midAngle);
+                                    ctx.fillStyle = '#fff';
+                                    ctx.font = 'bold 27px sans-serif';
+                                    ctx.textAlign = 'center';
+                                    ctx.textBaseline = 'middle';
+                                    ctx.fillText(pct + '%', tx, ty);
+                                }
+                                base += sliceAngle;
                             }
-                            base += sliceAngle;
                         }
                         ctx.strokeStyle = '#000';
                         ctx.lineWidth = 1.5;
                         ctx.beginPath();
                         ctx.arc(cx, cy, r, 0, 2 * Math.PI);
                         ctx.stroke();
-                        if (t < 1) requestAnimationFrame(drawFrame);
-                        else if (container) container.style.opacity = '1';
+                        var tot = voteIndex;
+                        var sortedList = list.slice().sort(function (a, b) {
+                            return (currentCounts[b.id] || 0) - (currentCounts[a.id] || 0);
+                        });
+                        legendInner.innerHTML = sortedList.map(function (item, i) {
+                            var count = currentCounts[item.id] || 0;
+                            var color = count > 0 ? getPieColor(i, sortedList.length) : '#ccc';
+                            var pct = tot ? Math.round((count / tot) * 100) : 0;
+                            var name = (item.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                            return '<div class="legend-item"><span class="dot" style="background:' + color + '"></span><span>' + name + '</span> <span style="font-size:0.85em">' + count + ' vote' + (count !== 1 ? 's' : '') + (tot ? ' (' + pct + '%)' : '') + '</span></div>';
+                        }).join('');
+                        if (legendRevealIndex > 0) {
+                            var itemsAfter = legendInner.querySelectorAll('.legend-item');
+                            var coverUpd = legendEl.querySelector('.qr-pie-legend-cover');
+                            if (coverUpd && itemsAfter.length >= legendRevealIndex) {
+                                var legR = legendEl.getBoundingClientRect();
+                                if (legendRevealIndex >= itemsAfter.length) {
+                                    coverUpd.style.height = '0';
+                                } else {
+                                    var firstRevealedUpd = itemsAfter[itemsAfter.length - legendRevealIndex];
+                                    var topPxS = firstRevealedUpd.getBoundingClientRect().top - legR.top;
+                                    coverUpd.style.height = (topPxS / 0.9) + 'px';
+                                }
+                            }
+                        }
                     }
-                    drawFrame();
+                    drawCurrentPie();
+                    pieRevealInterval = setInterval(function () {
+                        if (voteIndex < voteQueue.length) {
+                            var id = voteQueue[voteIndex];
+                            currentCounts[id]++;
+                            voteIndex++;
+                            drawCurrentPie();
+                        }
+                        if (voteIndex >= voteQueue.length) {
+                            clearInterval(pieRevealInterval);
+                            pieRevealInterval = null;
+                            pieRevealComplete = true;
+                            if (container) container.style.opacity = '1';
+                        }
+                    }, 100);
                 } catch (e) {
                     console.error('loadVotePieChart', e);
                     if (legendEl) {
                         legendEl.classList.add('qr-pie-empty');
-                        legendEl.textContent = 'Chargement des votes…';
+                        if (legendInner) legendInner.innerHTML = 'Chargement des votes…';
                     }
                     if (container) container.style.opacity = '1';
                 }

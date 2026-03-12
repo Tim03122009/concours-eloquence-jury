@@ -1096,6 +1096,9 @@
             <div id="vote-public-stats" style="display: none; margin-bottom: 16px; padding: 12px 16px; background: var(--info-bg-start); border-radius: var(--radius); border: 1px solid var(--primary); font-size: 1.05rem; color: var(--text-color);">
                 <strong id="vote-public-stats-text"></strong>
             </div>
+            <div id="vote-public-lock-wrap" style="display: none; margin-bottom: 16px;">
+                <button type="button" id="btn-vote-public-lock" class="action-button" style="background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%); color: white;">Verrouiller les votes</button>
+            </div>
             <div id="vote-public-loading" style="display: none; text-align: center; padding: 20px; color: var(--text-secondary);">Chargement…</div>
             <div id="vote-public-empty" style="display: none; text-align: center; padding: 20px; color: var(--text-secondary);">Aucun vote pour le moment.</div>
             <div id="vote-public-content" style="display: none;">
@@ -1729,6 +1732,17 @@
         };
 
         // --- VOTE PUBLIC ---
+        window.toggleVotePublicLock = async function() {
+            try {
+                const statsSnap = await getDoc(doc(db, 'vote_public', 'stats'));
+                const current = statsSnap.exists() && statsSnap.data().locked === true;
+                await setDoc(doc(db, 'vote_public', 'stats'), { locked: !current }, { merge: true });
+                loadVotePublicData();
+            } catch (e) {
+                console.error(e);
+                alert('Erreur lors du verrouillage / déverrouillage.');
+            }
+        };
         window.loadVotePublicData = async function() {
             const loadingEl = document.getElementById('vote-public-loading');
             const emptyEl = document.getElementById('vote-public-empty');
@@ -1742,7 +1756,9 @@
                     getDoc(doc(db, 'vote_public', 'totaux')),
                     getDoc(doc(db, 'vote_public', 'stats'))
                 ]);
-                const visitors = (statsSnap.exists() && typeof statsSnap.data().visitorCount === 'number') ? statsSnap.data().visitorCount : null;
+                const statsData = statsSnap.exists() ? statsSnap.data() : {};
+                const visitors = (typeof statsData.visitorCount === 'number') ? statsData.visitorCount : null;
+                const votePublicLocked = statsData.locked === true;
                 const data = voteSnap.exists() ? voteSnap.data() : {};
                 const list = Object.entries(data)
                     .filter(([k, v]) => k !== '_resetAt' && typeof v === 'number' && v > 0)
@@ -1763,6 +1779,13 @@
                     } else {
                         statsTextEl.textContent = total + ' vote' + (total !== 1 ? 's' : '') + ' (nombre de connexions non disponible)';
                     }
+                }
+                const lockWrap = document.getElementById('vote-public-lock-wrap');
+                const lockBtn = document.getElementById('btn-vote-public-lock');
+                if (lockWrap && lockBtn) {
+                    lockWrap.style.display = 'block';
+                    lockBtn.textContent = votePublicLocked ? 'Déverrouiller les votes' : 'Verrouiller les votes';
+                    lockBtn.onclick = function() { toggleVotePublicLock(); };
                 }
                 if (list.length === 0) {
                     emptyEl.style.display = 'block';
@@ -1843,9 +1866,9 @@
             resetVotePublicInProgress = true;
             try {
                 await setDoc(doc(db, 'vote_public', 'totaux'), { _resetAt: serverTimestamp() });
-                await setDoc(doc(db, 'vote_public', 'stats'), { visitorCount: 0 }, { merge: true });
+                await setDoc(doc(db, 'vote_public', 'stats'), { visitorCount: 0, locked: false }, { merge: true });
                 loadVotePublicData();
-                alert('Votes et nombre de personnes connectées réinitialisés. Le public peut à nouveau voter.');
+                alert('Votes et nombre de personnes connectées réinitialisés. Les interfaces vote sont déverrouillées.');
             } catch (e) {
                 console.error('resetVotePublic', e);
                 alert('Erreur lors de la réinitialisation.');

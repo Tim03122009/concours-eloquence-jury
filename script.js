@@ -990,6 +990,16 @@ document.getElementById('start-scoring-button').onclick = async () => {
             return;
         }
 
+        // Accès interface vidéo : identifiant "vidéo" ou "video", mot de passe vide
+        if (name.toLowerCase() === 'vidéo' || name.toLowerCase() === 'video') {
+            if (password && password.trim() !== '') {
+                alert('Pour l\'interface vidéo, laissez le mot de passe vide.');
+                return;
+            }
+            window.location.href = 'video.html';
+            return;
+        }
+
         // Vérification mode admin
         if (name.toLowerCase() === 'admin') {
             const adminDoc = await getDoc(doc(db, "config", "admin"));

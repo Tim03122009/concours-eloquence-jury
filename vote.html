@@ -252,6 +252,10 @@
 
             <div id="vote-loading">Chargement des candidats…</div>
             <div id="vote-error" style="display: none;"></div>
+            <div id="vote-locked-message" style="display: none; text-align: center; padding: 48px 24px; background: rgba(239, 68, 68, 0.1); border: 2px solid rgba(239, 68, 68, 0.4); border-radius: 12px; margin-top: 24px;">
+                <p style="font-size: 1.25rem; font-weight: 700; color: #fca5a5; margin: 0 0 8px 0;">Fin du temps de notation</p>
+                <p style="font-size: 0.95rem; color: #9ca3af; margin: 0;">Les votes ne sont plus acceptés.</p>
+            </div>
 
             <div id="vote-form-wrap" style="display: none;">
                 <p class="vote-step">Étape 1 — Choisir un candidat</p>
@@ -278,33 +282,28 @@
         const VISITOR_STORAGE_KEY = 'concours_eloquence_vote_visitor';
 
         async function registerVisitor() {
-            try {
-                if (localStorage.getItem(VISITOR_STORAGE_KEY)) return;
-            } catch (_) {}
-            const statsRef = doc(db, 'vote_public', 'stats');
-            for (let attempt = 1; attempt <= 4; attempt++) {
+            if (localStorage.getItem(VISITOR_STORAGE_KEY)) return;
+            const maxAttempts = 4;
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
                 try {
-                    await setDoc(statsRef, { visitorCount: increment(1) }, { merge: true });
-                    try { localStorage.setItem(VISITOR_STORAGE_KEY, '1'); } catch (_) {}
+                    await setDoc(doc(db, 'vote_public', 'stats'), { visitorCount: increment(1) }, { merge: true });
+                    localStorage.setItem(VISITOR_STORAGE_KEY, '1');
                     return;
-                } catch (_) {
-                    await new Promise(r => setTimeout(r, 600 * attempt));
+                } catch (e) {
+                    if (attempt < maxAttempts) await new Promise(r => setTimeout(r, 800 * attempt));
                 }
             }
-            try {
-                var snap = await getDoc(statsRef);
-                var n = (snap.exists() && typeof snap.data().visitorCount === 'number') ? snap.data().visitorCount : 0;
-                await setDoc(statsRef, { visitorCount: n + 1 }, { merge: true });
-                try { localStorage.setItem(VISITOR_STORAGE_KEY, '1'); } catch (_) {}
-            } catch (_) {}
         }
-        function runWhenReady() {
-            if (document.readyState === 'complete') registerVisitor();
-            else window.addEventListener('load', function once() { window.removeEventListener('load', once); registerVisitor(); });
+        function scheduleRegisterVisitor() {
+            function afterLoad() {
+                setTimeout(function() {
+                    registerVisitor();
+                }, 4000);
+            }
+            if (document.readyState === 'complete') afterLoad();
+            else window.addEventListener('load', function once() { window.removeEventListener('load', once); afterLoad(); });
         }
-        runWhenReady();
-        setTimeout(registerVisitor, 1500);
-        setTimeout(registerVisitor, 4000);
+        scheduleRegisterVisitor();
         document.addEventListener('visibilitychange', function() {
             if (document.visibilityState === 'visible') registerVisitor();
         });
@@ -444,15 +443,35 @@
             return div.innerHTML;
         }
 
+        function applyLockedState(locked) {
+            const loadingEl = document.getElementById('vote-loading');
+            const formWrap = document.getElementById('vote-form-wrap');
+            const confirmEl = document.getElementById('vote-confirm');
+            const lockedEl = document.getElementById('vote-locked-message');
+            if (locked) {
+                if (loadingEl) loadingEl.style.display = 'none';
+                if (formWrap) formWrap.style.display = 'none';
+                if (confirmEl) confirmEl.classList.remove('visible');
+                if (lockedEl) lockedEl.style.display = 'block';
+            } else {
+                if (lockedEl) lockedEl.style.display = 'none';
+                if (formWrap && CANDIDATES_LIST.length) formWrap.style.display = 'block';
+                if (confirmEl && hasAlreadyVoted()) confirmEl.classList.add('visible');
+            }
+        }
+
         async function init() {
             const errorEl = document.getElementById('vote-error');
             try {
-                const [candidates, voteSnap] = await Promise.all([
+                const [candidates, voteSnap, statsSnap] = await Promise.all([
                     loadCandidates(),
-                    getDoc(doc(db, VOTE_DOC.collection, VOTE_DOC.id))
+                    getDoc(doc(db, VOTE_DOC.collection, VOTE_DOC.id)),
+                    getDoc(doc(db, 'vote_public', 'stats'))
                 ]);
                 const voteData = voteSnap.exists() ? voteSnap.data() : {};
                 currentSessionResetAt = getResetAtFromData(voteData);
+                const stats = statsSnap.exists() ? statsSnap.data() : {};
+                const locked = stats.locked === true;
 
                 if (candidates.length === 0) {
                     document.getElementById('vote-loading').style.display = 'none';
@@ -461,9 +480,14 @@
                     return;
                 }
                 CANDIDATES_LIST = candidates;
-                renderCandidates(candidates);
-                attachValidateListener();
-                if (hasAlreadyVoted()) showConfirm();
+                if (locked) {
+                    applyLockedState(true);
+                } else {
+                    renderCandidates(candidates);
+                    attachValidateListener();
+                    if (hasAlreadyVoted()) showConfirm();
+                    applyLockedState(false);
+                }
 
                 onSnapshot(doc(db, VOTE_DOC.collection, VOTE_DOC.id), function(snap) {
                     var data = snap.exists() ? snap.data() : {};
@@ -477,6 +501,17 @@
                             document.getElementById('vote-form-wrap').style.display = 'block';
                             if (CANDIDATES_LIST.length) renderCandidates(CANDIDATES_LIST);
                         }
+                    }
+                });
+
+                onSnapshot(doc(db, 'vote_public', 'stats'), function(snap) {
+                    var s = snap.exists() ? snap.data() : {};
+                    var isLocked = s.locked === true;
+                    applyLockedState(isLocked);
+                    if (!isLocked && CANDIDATES_LIST.length) {
+                        renderCandidates(CANDIDATES_LIST);
+                        attachValidateListener();
+                        if (hasAlreadyVoted()) showConfirm();
                     }
                 });
             } catch (e) {
