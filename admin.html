@@ -1241,7 +1241,7 @@
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <script type="module">
         import { db } from './firebase-init.js';
-        import { collection, getDocs, deleteDoc, doc, setDoc, getDoc, addDoc, query, where, writeBatch, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
+        import { collection, getDocs, deleteDoc, doc, setDoc, getDoc, addDoc, query, where, writeBatch, onSnapshot, serverTimestamp, updateDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
 
         let CANDIDATES = [];
         let ROUNDS = [];
@@ -1397,9 +1397,18 @@
                 const byRound = data.byRound || {};
                 if (!byRound[roundId] || !byRound[roundId][candidateId]) return;
                 byRound[roundId][candidateId].splice(index, 1);
-                if (byRound[roundId][candidateId].length === 0) delete byRound[roundId][candidateId];
-                if (Object.keys(byRound[roundId]).length === 0) delete byRound[roundId];
-                await setDoc(doc(db, "config", "malus"), { byRound }, { merge: true });
+                const malusRef = doc(db, "config", "malus");
+                if (byRound[roundId][candidateId].length === 0) {
+                    delete byRound[roundId][candidateId];
+                    const updates = { ["byRound." + roundId + "." + candidateId]: deleteField() };
+                    if (Object.keys(byRound[roundId]).length === 0) {
+                        delete byRound[roundId];
+                        updates["byRound." + roundId] = deleteField();
+                    }
+                    await updateDoc(malusRef, updates);
+                } else {
+                    await setDoc(malusRef, { byRound }, { merge: true });
+                }
                 if (typeof updateClassementFromScoresForRound === 'function') await updateClassementFromScoresForRound(roundId);
                 await renderNotesTable();
             } catch (e) {
