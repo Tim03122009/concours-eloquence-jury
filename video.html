@@ -252,23 +252,6 @@
             let syncMode = false;
             let lastSharedVideoUrl = '';
             let pushState = function() {};
-            let lastSyncTimestamp = 0;
-            let lastSyncVideoTime = 0;
-            const syncClientId = 'v' + Math.random().toString(36).slice(2, 12);
-            let syncLeaderInterval = null;
-            let weAreSyncLeader = false;
-
-            function runSyncTick() {
-                if (!syncMode || !video.src || video.paused) return;
-                if (lastSyncTimestamp <= 0) return;
-                const d = video.duration;
-                if (!d || !isFinite(d)) return;
-                const t = lastSyncVideoTime + (Date.now() - lastSyncTimestamp) / 1000;
-                const clamped = Math.max(0, Math.min(d, t));
-                if (Math.abs(video.currentTime - clamped) > 0.005) video.currentTime = clamped;
-                updateProgressDot();
-                updateTreeProgressBlock();
-            }
 
             try {
                 const { db } = await import('./firebase-init.js');
@@ -279,31 +262,15 @@
                     if (applyingRemote || !video.src) return;
                     const d = video.duration;
                     const t = video.currentTime;
-                    const now = Date.now();
-                    const payload = {
+                    setDoc(VIDEO_SYNC_REF, {
                         sharedVideoUrl: lastSharedVideoUrl || '',
                         sharedVideoName: lastSharedVideoUrl ? (video.src || '') : '',
                         paused: video.paused,
                         currentTime: isFinite(t) ? t : 0,
-                        syncTimestamp: now,
-                        syncVideoTime: video.paused ? t : (isFinite(t) ? t : 0),
-                        syncLeaderId: syncClientId
-                    };
-                    lastSyncTimestamp = now;
-                    lastSyncVideoTime = payload.syncVideoTime;
-                    setDoc(VIDEO_SYNC_REF, payload, { merge: true }).catch(() => {});
-                };
-
-                if (!syncLeaderInterval) {
-                    syncLeaderInterval = setInterval(() => {
-                        if (weAreSyncLeader && syncMode && video.src && !video.paused) pushState();
-                    }, 350);
+                        syncTimestamp: Date.now(),
+                        syncVideoTime: video.paused ? t : (isFinite(t) ? t : 0)
+                    }, { merge: true }).catch(() => {});
                 }
-
-                requestAnimationFrame(function syncLoop() {
-                    runSyncTick();
-                    requestAnimationFrame(syncLoop);
-                });
 
                 videoSyncUnsubscribe = onSnapshot(VIDEO_SYNC_REF, (snap) => {
                     if (!snap.exists()) return;
@@ -319,26 +286,20 @@
                         video.src = url;
                         video.load();
                         video.pause();
-                        lastSyncTimestamp = 0;
                     } else if (url) {
                         lastSharedVideoUrl = url;
                         syncMode = true;
                     } else {
                         lastSharedVideoUrl = '';
                         syncMode = false;
-                        lastSyncTimestamp = 0;
                     }
                     const now = Date.now();
                     const st = data.syncTimestamp || 0;
                     const sv = data.syncVideoTime || 0;
-                    weAreSyncLeader = (data.syncLeaderId === syncClientId);
                     if (data.paused) {
                         video.pause();
                         video.currentTime = Math.max(0, data.currentTime != null ? data.currentTime : video.currentTime);
-                        lastSyncTimestamp = 0;
                     } else {
-                        lastSyncTimestamp = st;
-                        lastSyncVideoTime = sv;
                         const targetTime = sv + (now - st) / 1000;
                         video.currentTime = Math.max(0, targetTime);
                         video.play().catch(() => {});
