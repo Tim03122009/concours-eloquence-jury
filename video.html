@@ -180,6 +180,40 @@
             color: #888;
             border-top: 1px solid #333;
         }
+        .tree-shared-section {
+            padding: 10px 16px;
+            border-bottom: 1px solid #333;
+        }
+        .tree-shared-section label {
+            display: block;
+            font-size: 0.75rem;
+            color: #94a3b8;
+            margin-bottom: 6px;
+        }
+        .tree-shared-section input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 6px 8px;
+            margin-bottom: 6px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid #444;
+            border-radius: 4px;
+            color: #eee;
+            font-size: 0.85rem;
+        }
+        .tree-shared-section button {
+            width: 100%;
+            padding: 6px;
+            background: #0ea5e9;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .tree-shared-section button:hover {
+            background: #0284c7;
+        }
     </style>
 </head>
 <body>
@@ -188,6 +222,11 @@
         <video id="video" tabindex="0" autoplay playsinline></video>
     </div>
     <div id="tree-panel" aria-hidden="true">
+        <div class="tree-shared-section">
+            <label for="shared-video-url">Vidéo partagée (tous les appareils)</label>
+            <input type="url" id="shared-video-url" placeholder="https://... (URL publique)">
+            <button type="button" id="shared-video-apply">Définir pour tous</button>
+        </div>
         <div id="tree-header">
             <h2>Dossier</h2>
             <button type="button" id="tree-choose-dir">Choisir un dossier</button>
@@ -199,7 +238,7 @@
     </div>
 
     <script>
-        (function() {
+        (async function() {
             const VIDEO_EXTS = new Set(['.mp4', '.webm', '.mov', '.avi', '.mkv', '.m4v', '.ogv']);
             const video = document.getElementById('video');
             const progressDot = document.getElementById('progress-dot');
@@ -207,6 +246,134 @@
             const treeList = document.getElementById('tree-list');
             const chooseDirBtn = document.getElementById('tree-choose-dir');
             let rootHandle = null;
+
+            let videoSyncUnsubscribe = null;
+            let applyingRemote = false;
+            let syncMode = false;
+            let lastSharedVideoUrl = '';
+            let pushState = function() {};
+            let lastSyncTimestamp = 0;
+            let lastSyncVideoTime = 0;
+            const syncClientId = 'v' + Math.random().toString(36).slice(2, 12);
+            let syncLeaderInterval = null;
+            let weAreSyncLeader = false;
+
+            function runSyncTick() {
+                if (!syncMode || !video.src || video.paused) return;
+                if (lastSyncTimestamp <= 0) return;
+                const d = video.duration;
+                if (!d || !isFinite(d)) return;
+                const t = lastSyncVideoTime + (Date.now() - lastSyncTimestamp) / 1000;
+                const clamped = Math.max(0, Math.min(d, t));
+                if (Math.abs(video.currentTime - clamped) > 0.005) video.currentTime = clamped;
+                updateProgressDot();
+                updateTreeProgressBlock();
+            }
+
+            try {
+                const { db } = await import('./firebase-init.js');
+                const { doc, onSnapshot, setDoc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js');
+                const VIDEO_SYNC_REF = doc(db, 'config', 'videoSync');
+
+                pushState = function() {
+                    if (applyingRemote || !video.src) return;
+                    const d = video.duration;
+                    const t = video.currentTime;
+                    const now = Date.now();
+                    const payload = {
+                        sharedVideoUrl: lastSharedVideoUrl || '',
+                        sharedVideoName: lastSharedVideoUrl ? (video.src || '') : '',
+                        paused: video.paused,
+                        currentTime: isFinite(t) ? t : 0,
+                        syncTimestamp: now,
+                        syncVideoTime: video.paused ? t : (isFinite(t) ? t : 0),
+                        syncLeaderId: syncClientId
+                    };
+                    lastSyncTimestamp = now;
+                    lastSyncVideoTime = payload.syncVideoTime;
+                    setDoc(VIDEO_SYNC_REF, payload, { merge: true }).catch(() => {});
+                };
+
+                if (!syncLeaderInterval) {
+                    syncLeaderInterval = setInterval(() => {
+                        if (weAreSyncLeader && syncMode && video.src && !video.paused) pushState();
+                    }, 350);
+                }
+
+                requestAnimationFrame(function syncLoop() {
+                    runSyncTick();
+                    requestAnimationFrame(syncLoop);
+                });
+
+                videoSyncUnsubscribe = onSnapshot(VIDEO_SYNC_REF, (snap) => {
+                    if (!snap.exists()) return;
+                    const data = snap.data();
+                    applyingRemote = true;
+                    const url = (data.sharedVideoUrl || '').trim();
+                    const sharedInput = document.getElementById('shared-video-url');
+                    if (sharedInput) sharedInput.value = url;
+                    if (url && url !== video.src) {
+                        lastSharedVideoUrl = url;
+                        syncMode = true;
+                        if (video.src && video.src.startsWith('blob:')) URL.revokeObjectURL(video.src);
+                        video.src = url;
+                        video.load();
+                        video.pause();
+                        lastSyncTimestamp = 0;
+                    } else if (url) {
+                        lastSharedVideoUrl = url;
+                        syncMode = true;
+                    } else {
+                        lastSharedVideoUrl = '';
+                        syncMode = false;
+                        lastSyncTimestamp = 0;
+                    }
+                    const now = Date.now();
+                    const st = data.syncTimestamp || 0;
+                    const sv = data.syncVideoTime || 0;
+                    weAreSyncLeader = (data.syncLeaderId === syncClientId);
+                    if (data.paused) {
+                        video.pause();
+                        video.currentTime = Math.max(0, data.currentTime != null ? data.currentTime : video.currentTime);
+                        lastSyncTimestamp = 0;
+                    } else {
+                        lastSyncTimestamp = st;
+                        lastSyncVideoTime = sv;
+                        const targetTime = sv + (now - st) / 1000;
+                        video.currentTime = Math.max(0, targetTime);
+                        video.play().catch(() => {});
+                    }
+                    updateProgressDot();
+                    updateTreeProgressBlock();
+                    applyingRemote = false;
+                });
+
+                document.getElementById('shared-video-apply').addEventListener('click', async () => {
+                    const input = document.getElementById('shared-video-url');
+                    const url = (input.value || '').trim();
+                    if (!url) return;
+                    try {
+                        await setDoc(VIDEO_SYNC_REF, {
+                            sharedVideoUrl: url,
+                            sharedVideoName: url,
+                            paused: true,
+                            currentTime: 0,
+                            syncTimestamp: Date.now(),
+                            syncVideoTime: 0
+                        }, { merge: true });
+                    } catch (e) {
+                        console.error(e);
+                    }
+                });
+
+                getDoc(VIDEO_SYNC_REF).then(snap => {
+                    if (snap.exists() && (snap.data().sharedVideoUrl || '').trim()) {
+                        document.getElementById('shared-video-url').value = (snap.data().sharedVideoUrl || '').trim();
+                    }
+                }).catch(() => {});
+            } catch (e) {
+                console.warn('Firebase non disponible, mode local uniquement.', e);
+            }
 
             function updateProgressDot() {
                 if (!video.src) return;
@@ -255,6 +422,7 @@
                     video.currentTime = ratio * d;
                     updateTreeProgressBlock();
                     updateProgressDot();
+                    if (syncMode) pushState();
                 });
                 return block;
             }
@@ -360,6 +528,7 @@
                                     video.src = url;
                                     video.load();
                                     video.pause();
+                                    syncMode = false;
                                     document.querySelectorAll('.tree-item.video-file').forEach(el => el.classList.remove('playing'));
                                     div.classList.add('playing');
                                     attachProgressBlockToPlayingItem(div);
@@ -415,6 +584,7 @@
                     if (video.src) {
                         if (video.paused) video.play();
                         else video.pause();
+                        if (syncMode) pushState();
                     }
                     return;
                 }
@@ -423,6 +593,7 @@
                     if (video.src) {
                         video.currentTime = 0;
                         video.pause();
+                        if (syncMode) pushState();
                     }
                 }
             });
@@ -432,6 +603,7 @@
                 if (!video.src) return;
                 if (video.paused) video.play();
                 else video.pause();
+                if (syncMode) pushState();
             });
 
             if (!rootHandle) renderEmpty();
