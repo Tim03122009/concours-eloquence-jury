@@ -4444,6 +4444,8 @@
                 const juriesOnRound = JURIES.filter(j => j.rounds && j.rounds.includes(roundId));
                 let classementSnap = await getDoc(doc(db, "classements", classementId));
                 let entries = classementSnap.exists() ? (classementSnap.data().entries || []) : [];
+                const classementData = classementSnap.exists() ? classementSnap.data() : {};
+                let malusDisabled = Array.isArray(classementData.malusDisabled) ? classementData.malusDisabled : null;
                 const entriesWithBonus = entries.filter(e => {
                     const base = e.score_base != null ? (typeof e.score_base === 'number' ? e.score_base : parseFloat(e.score_base) || 0) : 0;
                     const applied = e.score_appliqué != null ? (typeof e.score_appliqué === 'number' ? e.score_appliqué : parseFloat(e.score_appliqué) || 0) : 0;
@@ -4541,13 +4543,16 @@
                 });
 
                 const duelWinnerIds = await getDuelWinnerIds(roundId);
-                const classementData = classementSnap.exists() ? classementSnap.data() : {};
                 const duelBonusEnabled = Array.isArray(classementData.duelBonusEnabled) ? classementData.duelBonusEnabled : [];
 
                 if (loadingEl) loadingEl.style.display = 'none';
                 if (emptyEl) emptyEl.style.display = 'none';
                 if (containerEl) containerEl.style.display = 'block';
-                renderActivationClassementsGrid(grid, juriesOnRound, classementId, roundId, activationsSnap.exists() ? activationsSnap.data().activated : [], duelWinnerIds, duelBonusEnabled);
+                // Par défaut (pas encore de champ malusDisabled) : tous les candidats sont marqués comme "malus désactivés" (bouton rouge)
+                if (!Array.isArray(malusDisabled) || malusDisabled.length === 0) {
+                    malusDisabled = grid.map(row => row.candidateId).filter(Boolean);
+                }
+                renderActivationClassementsGrid(grid, juriesOnRound, classementId, roundId, activationsSnap.exists() ? activationsSnap.data().activated : [], duelWinnerIds, duelBonusEnabled, malusDisabled);
 
                 let firstJury = true, firstClassement = true, firstActivations = true, firstDuels = true;
                 const qJuryRankings = query(collection(db, "jury_rankings"), where("roundId", "==", roundId));
@@ -4574,9 +4579,10 @@
             }
         };
 
-        function renderActivationClassementsGrid(grid, juriesOnRound, classementId, roundId, activatedList, duelWinnerIds, duelBonusEnabled) {
+        function renderActivationClassementsGrid(grid, juriesOnRound, classementId, roundId, activatedList, duelWinnerIds, duelBonusEnabled, malusDisabled) {
             duelWinnerIds = duelWinnerIds || [];
             duelBonusEnabled = duelBonusEnabled || [];
+            malusDisabled = Array.isArray(malusDisabled) ? malusDisabled : [];
             const thead = document.getElementById('activation-classements-thead');
             const tbody = document.getElementById('activation-classements-tbody');
             if (!thead || !tbody) return;
@@ -4602,6 +4608,30 @@
                 tdCand.style.padding = '10px';
                 const nameText = document.createTextNode((row.name || row.candidateId) + ' (' + row.candidateId + ') ');
                 tdCand.appendChild(nameText);
+                const malusOff = malusDisabled.includes(row.candidateId);
+                const malusBtn = document.createElement('button');
+                malusBtn.type = 'button';
+                malusBtn.textContent = '❌';
+                malusBtn.title = malusOff
+                    ? 'Malus désactivés pour ce candidat dans le classement (cliquer pour réactiver les malus)'
+                    : 'Malus activés pour ce candidat dans le classement (cliquer pour désactiver les malus)';
+                malusBtn.style.marginLeft = '4px';
+                malusBtn.style.padding = '2px 6px';
+                malusBtn.style.fontSize = '1.0em';
+                malusBtn.style.borderRadius = '6px';
+                malusBtn.style.border = '2px solid var(--border-color)';
+                malusBtn.style.cursor = 'pointer';
+                if (malusOff) {
+                    // Rouge = malus désactivés
+                    malusBtn.style.background = 'linear-gradient(135deg, #ffcdd2 0%, #ef9a9a 100%)';
+                    malusBtn.style.color = '#b71c1c';
+                } else {
+                    // Vert = malus activés
+                    malusBtn.style.background = 'linear-gradient(135deg, #c8e6c9 0%, #81c784 100%)';
+                    malusBtn.style.color = '#1b5e20';
+                }
+                malusBtn.onclick = () => toggleMalusForCandidate(classementId, row.candidateId);
+                tdCand.appendChild(malusBtn);
                 const isDuelWinner = duelWinnerIds.includes(row.candidateId);
                 const bonusEnabled = duelBonusEnabled.includes(row.candidateId);
                 if (isDuelWinner) {
@@ -4706,6 +4736,41 @@
             } catch (e) {
                 console.error(e);
                 await customAlert('Erreur : ' + (e.message || e));
+            }
+        };
+
+        window.toggleMalusForCandidate = async function(classementId, candidateId) {
+            try {
+                const snap = await getDoc(doc(db, "classements", classementId));
+                if (!snap.exists()) {
+                    await customAlert('Classement introuvable.');
+                    return;
+                }
+                const data = snap.data();
+                // Liste persistée des candidats avec malus désactivés
+                let list = Array.isArray(data.malusDisabled) ? [...data.malusDisabled] : null;
+                // Si aucune config encore stockée, on part de "tous désactivés" (comme l’affichage par défaut)
+                if (!list || list.length === 0) {
+                    const rawEntries = Array.isArray(data.entries)
+                        ? data.entries
+                        : (data.entries && typeof data.entries === 'object'
+                            ? Object.values(data.entries)
+                            : []);
+                    list = rawEntries.map(e => e.candidateId).filter(Boolean);
+                }
+                const idx = list.indexOf(candidateId);
+                if (idx >= 0) {
+                    // Candidat était désactivé → on le retire de la liste → malus activés pour lui
+                    list.splice(idx, 1);
+                } else {
+                    // Candidat était activé → on l’ajoute à la liste → malus désactivés pour lui
+                    list.push(candidateId);
+                }
+                await setDoc(doc(db, "classements", classementId), { ...data, malusDisabled: list, lastUpdateSource: 'admin_malus_toggle', updatedAt: new Date() }, { merge: true });
+                await loadActivationClassementsData();
+            } catch (e) {
+                console.error('toggleMalusForCandidate', e);
+                await customAlert('Erreur lors du basculement des malus pour ce candidat : ' + (e.message || e));
             }
         };
 

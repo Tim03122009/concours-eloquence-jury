@@ -84,7 +84,7 @@
     </style>
 </head>
 <body>
-    <div class="page active" style="max-width: 800px; margin: 0.7cm auto 0 auto; padding: var(--spacing-md); overflow: visible;">
+2    <div class="page active" style="max-width: 800px; margin: 0.7cm auto 0 auto; padding: var(--spacing-md); overflow: visible;">
         <p style="text-align: center; margin-bottom: var(--spacing-sm);">
             <a href="index.html" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">← Retour à l'accueil</a>
         </p>
@@ -110,13 +110,22 @@
         import { db } from './firebase-init.js';
         import { getDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
 
+        let classementMalusByCandidate = {};
+        let classementMalusDisabled = new Set();
+
         function getScoreBase(entry) {
             const v = entry.score_affiché != null ? entry.score_affiché : (entry.score_appliqué != null ? entry.score_appliqué : (entry.score_base != null ? entry.score_base : 0));
             return typeof v === 'number' ? v : parseFloat(v) || 0;
         }
-        /** Score affiché : note de base + 10% si le candidat a gagné un duel (calculé à l'affichage, pas stocké). */
+        /** Score affiché : note de base (malus appliqués par défaut, ou retirés par candidat) + 10% si le candidat a gagné un duel (calculé à l'affichage, pas stocké). */
         function getDisplayScore(entry, duelWinnerIds) {
-            const base = getScoreBase(entry);
+            let base = getScoreBase(entry);
+            const cid = entry.candidateId;
+            const malus = classementMalusByCandidate && cid ? (classementMalusByCandidate[cid] || 0) : 0;
+            // Si le candidat a ses malus désactivés dans le classement, on ré‑ajoute les points enlevés
+            if (classementMalusDisabled && classementMalusDisabled.has(cid)) {
+                base = base + malus;
+            }
             if (duelWinnerIds && duelWinnerIds.length && duelWinnerIds.includes(entry.candidateId)) {
                 return Math.round(base * 1.1 * 100) / 100;
             }
@@ -145,6 +154,7 @@
         const FLOAT_MAX_PX = 20;
         let previousRanks = new Map();
         let previousScores = new Map();
+        let previousMalusDisabled = new Set();
         let animationsInProgress = 0;
         let lastRenderData = null;
         let lastRenderDuelWinnerIds = null;
@@ -270,11 +280,23 @@
             });
             lastRenderData = data;
             lastRenderDuelWinnerIds = duelWinnerIds;
+
+            // Détection d’un basculement de malus pour un seul candidat
+            const currentMalusDisabled = classementMalusDisabled || new Set();
+            const removedFromDisabled = [];
+            const addedToDisabled = [];
+            previousMalusDisabled.forEach(cid => {
+                if (!currentMalusDisabled.has(cid)) removedFromDisabled.push(cid);
+            });
+            currentMalusDisabled.forEach(cid => {
+                if (!previousMalusDisabled.has(cid)) addedToDisabled.push(cid);
+            });
+            const malusAppliedCandidateId = (removedFromDisabled.length === 1 && addedToDisabled.length === 0) ? removedFromDisabled[0] : null;
             if (!animationInitScheduled && entries.length > 0) {
                 animationInitScheduled = true;
                 setTimeout(() => { animationReady = true; }, ANIMATION_INIT_DELAY_MS);
             }
-            if (movedUp.length > 0 && !animationReady) {
+            if (movedUp.length > 0 && !animationReady && !malusAppliedCandidateId) {
                 tbody.innerHTML = '';
                 sorted.forEach((entry, i) => {
                     const row = tbody.insertRow();
@@ -405,9 +427,73 @@
                     nameCell.textContent = nameVal;
                     nameCell.style.padding = '12px';
                     const scoreCell = row.insertCell();
-                    scoreCell.textContent = scoreStr;
                     scoreCell.style.padding = '12px';
                     scoreCell.style.textAlign = 'center';
+
+                    if (malusAppliedCandidateId && entry.candidateId === malusAppliedCandidateId) {
+                        // Animation : le texte de malus part de la droite du score et glisse par-dessus,
+                        // sans bouger le nombre du candidat. Pendant toute l'animation on affiche le score
+                        // AVANT malus, puis on appliquera le nouveau score (avec malus) à la fin.
+                        const malusTotal = classementMalusByCandidate && entry.candidateId
+                            ? (classementMalusByCandidate[entry.candidateId] || 0)
+                            : 0;
+
+                        // scoreStr ici est le score APRÈS malus.
+                        // On reconstruit l'ancien score en ré-ajoutant les malus.
+                        const numericNew = typeof scoreVal === 'number'
+                            ? scoreVal
+                            : (parseFloat(scoreVal) || 0);
+                        const oldScoreNumeric = numericNew + malusTotal;
+                        const oldScoreStr = Number.isFinite(oldScoreNumeric)
+                            ? String(oldScoreNumeric)
+                            : scoreStr;
+
+                        const wrapper = document.createElement('span');
+                        wrapper.style.position = 'relative';
+                        wrapper.style.display = 'inline-block';
+
+                        const scoreSpan = document.createElement('span');
+                        scoreSpan.textContent = oldScoreStr; // on garde l'ancien score pendant l'anim
+                        wrapper.appendChild(scoreSpan);
+
+                        const malusSpan = document.createElement('span');
+                        malusSpan.textContent = malusTotal > 0 ? ` −${malusTotal}` : '';
+                        malusSpan.style.position = 'absolute';
+                        malusSpan.style.top = '0';
+                        // départ plus à droite du score
+                        malusSpan.style.left = '150%';
+                        malusSpan.style.whiteSpace = 'nowrap';
+                        malusSpan.style.color = '#f44336';
+                        malusSpan.style.fontWeight = '700'; // plus gras
+                        malusSpan.style.fontSize = '1.1em'; // un peu plus gros
+                        malusSpan.style.opacity = '1';
+                        // Durée ~2s
+                        malusSpan.style.transition = 'left 2s ease-out, opacity 2s ease-out';
+                        wrapper.appendChild(malusSpan);
+
+                        scoreCell.appendChild(wrapper);
+
+                        const MALUS_ANIM_DELAY_MS = 500; // petit délai après l’animation de rang
+
+                        setTimeout(() => {
+                            requestAnimationFrame(() => {
+                                requestAnimationFrame(() => {
+                                    // Le texte de malus glisse horizontalement jusqu'à recouvrir le score,
+                                    // puis s'estompe progressivement.
+                                    malusSpan.style.left = '0';
+                                    malusSpan.style.opacity = '0';
+                                });
+                            });
+                        }, MALUS_ANIM_DELAY_MS);
+
+                        // Nettoyage après l’animation : on applique le nouveau score (avec malus)
+                        // et on enlève toute la structure d'animation.
+                        setTimeout(() => {
+                            scoreCell.textContent = scoreStr;
+                        }, MALUS_ANIM_DELAY_MS + 2200);
+                    } else {
+                        scoreCell.textContent = scoreStr;
+                    }
                 });
             }
             sorted.forEach((entry, i) => {
@@ -415,6 +501,14 @@
                 previousScores.set(entry.candidateId, s != null && s !== '' ? s : '—');
             });
             previousRanks = newRanks;
+            // On ne met à jour previousMalusDisabled qu'une fois que les mouvements
+            // de rang sont terminés. Comme ça, après un toggle de malus :
+            //  - 1er render : fly-up (movedUp > 0), pas d'anim rouge, previousMalusDisabled garde l'ancien état
+            //  - 2e render : plus de mouvement (movedUp === 0), on détecte la diff et on lance l'anim rouge,
+            //    puis on synchronise previousMalusDisabled avec l'état courant.
+            if (movedUp.length === 0) {
+                previousMalusDisabled = new Set(currentMalusDisabled);
+            }
             if (movedUp.length === 0) animationsInProgress = 0;
             requestAnimationFrame(() => { requestAnimationFrame(fitTableToViewport); });
         }
@@ -512,11 +606,40 @@
                 if (tbody && tbody.querySelector('.rank-fly-up')) return;
                 const data = snap.data();
                 (async () => {
-                    const rawDuelWinnerIds = await getDuelWinnerIds(data.code || null) || [];
+                    const roundId = data.code || null;
+                    let malusMap = {};
+                    if (roundId) {
+                        try {
+                            const malusSnap = await getDoc(doc(db, "config", "malus"));
+                            const malusData = malusSnap.exists() ? malusSnap.data() : {};
+                            const byRound = malusData.byRound || {};
+                            const byCandidate = byRound[roundId] || {};
+                            Object.keys(byCandidate).forEach(cid => {
+                                const list = Array.isArray(byCandidate[cid]) ? byCandidate[cid] : [];
+                                const total = list.reduce((s, m) => {
+                                    const v = typeof m.points === 'number' ? m.points : parseFloat(m.points) || 0;
+                                    return s + v;
+                                }, 0);
+                                if (total > 0) malusMap[cid] = total;
+                            });
+                        } catch (e) {
+                            console.error('Erreur chargement malus pour classement', e);
+                        }
+                    }
+                    classementMalusByCandidate = malusMap;
+                    const malusDisabledArrRaw = Array.isArray(data.malusDisabled) ? data.malusDisabled : null;
+                    const entries = ensureArray(data.entries || []);
+                    if (malusDisabledArrRaw && malusDisabledArrRaw.length > 0) {
+                        classementMalusDisabled = new Set(malusDisabledArrRaw);
+                    } else {
+                        // Par défaut : tous les candidats ont leurs malus désactivés (bouton rouge)
+                        const allIds = entries.map(e => e.candidateId).filter(Boolean);
+                        classementMalusDisabled = new Set(allIds);
+                    }
+                    const rawDuelWinnerIds = await getDuelWinnerIds(roundId) || [];
                     const duelBonusEnabled = Array.isArray(data.duelBonusEnabled) ? data.duelBonusEnabled : [];
                     const duelWinnerIds = rawDuelWinnerIds.filter(id => duelBonusEnabled.includes(id));
-                    const entries = ensureArray(data.entries || []);
-                    const n = await getQualifyCountForRound(data.code || null, entries.length);
+                    const n = await getQualifyCountForRound(roundId, entries.length);
                     currentQualifyCount = n;
                     render(data, duelWinnerIds);
                 })();
@@ -538,11 +661,39 @@
                         return;
                     }
                     const data = snap.data();
-                    const rawDuelWinnerIds = await getDuelWinnerIds(data.code || null) || [];
+                    const roundId = data.code || null;
+                    let malusMap = {};
+                    if (roundId) {
+                        try {
+                            const malusSnap = await getDoc(doc(db, "config", "malus"));
+                            const malusData = malusSnap.exists() ? malusSnap.data() : {};
+                            const byRound = malusData.byRound || {};
+                            const byCandidate = byRound[roundId] || {};
+                            Object.keys(byCandidate).forEach(cid => {
+                                const list = Array.isArray(byCandidate[cid]) ? byCandidate[cid] : [];
+                                const total = list.reduce((s, m) => {
+                                    const v = typeof m.points === 'number' ? m.points : parseFloat(m.points) || 0;
+                                    return s + v;
+                                }, 0);
+                                if (total > 0) malusMap[cid] = total;
+                            });
+                        } catch (e) {
+                            console.error('Erreur chargement malus pour refresh classement', e);
+                        }
+                    }
+                    classementMalusByCandidate = malusMap;
+                    const malusDisabledArrRaw = Array.isArray(data.malusDisabled) ? data.malusDisabled : null;
+                    const entries = ensureArray(data.entries || []);
+                    if (malusDisabledArrRaw && malusDisabledArrRaw.length > 0) {
+                        classementMalusDisabled = new Set(malusDisabledArrRaw);
+                    } else {
+                        const allIds = entries.map(e => e.candidateId).filter(Boolean);
+                        classementMalusDisabled = new Set(allIds);
+                    }
+                    const rawDuelWinnerIds = await getDuelWinnerIds(roundId) || [];
                     const duelBonusEnabled = Array.isArray(data.duelBonusEnabled) ? data.duelBonusEnabled : [];
                     const duelWinnerIds = rawDuelWinnerIds.filter(id => duelBonusEnabled.includes(id));
-                    const entries = ensureArray(data.entries || []);
-                    const n = await getQualifyCountForRound(data.code || null, entries.length);
+                    const n = await getQualifyCountForRound(roundId, entries.length);
                     currentQualifyCount = n;
                     render(data, duelWinnerIds);
                 } catch (e) {
