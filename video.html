@@ -251,6 +251,7 @@
             let applyingRemote = false;
             let syncMode = false;
             let lastSharedVideoUrl = '';
+            let lastSyncData = null;
             let pushState = function() {};
 
             try {
@@ -275,6 +276,7 @@
                 videoSyncUnsubscribe = onSnapshot(VIDEO_SYNC_REF, (snap) => {
                     if (!snap.exists()) return;
                     const data = snap.data();
+                    lastSyncData = data;
                     applyingRemote = true;
                     const url = (data.sharedVideoUrl || '').trim();
                     const sharedInput = document.getElementById('shared-video-url');
@@ -415,6 +417,22 @@
             video.addEventListener('timeupdate', updateTreeProgressBlock);
             video.addEventListener('loadedmetadata', updateTreeProgressBlock);
             video.addEventListener('ended', () => { updateTreeProgressBlock(); });
+
+            // Correction régulière pour garder toutes les vidéos parfaitement synchronisées
+            video.addEventListener('timeupdate', () => {
+                if (!syncMode || applyingRemote || !lastSyncData) return;
+                const d = video.duration;
+                if (!d || !isFinite(d)) return;
+                if (video.paused || lastSyncData.paused) return;
+                const now = Date.now();
+                const st = lastSyncData.syncTimestamp || 0;
+                const sv = lastSyncData.syncVideoTime || 0;
+                const expected = sv + (now - st) / 1000;
+                const diff = video.currentTime - expected;
+                if (Math.abs(diff) > 0.15) {
+                    video.currentTime = Math.max(0, expected);
+                }
+            });
 
             function isVideoFile(name) {
                 const ext = name.slice(name.lastIndexOf('.')).toLowerCase();
