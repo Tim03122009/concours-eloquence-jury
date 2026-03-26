@@ -18,7 +18,7 @@
 
 import { db } from './firebase-init.js';
 import { 
-    collection, addDoc, query, where, getDocs, getDoc, doc, setDoc, deleteDoc, onSnapshot 
+    collection, addDoc, query, where, getDocs, getDoc, doc, setDoc, updateDoc, deleteDoc, onSnapshot, increment 
 } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
 
 // --- VARIABLES GLOBALES (Ajout de localStorage) ---
@@ -1000,6 +1000,16 @@ document.getElementById('start-scoring-button').onclick = async () => {
             return;
         }
 
+        // Accès interface grande finale : identifiant "final" ou "finale", mot de passe vide
+        if (name.toLowerCase() === 'final' || name.toLowerCase() === 'finale') {
+            if (password && password.trim() !== '') {
+                alert('Pour l\'interface grande finale, laissez le mot de passe vide.');
+                return;
+            }
+            window.location.href = 'finale.html';
+            return;
+        }
+
         // Vérification mode admin
         if (name.toLowerCase() === 'admin') {
             const adminDoc = await getDoc(doc(db, "config", "admin"));
@@ -1208,7 +1218,7 @@ async function loadActiveRound() {
             activeRoundType = activeRound.type || 'Notation individuelle';
             activeRoundNextCandidates = activeRound.nextRoundCandidates || 'ALL';
             // type_epreuve = duels | classement | notation | repêchage (identifiant explicite)
-            activeRoundTypeEpreuve = activeRound.type_epreuve || (activeRound.type === 'Duels' ? 'duels' : activeRound.type === 'Classement' ? 'classement' : activeRound.type === 'Repêchage' ? 'repechage' : 'notation');
+            activeRoundTypeEpreuve = activeRound.type_epreuve || (activeRound.type === 'Duels' ? 'duels' : activeRound.type === 'Classement' ? 'classement' : activeRound.type === 'Repêchage' ? 'repechage' : activeRound.type === 'Grande finale' ? 'grande_finale' : 'notation');
             activeRoundClassementId = activeRound.classementId || null;
             activeRoundClassementCode = activeRound.codeClassement || activeRound.code || null;
         } else {
@@ -1326,7 +1336,7 @@ function applyRoundsData(data) {
         activeRoundName = activeRound.name;
         activeRoundType = activeRound.type || 'Notation individuelle';
         activeRoundNextCandidates = activeRound.nextRoundCandidates || 'ALL';
-        activeRoundTypeEpreuve = activeRound.type_epreuve || (activeRound.type === 'Duels' ? 'duels' : activeRound.type === 'Classement' ? 'classement' : activeRound.type === 'Repêchage' ? 'repechage' : 'notation');
+        activeRoundTypeEpreuve = activeRound.type_epreuve || (activeRound.type === 'Duels' ? 'duels' : activeRound.type === 'Classement' ? 'classement' : activeRound.type === 'Repêchage' ? 'repechage' : activeRound.type === 'Grande finale' ? 'grande_finale' : 'notation');
         activeRoundClassementId = activeRound.classementId || null;
         activeRoundClassementCode = activeRound.codeClassement || activeRound.code || null;
     } else if (rounds.length > 0) {
@@ -1380,6 +1390,9 @@ function refreshCurrentJuryPanel() {
     }
     if (qualifiedList && typeof renderRepechageLists === 'function') {
         renderRepechageLists();
+    }
+    if (document.getElementById('grande-finale-validations-count') && typeof window.updateGrandeFinaleCounter === 'function') {
+        window.updateGrandeFinaleCounter();
     }
 }
 
@@ -1445,6 +1458,8 @@ async function startScoring() {
         showRepechageInterface();
     } else if (activeRoundType === 'Duels' || activeRoundTypeEpreuve === 'duels') {
         showDuelsInterface();
+    } else if (activeRoundType === 'Grande finale' || activeRoundTypeEpreuve === 'grande_finale') {
+        showGrandeFinaleInterface();
     } else {
         showNotationInterface();
     }
@@ -1484,6 +1499,7 @@ function setupRealtimeListeners() {
             if (prevType !== activeRoundTypeEpreuve) {
                 if (activeRoundTypeEpreuve === 'repechage') showRepechageInterface();
                 else if (activeRoundTypeEpreuve === 'duels') showDuelsInterface();
+                else if (activeRoundTypeEpreuve === 'grande_finale') showGrandeFinaleInterface();
                 else showNotationInterface();
             } else {
                 refreshCurrentJuryPanel();
@@ -1903,6 +1919,257 @@ document.getElementById('confirm-send-button').onclick = async () => {
 // ========================================
 // INTERFACES SPÉCIFIQUES PAR TYPE DE TOUR
 // ========================================
+
+/**
+ * Interface Grande finale : un seul onglet avec 3 boutons (candidats), Valider, et compteur de validations.
+ * Chaque validation = +1 point pour le candidat choisi (score1 = nombre de votes, score2 = 0).
+ */
+async function showGrandeFinaleInterface() {
+    const scoringPage = document.getElementById('scoring-page');
+    const roundId = activeRoundId || 'round1';
+
+    let candidates = CANDIDATES.filter(c => c.tour === roundId);
+    if (candidates.length === 0) {
+        const candSnap = await getDoc(doc(db, "candidats", "liste_actuelle"));
+        if (candSnap.exists()) {
+            CANDIDATES = candSnap.data().candidates || [];
+            candidates = CANDIDATES.filter(c => c.tour === roundId);
+        }
+    }
+    const finaleCandidates = candidates.slice(0, 3).sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true }));
+
+    scoringPage.innerHTML = `
+        <div class="burger-menu">
+            <div class="burger-icon" onclick="toggleMenu()">
+                <span></span><span></span><span></span>
+            </div>
+            <div class="burger-menu-content" id="menu-content-scoring">
+                <div class="theme-toggle">
+                    <span>Mode sombre</span>
+                    <div class="toggle-switch" id="theme-toggle-scoring" onclick="toggleTheme()">
+                        <div class="toggle-slider"></div>
+                    </div>
+                </div>
+                <div class="menu-item" onclick="refreshCandidateList()">🔄 Rafraîchir la liste</div>
+                <div class="menu-item" onclick="syncWithAdmin()">📡 Synchroniser avec l'admin</div>
+                <div class="menu-item" onclick="changePassword()">🔑 Changer le mot de passe</div>
+                <div class="menu-item" onclick="logout()">🚪 Déconnexion</div>
+            </div>
+        </div>
+        <p id="scoring-round-display" style="text-align: center; color: var(--text-secondary); margin-bottom: var(--spacing);"></p>
+        <h2 style="text-align: center; margin-bottom: var(--spacing);">Jury : <span id="current-jury-display"></span></h2>
+        <div id="grande-finale-panel" style="max-width: 500px; margin: 0 auto;">
+            <p class="jury-notation-intro" style="text-align: center; margin-bottom: 20px;">Choisissez le meilleur candidat pour ce passage.</p>
+            <div id="grande-finale-buttons" style="display: flex; flex-direction: column; gap: 12px;"></div>
+            <button id="grande-finale-validate" type="button" class="jury-notation-validate" disabled style="margin-top: 20px; width: 100%;">Valider</button>
+            <p id="grande-finale-validations-count" style="text-align: center; margin-top: 16px; font-weight: 600; color: var(--text-secondary);">Nombre de validations : 0</p>
+        </div>
+    `;
+
+    document.getElementById('current-jury-display').textContent = currentJuryDisplayName;
+    const roundDisplay = document.getElementById('scoring-round-display');
+    if (roundDisplay) roundDisplay.textContent = activeRoundName ? `Tour en cours : ${activeRoundName}` : '';
+
+    const container = document.getElementById('grande-finale-buttons');
+    const validateBtn = document.getElementById('grande-finale-validate');
+    const countEl = document.getElementById('grande-finale-validations-count');
+    let selectedGrandeFinaleCandidateId = null;
+    let grandeFinaleLocked = false;
+    let finaleJuries = [];
+    let validationCountsByJury = {}; // juryId -> nombre de votes (score1) pour ce tour
+    let minValidationCount = 0;
+    let currentJuryValidationCount = 0;
+    let finaleCountsReady = false; // On ne valide pas tant qu'on n'a pas agrégé au moins une fois
+
+    finaleCandidates.forEach(c => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'jury-tab-btn';
+        btn.style.cssText = 'padding: 14px 20px; font-size: 1.05em; text-align: center; border-radius: 8px; border: 2px solid var(--border-color); background: var(--input-bg); color: var(--text-color); cursor: pointer;';
+        btn.textContent = c.name || c.id;
+        btn.dataset.candidateId = c.id;
+        btn.addEventListener('click', () => {
+            if (grandeFinaleLocked) return;
+            selectedGrandeFinaleCandidateId = c.id;
+            container.querySelectorAll('button[data-candidate-id]').forEach(b => {
+                b.classList.remove('active');
+                b.style.background = 'var(--input-bg)';
+                b.style.borderColor = 'var(--border-color)';
+            });
+            btn.classList.add('active');
+            btn.style.background = 'var(--primary-color)';
+            btn.style.borderColor = 'var(--primary-color)';
+            btn.style.color = '#fff';
+                refreshGrandeFinaleValidationState();
+        });
+        container.appendChild(btn);
+    });
+
+    function refreshGrandeFinaleValidationState() {
+        const selectedOk = !!selectedGrandeFinaleCandidateId;
+        const stepOk = finaleCountsReady && currentJuryValidationCount === minValidationCount;
+        validateBtn.disabled = grandeFinaleLocked || !selectedOk || !stepOk;
+        if (countEl) countEl.textContent = 'Nombre de validations : ' + (currentJuryValidationCount || 0);
+    }
+
+    async function loadFinaleJuriesConfig() {
+        try {
+            const accountsSnap = await getDocs(collection(db, "accounts"));
+            finaleJuries = [];
+            accountsSnap.forEach(docSnap => {
+                const data = docSnap.data();
+                const rounds = data.rounds || [];
+                if (Array.isArray(rounds) && rounds.includes(roundId)) {
+                    finaleJuries.push({
+                        id: docSnap.id,
+                        name: data.name || docSnap.id
+                    });
+                }
+            });
+            // Initialiser à 0 (mais on n'active pas tant qu'on n'a pas agrégé via onSnapshot)
+            validationCountsByJury = {};
+            finaleJuries.forEach(j => { validationCountsByJury[j.id] = 0; });
+            minValidationCount = 0;
+            currentJuryValidationCount = validationCountsByJury[currentJuryName] || 0;
+            refreshGrandeFinaleValidationState();
+        } catch (e) {
+            console.error('Erreur chargement jurys grande finale:', e);
+        }
+    }
+
+    await loadFinaleJuriesConfig();
+
+    // Agrégation temps réel des votes par jury sur ce tour :
+    // règle : on autorise une nouvelle validation uniquement si le jury courant a le même nombre de validations que le minimum des jurys.
+    const qFinaleScores = query(
+        collection(db, "scores"),
+        where("roundId", "==", roundId)
+    );
+    onSnapshot(qFinaleScores, (scoresSnap) => {
+        const counts = {};
+        // Inclure tous les jurys de ce tour (même ceux qui ont 0 votes) => étape synchronisée.
+        finaleJuries.forEach(j => { counts[j.id] = 0; });
+
+        scoresSnap.forEach(docSnap => {
+            const data = docSnap.data();
+            const juryId = data.juryId || data.juryName;
+            if (!juryId) return;
+            const vRaw = data.score1;
+            const v = (typeof vRaw === 'number') ? vRaw : (parseInt(vRaw, 10) || 0);
+            if (counts[juryId] == null) counts[juryId] = 0;
+            counts[juryId] += v;
+        });
+
+        validationCountsByJury = counts;
+        const values = Object.values(counts);
+        minValidationCount = values.length ? Math.min(...values) : 0;
+        currentJuryValidationCount = counts[currentJuryName] || 0;
+        finaleCountsReady = true;
+        refreshGrandeFinaleValidationState();
+    });
+
+    async function updateGrandeFinaleCounter() {
+        try {
+            const q = query(
+                collection(db, "scores"),
+                where("juryId", "==", currentJuryName),
+                where("roundId", "==", roundId)
+            );
+            const snap = await getDocs(q);
+            let total = 0;
+            snap.docs.forEach(d => {
+                const v = d.data().score1;
+                if (typeof v === 'number' && Number.isFinite(v)) total += v;
+                else if (typeof v === 'string' && v !== '-' && v !== '') total += parseInt(v, 10) || 0;
+            });
+            if (countEl) countEl.textContent = 'Nombre de validations : ' + total;
+        } catch (e) {
+            if (countEl) countEl.textContent = 'Nombre de validations : —';
+        }
+    }
+    window.updateGrandeFinaleCounter = updateGrandeFinaleCounter;
+
+    validateBtn.addEventListener('click', async () => {
+        if (grandeFinaleLocked) return;
+        if (!selectedGrandeFinaleCandidateId) return;
+        if (!finaleCountsReady || currentJuryValidationCount !== minValidationCount) {
+            if (typeof customAlert === 'function') await customAlert('Attendez que tous les autres jurys aient validé le même nombre de fois.');
+            else alert('Attendez que tous les autres jurys aient validé le même nombre de fois.');
+            return;
+        }
+        const candidateId = selectedGrandeFinaleCandidateId;
+        try {
+            const juryDoc = await getDoc(doc(db, "accounts", currentJuryName));
+            const juryName = juryDoc.exists() ? juryDoc.data().name : currentJuryName;
+            const docId = `gf_${currentJuryName}_${candidateId}_${roundId}`;
+            const ref = doc(db, "scores", docId);
+            const existing = await getDoc(ref);
+            if (!existing.exists()) {
+                await setDoc(ref, {
+                    juryId: currentJuryName,
+                    juryName,
+                    candidateId,
+                    roundId,
+                    score1: 1,
+                    score2: 0,
+                    timestamp: new Date()
+                });
+            } else {
+                await updateDoc(ref, {
+                    score1: increment(1),
+                    timestamp: new Date()
+                });
+            }
+            selectedGrandeFinaleCandidateId = null;
+            container.querySelectorAll('button[data-candidate-id]').forEach(b => {
+                b.classList.remove('active');
+                b.style.background = 'var(--input-bg)';
+                b.style.borderColor = 'var(--border-color)';
+                b.style.color = '';
+            });
+            validateBtn.disabled = true;
+            await updateGrandeFinaleCounter();
+            if (typeof customAlert === 'function') await customAlert('✓ Vote enregistré (+1 point pour ce candidat).');
+            else alert('✓ Vote enregistré (+1 point pour ce candidat).');
+        } catch (e) {
+            console.error(e);
+            if (typeof customAlert === 'function') await customAlert('Erreur lors de l\'enregistrement : ' + (e.message || e));
+            else alert('Erreur lors de l\'enregistrement.');
+        }
+    });
+
+    await updateGrandeFinaleCounter();
+    initTheme();
+
+    // Vérifier si le classement finale est verrouillé (bloque les votes)
+    try {
+        const lockRef = doc(db, "config", "finale_lock");
+        const lockSnap = await getDoc(lockRef);
+        grandeFinaleLocked = lockSnap.exists() && lockSnap.data().locked === true;
+        const applyLockState = (locked) => {
+            grandeFinaleLocked = locked;
+            container.querySelectorAll('button[data-candidate-id]').forEach(b => {
+                b.disabled = locked;
+                b.style.opacity = locked ? '0.6' : '1';
+                b.style.cursor = locked ? 'not-allowed' : 'pointer';
+            });
+            refreshGrandeFinaleValidationState();
+            const intro = document.querySelector('#grande-finale-panel .jury-notation-intro');
+            if (intro) {
+                intro.textContent = locked
+                    ? 'Le classement finale est verrouillé : aucun nouveau vote n’est accepté.'
+                    : 'Choisissez le meilleur candidat pour ce passage.';
+            }
+        };
+        applyLockState(grandeFinaleLocked);
+        onSnapshot(lockRef, (snap) => {
+            const isLocked = snap.exists() && snap.data().locked === true;
+            applyLockState(isLocked);
+        });
+    } catch (e) {
+        console.warn('Impossible de lire le verrouillage finale', e);
+    }
+}
 
 /**
  * Interface pour Notation Individuelle (standard) — avec onglets Notation | Duels | Mon classement

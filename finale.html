@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="description" content="Grande finale - Concours d'éloquence">
+    <meta name="theme-color" content="#667eea">
+    <title>Grande finale — Concours Éloquence</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            background: var(--page-bg, #0b1020);
+        }
+        .finale-wrapper {
+            max-width: 1100px;
+            margin: 0.7cm auto 0 auto;
+            padding: var(--spacing-md);
+            color: var(--text-color);
+        }
+        .finale-card {
+            background: var(--card-bg);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            padding: var(--spacing-md);
+            position: relative;
+            overflow: hidden;
+        }
+        /* Petit triangle décoratif en haut à gauche, comme sur le croquis */
+        .finale-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 180px;
+            height: 80px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.35), transparent);
+            clip-path: polygon(0 0, 100% 0, 0 100%);
+            opacity: 0.6;
+            pointer-events: none;
+        }
+        .finale-title {
+            text-align: center;
+            margin-bottom: var(--spacing-xs);
+        }
+        .finale-subtitle {
+            text-align: center;
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-md);
+        }
+        #finale-table-container {
+            overflow-x: auto;
+            margin-bottom: var(--spacing-lg);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+        }
+        #finale-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 600px;
+        }
+        #finale-table thead tr {
+            background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+            color: #fff;
+        }
+        #finale-table th,
+        #finale-table td {
+            padding: 10px 12px;
+            text-align: center;
+            border: 1px solid var(--border-color); /* lignes autour de chaque case */
+            /* Transition longue pour la disparition du vert (15s) */
+            transition: background-color 15s linear;
+        }
+        #finale-table th:first-child,
+        #finale-table td:first-child {
+            text-align: left;
+        }
+        #finale-table tbody tr:nth-child(even) {
+            background: var(--light-bg);
+        }
+        [data-theme="dark"] #finale-table tbody tr:nth-child(even) {
+            background: rgba(255,255,255,0.04);
+        }
+        .candidate-name {
+            font-weight: 600;
+        }
+        .finale-flash-cell {
+            /* Vert plus lumineux pour le flash de vote */
+            background-color: #4ade80;
+            /* Petit fondu d'apparition (0,4s) */
+            animation: finale-flash-in 0.4s ease-out;
+        }
+        @keyframes finale-flash-in {
+            from { background-color: transparent; }
+            to { background-color: #4ade80; }
+        }
+        /* Colonne de droite « zone hachurée » du croquis : total points */
+        .finale-total-col {
+            background: repeating-linear-gradient(
+                -45deg,
+                rgba(148, 163, 184, 0.2),
+                rgba(148, 163, 184, 0.2) 6px,
+                rgba(148, 163, 184, 0.35) 6px,
+                rgba(148, 163, 184, 0.35) 12px
+            );
+            font-weight: 600;
+        }
+        .podium-container {
+            display: flex;
+            flex-direction: row;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 12px;
+            margin-top: var(--spacing-md);
+            min-height: 200px;
+        }
+        .podium-item {
+            border-radius: 16px;
+            padding: 14px 16px;
+            text-align: center;
+            box-shadow: var(--shadow-md);
+            display: flex;
+            flex-direction: column;
+            justify-content: center; /* texte centré verticalement */
+            align-items: center;    /* texte centré horizontalement dans le flex */
+            gap: 6px;
+            flex: 1;
+            min-width: 0;
+            max-width: 200px;
+            border: 6px solid transparent; /* couleur du cadre définie par chaque médaille */
+        }
+        /* Disposition comme sur l'image : 2e (gauche), 1er (centre, plus haut), 3e (droite) */
+        .podium-item.podium-silver { order: 1; height: 140px; }
+        .podium-item.podium-gold   { order: 2; height: 200px; }
+        .podium-item.podium-bronze { order: 3; height: 100px; }
+        .podium-rank {
+            font-weight: 400;
+        }
+        .podium-name {
+            font-weight: 700;
+        }
+        /* Tailles d’écriture proportionnelles à la hauteur de la case */
+        .podium-item.podium-gold .podium-rank { font-size: 2em; }
+        .podium-item.podium-gold .podium-name { font-size: 1.5em; }
+        .podium-item.podium-silver .podium-rank { font-size: 1.7em; }
+        .podium-item.podium-silver .podium-name { font-size: 1.35em; }
+        .podium-item.podium-bronze .podium-rank { font-size: 1.45em; }
+        .podium-item.podium-bronze .podium-name { font-size: 1.2em; }
+        .podium-score {
+            font-size: 0.9em;
+            color: var(--text-secondary);
+        }
+        .podium-gold {
+            background: linear-gradient(145deg, #fff4a0 0%, #ffd93d 50%, #e6b800 100%);
+            color: #1a1a1a;
+            box-shadow: 0 4px 12px rgba(230, 184, 0, 0.4);
+            border-color: #e6b800;
+        }
+        .podium-silver {
+            background: linear-gradient(145deg, #ffffff 0%, #e8e8e8 50%, #c0c0c0 100%);
+            color: #1a1a1a;
+            box-shadow: 0 4px 12px rgba(160, 160, 160, 0.35);
+            border-color: #a0a0a0;
+        }
+        .podium-bronze {
+            background: linear-gradient(145deg, #e8c468 0%, #cd7f32 50%, #a0522d 100%);
+            color: #1a1a1a;
+            box-shadow: 0 4px 12px rgba(205, 127, 50, 0.4);
+            border-color: #a0522d;
+        }
+        /* Mode déverrouillé : médailles blanches (seulement le contour) */
+        .podium-unlocked .podium-gold,
+        .podium-unlocked .podium-silver,
+        .podium-unlocked .podium-bronze {
+            background: #ffffff;
+            box-shadow: none;
+        }
+        .finale-podium-block {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+        .finale-podium-title {
+            margin: 0 0 12px 0;
+            font-size: 1.15em;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        .finale-bottom-layout {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--spacing-lg);
+        }
+        #finale-status {
+            text-align: center;
+            margin-bottom: var(--spacing-md);
+            color: var(--text-secondary);
+        }
+        @media (max-width: 768px) {
+            .finale-bottom-layout {
+                flex-direction: column;
+            }
+            .podium-container {
+                max-width: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="finale-wrapper">
+        <p style="text-align: center; margin-bottom: var(--spacing-sm);">
+            <a href="index.html" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">← Retour à l'accueil</a>
+        </p>
+        <div class="finale-card">
+            <h2 class="finale-title">Grande finale</h2>
+            <p class="finale-subtitle">Vue spéciale · Lecture seule</p>
+
+            <p id="finale-status">Chargement de la grande finale…</p>
+
+            <div id="finale-table-container" style="display:none;">
+                <table id="finale-table">
+                    <thead id="finale-thead"></thead>
+                    <tbody id="finale-tbody"></tbody>
+                </table>
+            </div>
+
+            <div class="finale-bottom-layout">
+                <div class="finale-podium-block">
+                    <h3 class="finale-podium-title">Podium de la grande finale</h3>
+                    <div class="podium-container" id="finale-podium">
+                        <!-- Rempli dynamiquement -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db } from './firebase-init.js';
+        import { collection, doc, getDoc, getDocs, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
+
+        const statusEl = document.getElementById('finale-status');
+        const theadEl = document.getElementById('finale-thead');
+        const tbodyEl = document.getElementById('finale-tbody');
+        const tableContainerEl = document.getElementById('finale-table-container');
+        const podiumEl = document.getElementById('finale-podium');
+        let finaleLocked = false;
+        let autoPointsByCandidate = {};
+        // Stocke le dernier score connu par (candidat, jury) pour détecter une nouvelle validation.
+        let lastScoresByCandidate = {};
+        // Cases qui viennent d’avoir un vote en plus (attendent que toutes les colonnes jury aient au moins une verte).
+        let pendingFlash = new Set(); // clés "candidateId|juryId"
+        // Map (candidateId|juryId) -> timestamp (ms) jusqu'à quand la case doit rester verte (15 s à partir de "tous ont noté").
+        let flashUntilByCell = {};
+        let lastRenderArgs = null;
+        let flashTimeoutId = null;
+
+        function setStatus(msg) {
+            if (statusEl) statusEl.textContent = msg;
+        }
+
+        function computeScore(score1, score2) {
+            if (score1 === 'EL' || score2 === 'EL') return 0;
+            const s1 = parseFloat(score1);
+            const s2 = parseFloat(score2);
+            const v1 = Number.isFinite(s1) ? s1 : 0;
+            const v2 = Number.isFinite(s2) ? s2 : 0;
+            return v1 * 3 + v2;
+        }
+
+        async function findFinaleRoundIdFromConfig() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromUrl = urlParams.get('roundId');
+            if (fromUrl) return fromUrl.trim();
+
+            try {
+                const roundsSnap = await getDoc(doc(db, "config", "rounds"));
+                if (!roundsSnap.exists()) return null;
+                const rounds = roundsSnap.data().rounds || [];
+                const finale = rounds.find(r =>
+                    (r.type_epreuve && String(r.type_epreuve).toLowerCase() === 'grande_finale') ||
+                    (r.type && String(r.type).toLowerCase().includes('grande finale'))
+                );
+                return finale ? finale.id : null;
+            } catch (e) {
+                console.error('Erreur chargement config/rounds pour finale:', e);
+                return null;
+            }
+        }
+
+        function isCellFlashing(candidateId, juryId) {
+            const key = `${candidateId}|${juryId}`;
+            if (pendingFlash.has(key)) return true; // en attente que tous les jurys aient noté
+            const until = flashUntilByCell[key];
+            if (!until) return false;
+            if (Date.now() > until) {
+                delete flashUntilByCell[key];
+                return false;
+            }
+            return true;
+        }
+
+        function scheduleFlashRepaint() {
+            if (flashTimeoutId) {
+                clearTimeout(flashTimeoutId);
+                flashTimeoutId = null;
+            }
+            const now = Date.now();
+            let nextExpiry = null;
+            Object.values(flashUntilByCell).forEach(ts => {
+                if (ts > now) {
+                    const d = ts - now;
+                    if (nextExpiry == null || d < nextExpiry) nextExpiry = d;
+                }
+            });
+            if (nextExpiry != null && lastRenderArgs) {
+                flashTimeoutId = setTimeout(() => {
+                    const { roundId, candidates, juries, scoresByCandidate, autoPointsByCandidate: ap } = lastRenderArgs;
+                    buildAndRenderTable(roundId, candidates, juries, scoresByCandidate, ap);
+                    scheduleFlashRepaint();
+                }, nextExpiry + 50);
+            }
+        }
+
+        function buildAndRenderTable(roundId, candidates, juries, scoresByCandidate, autoPointsMap) {
+            // On ne garde que les 3 candidats de la grande finale
+            const finaleCandidates = candidates.slice(0, 3);
+
+            // En-tête du tableau simple : "Candidats", puis "Jury 1", "Jury 2", ..., puis "Total"
+            theadEl.innerHTML = '';
+            const headRow = document.createElement('tr');
+            const labelTh = document.createElement('th');
+            labelTh.textContent = 'Candidats';
+            headRow.appendChild(labelTh);
+            juries.forEach((j, index) => {
+                const th = document.createElement('th');
+                th.textContent = `Jury ${index + 1}`;
+                headRow.appendChild(th);
+            });
+            const totalHeader = document.createElement('th');
+            totalHeader.textContent = 'Total';
+            headRow.appendChild(totalHeader);
+            theadEl.appendChild(headRow);
+
+            // Lignes candidats
+            tbodyEl.innerHTML = '';
+            const totals = [];
+
+            finaleCandidates.forEach(c => {
+                const row = document.createElement('tr');
+                const cellName = document.createElement('td');
+                cellName.className = 'candidate-name';
+                cellName.textContent = c.name || c.id;
+                row.appendChild(cellName);
+
+                let total = 0;
+                juries.forEach(j => {
+                    const cell = document.createElement('td');
+                    const s = scoresByCandidate[c.id] && scoresByCandidate[c.id][j.id]
+                        ? scoresByCandidate[c.id][j.id]
+                        : null;
+                    // Grande finale : score1 = nombre de votes (choix du jury)
+                    const v = !s ? 0 : (typeof s.score1 === 'number' ? s.score1 : (parseInt(s.score1, 10) || 0));
+                    total += v;
+                    // Jamais de nombre dans les cases : soit case vide, soit case verte (avec fondu) si un vote VIENT d’être ajouté.
+                    if (isCellFlashing(c.id, j.id)) {
+                        cell.textContent = '';
+                        cell.classList.add('finale-flash-cell');
+                    } else {
+                        cell.textContent = '';
+                        cell.classList.remove('finale-flash-cell');
+                    }
+                    row.appendChild(cell);
+                });
+
+                const totalCell = document.createElement('td');
+                totalCell.className = 'finale-total-col';
+                const totalAuto = (autoPointsMap && autoPointsMap[c.id] != null) ? autoPointsMap[c.id] : 0;
+                totalCell.textContent = String(totalAuto);
+                row.appendChild(totalCell);
+
+                tbodyEl.appendChild(row);
+                totals.push({
+                    id: c.id,
+                    name: c.name || c.id,
+                    total: (autoPointsMap && autoPointsMap[c.id] != null) ? autoPointsMap[c.id] : 0
+                });
+            });
+
+            tableContainerEl.style.display = 'block';
+            setStatus('');
+
+            // Podium (3 premiers par score total - total non affiché, juste pour l'ordre)
+            totals.sort((a, b) => b.total - a.total);
+            const podiumData = [
+                { rankLabel: '1er', css: 'podium-gold', data: totals[0] || null },
+                { rankLabel: '2e', css: 'podium-silver', data: totals[1] || null },
+                { rankLabel: '3e', css: 'podium-bronze', data: totals[2] || null }
+            ];
+
+            podiumEl.innerHTML = '';
+            const podiumBlock = podiumEl.parentElement;
+            if (podiumBlock) {
+                if (finaleLocked) podiumBlock.classList.remove('podium-unlocked');
+                else podiumBlock.classList.add('podium-unlocked');
+            }
+            podiumData.forEach(item => {
+                const div = document.createElement('div');
+                div.className = `podium-item ${item.css}`;
+                const rankEl = document.createElement('div');
+                rankEl.className = 'podium-rank';
+                rankEl.textContent = item.rankLabel;
+                div.appendChild(rankEl);
+
+                if (item.data) {
+                    const nameEl = document.createElement('div');
+                    nameEl.className = 'podium-name';
+                    nameEl.textContent = item.data.name;
+                    div.appendChild(nameEl);
+                } else {
+                    const emptyEl = document.createElement('div');
+                    emptyEl.className = 'podium-name';
+                    emptyEl.textContent = '—';
+                    div.appendChild(emptyEl);
+                }
+
+                podiumEl.appendChild(div);
+            });
+        }
+
+        async function loadFinaleData() {
+            const roundId = await findFinaleRoundIdFromConfig();
+            if (!roundId) {
+                setStatus("Aucun tour configuré comme « grande finale » dans config/rounds.");
+                return;
+            }
+
+            setStatus("Chargement des jurys et candidats de la grande finale…");
+
+            // Candidats du tour (on garde les 3 premiers par identifiant trié)
+            let candidates = [];
+            try {
+                const candSnap = await getDoc(doc(db, "candidats", "liste_actuelle"));
+                if (candSnap.exists()) {
+                    const all = candSnap.data().candidates || [];
+                    candidates = all
+                        .filter(c => c.tour === roundId)
+                        .sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true }));
+                }
+            } catch (e) {
+                console.error('Erreur chargement candidats grande finale:', e);
+            }
+
+            if (candidates.length === 0) {
+                setStatus("Aucun candidat trouvé pour la grande finale.");
+                return;
+            }
+
+            // Jurys présents sur ce tour
+            let juries = [];
+            try {
+                const accountsSnap = await getDocs(collection(db, "accounts"));
+                accountsSnap.forEach(docSnap => {
+                    const data = docSnap.data();
+                    const rounds = data.rounds || [];
+                    if (Array.isArray(rounds) && rounds.includes(roundId)) {
+                        juries.push({
+                            id: docSnap.id,
+                            name: data.name || docSnap.id
+                        });
+                    }
+                });
+                juries.sort((a, b) => {
+                    const na = parseInt(String(a.id).replace('jury', ''), 10);
+                    const nb = parseInt(String(b.id).replace('jury', ''), 10);
+                    if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb;
+                    return String(a.id).localeCompare(String(b.id));
+                });
+            } catch (e) {
+                console.error('Erreur chargement jurys grande finale:', e);
+            }
+
+            if (juries.length === 0) {
+                setStatus("Aucun jury configuré sur le tour de grande finale.");
+                return;
+            }
+
+            // Écoute temps réel des scores pour ce tour
+            const qScores = query(
+                collection(db, "scores"),
+                where("roundId", "==", roundId)
+            );
+
+            // Lire en temps réel la "note auto" calculée côté admin (classement_activations)
+            // => elle est stockée dans des activations avec juryId = auto_grande_finale_step_<step>
+            const roundsSnapForClassement = await getDoc(doc(db, "config", "rounds"));
+            const roundsListForClassement = roundsSnapForClassement.exists() ? (roundsSnapForClassement.data().rounds || []) : [];
+            const roundObjForClassement = roundsListForClassement.find(r => r.id === roundId) || null;
+            let classementId = null;
+            if (roundObjForClassement && roundObjForClassement.classementId && String(roundObjForClassement.classementId).trim()) {
+                classementId = String(roundObjForClassement.classementId).trim();
+            }
+            if (!classementId) {
+                const configActivationsSnap = await getDoc(doc(db, "config", "activations"));
+                classementId = (configActivationsSnap.exists() && configActivationsSnap.data().classementIdActif)
+                    ? configActivationsSnap.data().classementIdActif.trim()
+                    : ('classement_' + roundId);
+            }
+
+            const autoRef = doc(db, "classement_activations", classementId);
+            onSnapshot(autoRef, (snap) => {
+                const activated = snap.exists() ? (snap.data().activated || []) : [];
+                const map = {};
+                activated.forEach(a => {
+                    if (!a || !a.juryId || !a.candidateId) return;
+                    if (!String(a.juryId).startsWith('auto_grande_finale_step_')) return;
+                    const pts = (a.points != null)
+                        ? (typeof a.points === 'number' ? a.points : (parseFloat(a.points) || 0))
+                        : 0;
+                    map[a.candidateId] = (map[a.candidateId] || 0) + pts;
+                });
+                autoPointsByCandidate = map;
+                if (lastRenderArgs) {
+                    const { roundId, candidates, juries, scoresByCandidate } = lastRenderArgs;
+                    buildAndRenderTable(roundId, candidates, juries, scoresByCandidate, autoPointsByCandidate);
+                }
+            });
+
+            // Écoute temps réel du verrouillage finale
+            onSnapshot(doc(db, "config", "finale_lock"), (snap) => {
+                finaleLocked = snap.exists() && snap.data().locked === true;
+                if (lastRenderArgs) {
+                    buildAndRenderTable(
+                        lastRenderArgs.roundId,
+                        lastRenderArgs.candidates,
+                        lastRenderArgs.juries,
+                        lastRenderArgs.scoresByCandidate,
+                        autoPointsByCandidate
+                    );
+                }
+            });
+            onSnapshot(qScores, (scoresSnap) => {
+                const scoresByCandidate = {};
+                scoresSnap.forEach(docSnap => {
+                    const data = docSnap.data();
+                    const cid = data.candidateId;
+                    const juryId = data.juryId || data.juryName;
+                    if (!cid || !juryId) return;
+                    if (!scoresByCandidate[cid]) scoresByCandidate[cid] = {};
+                    // Plusieurs docs possibles (ancien format) : on cumule score1
+                    const prev = scoresByCandidate[cid][juryId];
+                    const v = typeof data.score1 === 'number' ? data.score1 : (parseInt(data.score1, 10) || 0);
+                    scoresByCandidate[cid][juryId] = {
+                        score1: (prev ? (typeof prev.score1 === 'number' ? prev.score1 : parseInt(prev.score1, 10) || 0) : 0) + v,
+                        score2: data.score2
+                    };
+                });
+            // Détecter les nouvelles validations (score qui augmente) → case verte en attente
+                const now = Date.now();
+                Object.keys(scoresByCandidate).forEach(cid => {
+                    const byJury = scoresByCandidate[cid];
+                    Object.keys(byJury).forEach(jid => {
+                        const v = byJury[jid].score1 || 0;
+                        const prevV = (lastScoresByCandidate[cid] && lastScoresByCandidate[cid][jid]) || 0;
+                        if (v > prevV) {
+                            pendingFlash.add(`${cid}|${jid}`);
+                        }
+                    });
+                });
+                // Le décompte de 15 s ne commence que quand toutes les colonnes jury ont au moins une case verte (tous ont noté)
+                const juryIds = juries.map(j => j.id);
+                const everyJuryHasGreen = juryIds.length > 0 && juryIds.every(jid => {
+                    return Array.from(pendingFlash).some(key => key.endsWith('|' + jid));
+                });
+                if (everyJuryHasGreen && pendingFlash.size > 0) {
+                    const endAt = now + 15000;
+                    pendingFlash.forEach(key => { flashUntilByCell[key] = endAt; });
+                    pendingFlash.clear();
+                }
+                // Afficher vert : soit en attente (pendingFlash), soit en décompte (flashUntilByCell)
+                lastScoresByCandidate = {};
+                Object.keys(scoresByCandidate).forEach(cid => {
+                    lastScoresByCandidate[cid] = {};
+                    Object.keys(scoresByCandidate[cid]).forEach(jid => {
+                        lastScoresByCandidate[cid][jid] = scoresByCandidate[cid][jid].score1 || 0;
+                    });
+                });
+
+            lastRenderArgs = { roundId, candidates, juries, scoresByCandidate, autoPointsByCandidate };
+            buildAndRenderTable(roundId, candidates, juries, scoresByCandidate, autoPointsByCandidate);
+                scheduleFlashRepaint();
+            }, (err) => {
+                console.error('Erreur écoute temps réel grande finale:', err);
+                setStatus("Erreur de chargement en temps réel de la grande finale.");
+            });
+        }
+
+        loadFinaleData();
+    </script>
+</body>
+</html>
+

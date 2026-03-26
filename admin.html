@@ -982,6 +982,9 @@
                     </div>
                     <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                         <button id="notes-validate-round-btn" onclick="validateRoundGlobally()" class="action-button" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white;">✓ Valider tout le tour</button>
+                        <button type="button" id="reset-grande-finale-auto-btn" onclick="resetGrandeFinaleAutoStateForSelectedRound()" class="action-button" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); color: #111; font-weight: 700;">
+                            ↺ Reset note auto (grande finale)
+                        </button>
                     </div>
                 </div>
                 
@@ -1019,10 +1022,11 @@
                     </select>
                 </div>
                 
-                <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                     <label for="result-limit" style="font-weight: 600; color: var(--text-color);">Nombre de candidats :</label>
                     <input type="number" id="result-limit" value="3" min="1" oninput="renderPodium()" style="width: 80px; padding: 8px; border: 2px solid var(--border-color); border-radius: 5px; background: var(--card-bg); color: var(--text-color);">
                     <button onclick="exportPodiumToImage()" class="action-button export-button">Exporter en image</button>
+                    <button type="button" id="finale-lock-btn" onclick="toggleFinaleLock()" class="action-button" style="padding: 8px 16px; background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); color: #111; font-weight: 600;">🔓 Verrouiller le classement finale</button>
                 </div>
             </div>
             
@@ -1453,16 +1457,21 @@
             return base1 + base2 + base3;
         }
 
-        /** Score base : duel = fond+forme ; autre = fond×3+forme. Petite finale : score1 + score3 + (score7+score8+score9). */
+        /** Score base : duel = fond+forme ; autre = fond×3+forme ; Petite finale : score1 + score3 + (score7+score8+score9) ; Grande finale : nombre de votes (score1). */
         function computeScoreBase(score1, score2, roundId, score3, score4, score5, score6, score7, score8, score9, score10) {
             const r = (typeof ROUNDS !== 'undefined' && Array.isArray(ROUNDS)) ? ROUNDS.find(x => x.id === roundId) : null;
             const isPetiteFinale = r && r.type === 'Petite finale';
+            const isGrandeFinale = r && (r.type === 'Grande finale' || r.type_epreuve === 'grande_finale');
             if (isPetiteFinale) {
                 const toNum = (s) => (s === 'EL' || s === '-' || s == null || s === '') ? 0 : (() => { const n = parseInt(s, 10); return isNaN(n) ? 0 : n; })();
                 const base1 = toNum(score1);
                 const base2 = toNum(score3);
                 const base3 = toNum(score7) + toNum(score8) + toNum(score9);
                 return base1 + base2 + base3;
+            }
+            if (isGrandeFinale) {
+                const toNum = (s) => (s === 'EL' || s === '-' || s == null || s === '') ? 0 : (() => { const n = parseInt(s, 10); return isNaN(n) ? 0 : n; })();
+                return toNum(score1);
             }
             const base1 = (score1 === 'EL' || score2 === 'EL' || score1 === '-' || score2 === '-') ? 0 : (() => {
                 const s1 = parseInt(score1, 10);
@@ -1481,6 +1490,236 @@
             })();
             return base1 + base2;
         }
+
+        /**
+         * Grande finale : calcule automatiquement des points « max votes par séquence ».
+         * Règle :
+         * - On calcule min = nombre de validations le plus faible parmi tous les jurys du tour.
+         * - Pour chaque séquence step (lastProcessedStep+1 .. min), on identifie le(s) candidat(s) qui a/ont le plus de votes.
+         * - Chaque candidat ex-aequo reçoit +1 point (même en cas d'ex aequo).
+         *
+         * Stockage :
+         * - Les points sont ajoutés dans `classement_activations` via des entrées avec juryId = `auto_grande_finale_step_${step}`.
+         * - Un état est gardé dans `grande_finale_auto_state/{roundId}` (lastProcessedStep) pour éviter de repasser plusieurs fois.
+         */
+        async function recomputeGrandeFinaleAutoPointsIfNeeded(roundId) {
+            // Empêcher les recomputes concurrentes (évite des états partiels / mauvais deltas)
+            if (!window._gfAutoRecomputeInProgress) window._gfAutoRecomputeInProgress = {};
+            if (window._gfAutoRecomputeInProgress[roundId]) return false;
+            window._gfAutoRecomputeInProgress[roundId] = true;
+            try {
+            const round = Array.isArray(ROUNDS) ? ROUNDS.find(r => r.id === roundId) : null;
+            const isGrandeFinale = round && (round.type === 'Grande finale' || round.type_epreuve === 'grande_finale');
+            if (!isGrandeFinale) {
+                window._gfAutoRecomputeInProgress[roundId] = false;
+                return false;
+            }
+
+            await loadJuries();
+            const juriesOnRound = JURIES.filter(j => j.rounds && j.rounds.includes(roundId));
+            if (juriesOnRound.length === 0) return false;
+
+            // Charger scores
+            const scoresQuery = query(collection(db, "scores"), where("roundId", "==", roundId));
+            const scoresSnap = await getDocs(scoresQuery);
+
+            const toNum = (s) => (s === 'EL' || s === '-' || s == null || s === '') ? 0 : (() => {
+                const n = parseInt(s, 10);
+                return isNaN(n) ? 0 : n;
+            })();
+
+            const countsByJury = {};
+            juriesOnRound.forEach(j => { countsByJury[j.id] = 0; });
+            const votesByCandidate = {};
+
+            scoresSnap.forEach(docSnap => {
+                const data = docSnap.data() || {};
+                const candidateId = data.candidateId;
+                const juryId = data.juryId || data.juryName;
+                if (!candidateId || !juryId) return;
+                const v = toNum(data.score1);
+                // N'utiliser que les jurys configurés sur ce tour
+                if (countsByJury[juryId] == null) return;
+                countsByJury[juryId] += v;
+                votesByCandidate[candidateId] = (votesByCandidate[candidateId] || 0) + v;
+            });
+
+            const counts = juriesOnRound.map(j => countsByJury[j.id] || 0);
+            const minCount = counts.length ? Math.min(...counts) : 0;
+
+            // Etat déjà traité
+            const stateRef = doc(db, "grande_finale_auto_state", String(roundId));
+            const stateSnap = await getDoc(stateRef);
+            const lastProcessedStep = stateSnap.exists() ? (stateSnap.data().lastProcessedStep || 0) : 0;
+
+            // Liste des candidats (à l'état actuel)
+            const candidateIds = Object.keys(votesByCandidate);
+            if (candidateIds.length === 0) return false;
+
+            // Votes cumulés au "dernier step traité" (pour calculer le delta de votes ajouté au step suivant)
+            const prevVotesByCandidate =
+                stateSnap.exists()
+                    ? (stateSnap.data().prevVotesByCandidate || stateSnap.data().votesByCandidate || {})
+                    : {};
+
+            // Déterminer classementId (même logique que updateClassementFromScoresForRound)
+            let classementId = null;
+            if (round && round.classementId && String(round.classementId).trim()) {
+                classementId = String(round.classementId).trim();
+            }
+            if (!classementId) {
+                const configActivationsSnap = await getDoc(doc(db, "config", "activations"));
+                classementId = (configActivationsSnap.exists() && configActivationsSnap.data().classementIdActif)
+                    ? configActivationsSnap.data().classementIdActif.trim()
+                    : ('classement_' + roundId);
+            }
+
+            const activatedRef = doc(db, "classement_activations", classementId);
+            const activatedSnap = await getDoc(activatedRef);
+            const activated = activatedSnap.exists() ? [...(activatedSnap.data().activated || [])] : [];
+
+            // Candidats dont la note doit retomber à 0 (ex : cellule = "-")
+            const zeroVoteCandidates = candidateIds.filter(cid => (votesByCandidate[cid] || 0) === 0);
+            const hasZero = zeroVoteCandidates.length > 0;
+
+            // Si minCount recule, les étapes au-delà doivent être supprimées
+            const minCountDecreased = minCount < lastProcessedStep;
+
+            let changed = false;
+            const stepUpperBound = minCount;
+
+            if (hasZero || minCountDecreased) {
+                const zeroSet = new Set(zeroVoteCandidates);
+                const filtered = activated.filter(a => {
+                    if (!a || typeof a.juryId !== 'string') return true;
+                    if (!a.juryId.startsWith('auto_grande_finale_step_')) return true;
+                    const parts = a.juryId.split('_');
+                    const stepStr = parts[parts.length - 1];
+                    const stepNum = parseInt(stepStr, 10);
+                    if (Number.isFinite(stepNum) && stepNum > stepUpperBound) return false; // step supprimée
+                    if (zeroSet.has(a.candidateId)) return false; // candidat à 0 vote => auto = 0
+                    return true;
+                });
+                if (filtered.length !== activated.length) changed = true;
+                activated.length = 0;
+                filtered.forEach(x => activated.push(x));
+            }
+
+            // Si minCount <= lastProcessedStep, on n'ajoute pas de nouveaux pas,
+            // mais on a peut-être déjà supprimé des auto-points pour remise à zéro.
+            if (minCount <= lastProcessedStep) {
+                if (changed) {
+                    await setDoc(activatedRef, { activated, updatedAt: new Date() }, { merge: true });
+                    // Ajuster state si minCount a reculé
+                    if (minCountDecreased) {
+                        await setDoc(stateRef, { lastProcessedStep: minCount, prevVotesByCandidate: votesByCandidate, updatedAt: new Date() }, { merge: true });
+                    } else if (hasZero) {
+                        // Remise à zéro sans recul : actualiser uniquement le snapshot pour que le delta au prochain step soit correct
+                        await setDoc(stateRef, { prevVotesByCandidate: votesByCandidate, updatedAt: new Date() }, { merge: true });
+                    }
+                }
+                return changed;
+            }
+
+            const nextStep = lastProcessedStep + 1;
+            const newLastProcessedStep = nextStep;
+
+            if (nextStep <= minCount) {
+                const autoJuryId = `auto_grande_finale_step_${nextStep}`;
+
+                // Delta de votes ajouté lors du passage à nextStep :
+                // on utilise votesByCandidate(now) - prevVotesByCandidate(step dernier)
+                const votesPrev = prevVotesByCandidate || {};
+                const unionIds = new Set([...Object.keys(votesByCandidate), ...Object.keys(votesPrev)]);
+
+                // Correction : si des points auto ont déjà été écrits pour cette étape (ancienne logique),
+                // on les retire avant de recalculer avec le delta.
+                for (let i = activated.length - 1; i >= 0; i--) {
+                    const a = activated[i];
+                    if (a && a.juryId === autoJuryId) {
+                        activated.splice(i, 1);
+                        changed = true;
+                    }
+                }
+
+                let maxDelta = 0;
+                const deltaByCandidate = {};
+                unionIds.forEach(cid => {
+                    const delta = (votesByCandidate[cid] || 0) - (votesPrev[cid] || 0);
+                    deltaByCandidate[cid] = delta;
+                    if (delta > maxDelta) maxDelta = delta;
+                });
+
+                const topCandidates = maxDelta > 0
+                    ? Array.from(unionIds).filter(cid => (deltaByCandidate[cid] || 0) === maxDelta)
+                    : [];
+
+                topCandidates.forEach(candidateId => {
+                    activated.push({
+                        juryId: autoJuryId,
+                        candidateId,
+                        points: 1,
+                        activatedAt: new Date()
+                    });
+                    changed = true;
+                });
+            }
+
+            await setDoc(activatedRef, { activated, updatedAt: new Date() }, { merge: true });
+            await setDoc(stateRef, { lastProcessedStep: newLastProcessedStep, prevVotesByCandidate: votesByCandidate, updatedAt: new Date() }, { merge: true });
+            return changed;
+        } finally {
+            // Toujours libérer le verrou
+            if (window._gfAutoRecomputeInProgress) window._gfAutoRecomputeInProgress[roundId] = false;
+        }
+        }
+
+        // Reset de l’état auto grande finale (utile après modifications / corrections de logique)
+        // ATTENTION : après reset, il faut relancer la séquence à partir de la 1ère validation.
+        window.resetGrandeFinaleAutoStateForSelectedRound = async function() {
+            try {
+                const displayRound = notesDisplayRound || activeRoundId || 'round1';
+                const currentRound = Array.isArray(ROUNDS) ? ROUNDS.find(r => r.id === displayRound) : null;
+                const isGrandeFinale = currentRound && (currentRound.type === 'Grande finale' || currentRound.type_epreuve === 'grande_finale');
+                if (!isGrandeFinale) {
+                    await customAlert('Ce tour n\'est pas une Grande finale.');
+                    return;
+                }
+
+                // Déterminer classementId comme ailleurs
+                let classementId = null;
+                if (currentRound && currentRound.classementId && String(currentRound.classementId).trim()) {
+                    classementId = String(currentRound.classementId).trim();
+                }
+                if (!classementId) {
+                    const configActivationsSnap = await getDoc(doc(db, "config", "activations"));
+                    classementId = (configActivationsSnap.exists() && configActivationsSnap.data().classementIdActif)
+                        ? configActivationsSnap.data().classementIdActif.trim()
+                        : ('classement_' + displayRound);
+                }
+
+                // Supprimer l'état auto
+                await deleteDoc(doc(db, "grande_finale_auto_state", String(displayRound)));
+
+                // Supprimer toutes les activations auto pour ce classement
+                const activationsSnap = await getDoc(doc(db, "classement_activations", classementId));
+                const activated = activationsSnap.exists() ? [...(activationsSnap.data().activated || [])] : [];
+                const filtered = activated.filter(a => {
+                    if (!a || typeof a.juryId !== 'string') return true;
+                    if (a.juryId.startsWith('auto_grande_finale_step_')) return false;
+                    return true;
+                });
+                await setDoc(doc(db, "classement_activations", classementId), { activated: filtered, updatedAt: new Date() }, { merge: true });
+
+                await customAlert('✓ Reset effectué.\n\nRelancez la grande finale à partir de la 1ère validation (sinon la note auto ne pourra pas être recalculée correctement).');
+
+                await renderNotesTable();
+                await loadResults();
+            } catch (e) {
+                console.error(e);
+                await customAlert('Erreur lors du reset : ' + (e.message || e));
+            }
+        };
         
         function setupScoresListener() {
             // Si un listener existe déjà, ne pas en créer un nouveau
@@ -1528,6 +1767,25 @@
                     pendingRefresh = true;
                     if (refreshTimeout) clearTimeout(refreshTimeout);
                     refreshTimeout = setTimeout(async () => {
+                        // Si Grande finale : recalcul automatique des points « max votes »
+                        try {
+                            const affectedRoundIdsLocal = new Set();
+                            changes.forEach(ch => {
+                                const d = ch.doc.data();
+                                if (d && d.roundId) affectedRoundIdsLocal.add(d.roundId);
+                            });
+                            for (const rid of affectedRoundIdsLocal) {
+                                try { 
+                                    await recomputeGrandeFinaleAutoPointsIfNeeded(rid); 
+                                    if (typeof updateClassementFromScoresForRound === 'function') {
+                                        await updateClassementFromScoresForRound(rid);
+                                    }
+                                } catch (e) { 
+                                    console.error(e); 
+                                }
+                            }
+                        } catch (_) {}
+
                         console.log('[CLASSEMENT] Refreshing Notes table...');
                         await renderNotesTable();
                         await loadResults();
@@ -1550,10 +1808,21 @@
                 console.log('[CLASSEMENT] Listener scores: planification updateClassementFromScoresForRound pour rounds', [...affectedRoundIds]);
                 window._scoreChangeDebounceTimer = setTimeout(() => {
                     window._scoreChangeDebounceTimer = null;
-                    affectedRoundIds.forEach(roundId => {
-                        updateClassementFromScoresForRound(roundId);
-                    });
-                }, 400);
+                    (async () => {
+                        for (const roundId of affectedRoundIds) {
+                            try {
+                                await recomputeGrandeFinaleAutoPointsIfNeeded(roundId);
+                            } catch (e) {
+                                console.error(e);
+                            }
+                            try {
+                                await updateClassementFromScoresForRound(roundId);
+                            } catch (e) {
+                                console.error(e);
+                            }
+                        }
+                    })();
+                }, 100);
                 
                 pendingRefresh = true;
             }, (error) => {
@@ -1726,6 +1995,7 @@
             } else if (tabName === 'podium') {
                 populatePodiumRoundDropdown();
                 loadResults();
+                if (typeof loadFinaleLockState === 'function') loadFinaleLockState();
             } else if (tabName === 'duels') {
                 populateDuelsRoundDropdown();
                 loadDuelsData();
@@ -2337,6 +2607,51 @@
             } catch (e) {
                 console.error(e);
                 await customAlert('Erreur : ' + (e.message || e));
+            }
+        };
+        
+        // --- VERROUILLAGE CLASSEMENT FINALE (GRANDE FINALE) ---
+        window.loadFinaleLockState = async () => {
+            const btn = document.getElementById('finale-lock-btn');
+            if (!btn) return;
+            try {
+                const snap = await getDoc(doc(db, "config", "finale_lock"));
+                const data = snap.exists() ? snap.data() : {};
+                const locked = data.locked === true;
+                btn.textContent = locked ? '🔓 Déverrouiller le classement finale' : '🔒 Verrouiller le classement finale';
+                btn.style.background = locked
+                    ? 'linear-gradient(135deg, #28a745 0%, #1e7e34 100%)'
+                    : 'linear-gradient(135deg, #ffc107 0%, #ff9800 100%)';
+                btn.style.color = locked ? 'white' : '#111';
+            } catch (e) {
+                console.error(e);
+                btn.textContent = '🔒 Verrouiller le classement finale';
+            }
+        };
+
+        window.toggleFinaleLock = async () => {
+            const btn = document.getElementById('finale-lock-btn');
+            if (!btn) return;
+            try {
+                const ref = doc(db, "config", "finale_lock");
+                const snap = await getDoc(ref);
+                const data = snap.exists() ? snap.data() : {};
+                const currentlyLocked = data.locked === true;
+                const newLocked = !currentlyLocked;
+                await setDoc(ref, { locked: newLocked, updatedAt: new Date() }, { merge: true });
+                await loadFinaleLockState();
+                if (typeof customAlert === 'function') {
+                    await customAlert(newLocked
+                        ? '✓ Classement finale verrouillé.\n\nPlus aucun vote de grande finale ne sera accepté et les médailles s\'affichent en couleur.'
+                        : '✓ Classement finale déverrouillé.\n\nLes votes de grande finale sont à nouveau possibles et les médailles redeviennent blanches.');
+                }
+            } catch (e) {
+                console.error(e);
+                if (typeof customAlert === 'function') {
+                    await customAlert('Erreur lors du verrouillage du classement finale : ' + (e.message || e));
+                } else {
+                    alert('Erreur lors du verrouillage du classement finale.');
+                }
             }
         };
         
@@ -3286,6 +3601,7 @@
             const currentRound = ROUNDS.find(r => r.id === displayRound);
             const isRepechage = currentRound && currentRound.type === 'Repêchage';
             const isPetiteFinale = currentRound && currentRound.type === 'Petite finale';
+            const isGrandeFinale = currentRound && (currentRound.type === 'Grande finale' || currentRound.type_epreuve === 'grande_finale');
             let previousRoundId = null;
             
             if (isRepechage) {
@@ -3296,7 +3612,7 @@
                 }
             }
             
-            console.log(`🔍 [renderNotesTable] Type de tour: ${currentRound?.type}, isRepechage: ${isRepechage}, previousRoundId: ${previousRoundId}`);
+            console.log(`🔍 [renderNotesTable] Type de tour: ${currentRound?.type}, isRepechage: ${isRepechage}, isGrandeFinale: ${isGrandeFinale}, previousRoundId: ${previousRoundId}`);
             
             // Charger TOUS les jurys depuis la collection accounts
             await loadJuries();
@@ -3364,6 +3680,31 @@
             let petiteFinaleChoices = {};
             if (isPetiteFinale) {
                 petiteFinaleChoices = await loadPetiteFinaleChoices(displayRound);
+            }
+
+            // Grande finale : points automatiques « max votes par séquence »
+            let autoPointsByCandidate = {};
+            if (isGrandeFinale) {
+                let classementId = null;
+                if (currentRound && currentRound.classementId && String(currentRound.classementId).trim()) {
+                    classementId = String(currentRound.classementId).trim();
+                }
+                if (!classementId) {
+                    const configActivationsSnap = await getDoc(doc(db, "config", "activations"));
+                    classementId = (configActivationsSnap.exists() && configActivationsSnap.data().classementIdActif)
+                        ? configActivationsSnap.data().classementIdActif.trim()
+                        : ('classement_' + displayRound);
+                }
+
+                const activationsSnap = await getDoc(doc(db, "classement_activations", classementId));
+                const activated = activationsSnap.exists() ? (activationsSnap.data().activated || []) : [];
+                activated.forEach(a => {
+                    if (!a || !a.candidateId) return;
+                    const jid = a.juryId || '';
+                    if (!String(jid).startsWith('auto_grande_finale_step_')) return;
+                    const pts = (a.points != null) ? (typeof a.points === 'number' ? a.points : parseFloat(a.points) || 0) : 0;
+                    autoPointsByCandidate[a.candidateId] = (autoPointsByCandidate[a.candidateId] || 0) + pts;
+                });
             }
             
             // Si c'est un repêchage, charger aussi les scores du tour précédent pour affichage
@@ -3554,14 +3895,20 @@
                 return '';
             };
             
-            // En-tête différent pour repêchage / Petite finale (5 notes) / autres tours (2 notes)
+            // En-tête différent pour repêchage / Petite finale (5 notes) / Grande finale (votes) / autres tours (2 notes)
             const juryHeaders = isRepechage 
                 ? sortedJuries.map(j => `<th class="col-score" style="min-width: 90px;">${j.name}<br><small>(0 ou 1)</small></th>`).join('')
                 : isPetiteFinale
                 ? sortedJuries.map(j => `<th colspan="5" class="col-score" style="min-width: 300px;">${j.name}<br><small>Prés. | Œuvre (1 note) | Discours: glob./fond/crit.</small></th>`).join('')
+                : isGrandeFinale
+                ? sortedJuries.map(j => `<th class="col-score" style="min-width: 90px;">${j.name}<br><small>(votes)</small></th>`).join('')
                 : sortedJuries.map(j => `<th colspan="2" class="col-score" style="min-width: 180px;">${j.name}<br><small>(Fond | Forme)</small></th>`).join('');
             
-            const scoreLabel = isRepechage ? 'Score<br><small>(tour précédent)</small>' : 'Score<br><small>(pondéré)</small>';
+            const scoreLabel = isRepechage
+                ? 'Score<br><small>(tour précédent)</small>'
+                : isGrandeFinale
+                ? 'Votes'
+                : 'Score<br><small>(pondéré)</small>';
             const listeCriteres = isPetiteFinale ? getListeCriteresPetiteFinale() : [];
             const critereColHeader = isPetiteFinale && listeCriteres.length > 0 ? '<th style="min-width: 140px; text-align: center;">Critère x3</th>' : '';
             
@@ -3570,6 +3917,7 @@
                 <th class="col-candidate" style="cursor: pointer;" onclick="sortNotesTable('candidat')">Candidat${sortIcon('candidat')}</th>
                 <th style="width: 100px; cursor: pointer;" onclick="sortNotesTable('score')">${scoreLabel}${sortIcon('score')}</th>
                 ${isRepechage ? '' : '<th style="width: 90px; text-align: center;">Score base</th>'}
+                ${isGrandeFinale ? '<th style="width: 120px; text-align: center;">Note auto</th>' : ''}
                 ${critereColHeader}
                 <th style="min-width: 200px; width: 200px; cursor: pointer;" onclick="sortNotesTable('tour')">Dernier Tour${sortIcon('tour')}</th>
                 <th style="width: 150px; cursor: pointer;" onclick="sortNotesTable('statut')">Statut${sortIcon('statut')}</th>
@@ -3617,6 +3965,14 @@
                         scoreBaseCell.textContent = item.totalScoreBase != null ? item.totalScoreBase : '-';
                     }
                     scoreBaseCell.style.textAlign = 'center';
+                }
+
+                if (isGrandeFinale) {
+                    const autoCell = row.insertCell();
+                    autoCell.textContent = autoPointsByCandidate[candidate.id] != null ? autoPointsByCandidate[candidate.id] : 0;
+                    autoCell.style.textAlign = 'center';
+                    autoCell.style.fontWeight = 'bold';
+                    autoCell.title = 'Points automatiques : max votes par séquence (tous les ex-aequo recoivent +1).';
                 }
                 
                 // Petite finale : menu déroulant « critère x3 » par candidat
@@ -3777,6 +4133,18 @@
                             } else {
                                 cell.innerHTML = createScoreDropdown(null, field, '-', candidate.id, jury.id, readonly);
                             }
+                        }
+                    } else if (isGrandeFinale) {
+                        // Grande finale : une seule colonne par jury (nombre de votes)
+                        const cell = row.insertCell();
+                        cell.className = 'col-score';
+                        cell.style.minWidth = '90px';
+                        cell.style.width = '90px';
+                        const readonly = isRoundValidated || (candidate.status === 'Elimine' || candidate.status === 'Qualifie');
+                        if (scores) {
+                            cell.innerHTML = createScoreDropdown(scores.id, 'score1', scores.score1, candidate.id, jury.id, readonly);
+                        } else {
+                            cell.innerHTML = createScoreDropdown(null, 'score1', '-', candidate.id, jury.id, readonly);
                         }
                     } else {
                         // Pour autres tours : deux colonnes (Fond | Forme)
@@ -5056,8 +5424,9 @@
             const round = ROUNDS.find(r => r.id === displayRound);
             const isDuels = round && (round.type === 'Duels' || round.type_epreuve === 'duels');
             const isPetiteFinale = round && round.type === 'Petite finale';
+            const isGrandeFinale = round && (round.type === 'Grande finale' || round.type_epreuve === 'grande_finale');
             const optionLength = (isPetiteFinale && (field === 'score3' || field === 'score7')) ? 31 : 21;
-            const options = (isDuels || isPetiteFinale)
+            const options = (isDuels || isPetiteFinale || isGrandeFinale)
                 ? ['-'].concat(Array.from({ length: optionLength }, (_, i) => String(i)))
                 : ['-', '5', '10', '15', '20', 'EL'];
             const selectId = `score-${candidateId}-${juryId}-${field}`;

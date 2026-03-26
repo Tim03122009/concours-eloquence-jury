@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="description" content="Interface test — Concours d'éloquence (Jury)">
+    <meta name="theme-color" content="#667eea">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>Interface Test Jury — Concours Eloquence</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Menu déroulant de test (persistant même si script.js réécrit scoring-page) */
+        #test-jury-switcher-wrap {
+            position: fixed;
+            top: calc(var(--spacing-sm) + 46px);
+            right: var(--spacing-sm);
+            z-index: 100000;
+            width: min(360px, calc(100vw - 2 * var(--spacing-sm)));
+            padding: 10px;
+            background: var(--card-bg);
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            box-shadow: var(--shadow-lg);
+        }
+        #test-jury-switcher-wrap .title {
+            font-weight: 700;
+            font-size: 0.95rem;
+            margin-bottom: 6px;
+            color: var(--text-color);
+        }
+        #test-jury-switcher {
+            width: 100%;
+            padding: var(--spacing-xs) var(--spacing-sm);
+            font-size: clamp(0.9rem, 2.2vw, 1rem);
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            margin-bottom: 0;
+            transition: var(--transition);
+            font-family: inherit;
+            background: var(--input-bg);
+            color: var(--text-color);
+        }
+        #test-jury-switcher:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div id="test-jury-switcher-wrap">
+        <div class="title">Jury (tests)</div>
+        <select id="test-jury-switcher" disabled>
+            <option value="" selected>Chargement…</option>
+        </select>
+    </div>
+
+    <div id="identification-page" class="page">
+        <div class="burger-menu">
+            <div class="burger-icon" onclick="toggleMenu()">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <div class="burger-menu-content" id="menu-content">
+                <div class="theme-toggle">
+                    <span>Mode sombre</span>
+                    <div class="toggle-switch" id="theme-toggle" onclick="toggleTheme()">
+                        <div class="toggle-slider"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h2>Identification Jury (test)</h2>
+        <p id="test-instruction" style="text-align:center; margin: 0 0 var(--spacing-md) 0; color: var(--text-secondary);">
+            Utilise le menu déroulant “Jury (tests)” pour changer de jury et tester l’interface.
+        </p>
+        <p id="active-round-display" style="text-align: center; font-size: 1.1em; color: var(--primary-color); margin: 10px 0 20px 0; font-weight: 600;">Chargement...</p>
+
+        <!-- Champs conservés car script.js les référence (mais masqués en mode test). -->
+        <div class="control-group" style="display:none;">
+            <label for="jury-name-input">Votre Nom / Identifiant :</label>
+            <input type="text" id="jury-name-input" autocomplete="name" required>
+        </div>
+        <div class="control-group" style="display:none;">
+            <label for="password-input">Mot de passe (Optionnel) :</label>
+            <input type="password" id="password-input" autocomplete="current-password">
+        </div>
+        <button id="start-scoring-button" style="display:none;">Commencer</button>
+    </div>
+
+    <div id="scoring-page" class="page">
+        <div class="burger-menu">
+            <div class="burger-icon" onclick="toggleMenu()">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <div class="burger-menu-content" id="menu-content-scoring">
+                <div class="theme-toggle">
+                    <span>Mode sombre</span>
+                    <div class="toggle-switch" id="theme-toggle-scoring" onclick="toggleTheme()">
+                        <div class="toggle-slider"></div>
+                    </div>
+                </div>
+                <div class="menu-item" onclick="refreshCandidateList()">
+                    <span>🔄 Rafraîchir la liste</span>
+                </div>
+                <div class="menu-item" onclick="changePassword()">
+                    <span>🔑 Changer le mot de passe</span>
+                </div>
+                <div class="menu-item" id="logout-button">
+                    <span>Déconnexion</span>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <h2 style="margin: 0;">Jury : <span id="current-jury-display"></span></h2>
+            <p id="scoring-round-display" style="text-align: center; font-size: 1em; color: var(--primary-color); margin: 5px 0; font-weight: 500;">Chargement du tour...</p>
+        </div>
+
+        <div class="control-group" style="margin-top: var(--spacing-md);">
+            <label>1. Candidat à noter :</label>
+            <select id="candidate-select">
+                <option value="" disabled selected>-- Charger la liste --</option>
+            </select>
+            <p id="selected-candidate-display" class="selection-info">Aucun candidat sélectionné</p>
+        </div>
+
+        <hr>
+
+        <div class="control-group">
+            <label>2. Fond / Argumentation (Coefficient ×3)</label>
+            <div class="score-grid" id="grid-fond"></div>
+            <p id="display-score-1" class="selection-info">Note Fond : -</p>
+        </div>
+
+        <hr>
+
+        <div class="control-group">
+            <label>3. Forme / Éloquence (Coefficient ×1)</label>
+            <div class="score-grid" id="grid-forme"></div>
+            <p id="display-score-2" class="selection-info">Note Forme : -</p>
+        </div>
+
+        <button id="validate-button" disabled>Valider la notation</button>
+    </div>
+
+    <div id="confirmation-modal" class="modal">
+        <div class="modal-content">
+            <h3>Confirmer l'envoi ?</h3>
+            <p>Candidat : <strong id="modal-candidate"></strong></p>
+            <p>Fond : <strong id="modal-s1"></strong></p>
+            <p>Forme : <strong id="modal-s2"></strong></p>
+            <div>
+                <button id="confirm-send-button">Confirmer</button>
+                <button id="cancel-send-button">Annuler</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Theme Toggle Logic — identique à index.html
+        function getThemeKey() {
+            const juryName = localStorage.getItem('currentJuryName');
+            return juryName ? `theme_${juryName}` : 'theme_default';
+        }
+
+        function initTheme() {
+            const themeKey = getThemeKey();
+            const savedTheme = localStorage.getItem(themeKey) || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+
+            const toggles = ['theme-toggle', 'theme-toggle-scoring'];
+            toggles.forEach(id => {
+                const toggle = document.getElementById(id);
+                if (toggle) {
+                    if (savedTheme === 'dark') toggle.classList.add('active');
+                    else toggle.classList.remove('active');
+                }
+            });
+        }
+
+        async function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+
+            const themeKey = getThemeKey();
+            localStorage.setItem(themeKey, newTheme);
+
+            // Sauvegarde dans Firebase si connecté (même logique que index.html)
+            const juryName = localStorage.getItem('currentJuryName');
+            if (juryName && juryName !== 'admin') {
+                try {
+                    const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js');
+                    const { db } = await import('./firebase-init.js');
+                    await updateDoc(doc(db, "accounts", juryName), { theme: newTheme });
+                } catch (e) {
+                    console.log('Impossible de sauvegarder le thème dans Firebase:', e);
+                }
+            }
+
+            const toggles = ['theme-toggle', 'theme-toggle-scoring'];
+            toggles.forEach(id => {
+                const toggle = document.getElementById(id);
+                if (toggle) {
+                    if (newTheme === 'dark') toggle.classList.add('active');
+                    else toggle.classList.remove('active');
+                }
+            });
+        }
+
+        function toggleMenu() {
+            const menus = ['menu-content', 'menu-content-scoring'];
+            menus.forEach(id => {
+                const menu = document.getElementById(id);
+                if (menu) menu.classList.toggle('active');
+            });
+        }
+
+        document.addEventListener('click', function(event) {
+            const menus = document.querySelectorAll('.burger-menu-content');
+            const burgerIcon = event.target.closest('.burger-icon');
+
+            if (!burgerIcon) {
+                menus.forEach(menu => {
+                    if (!menu.contains(event.target)) menu.classList.remove('active');
+                });
+            }
+        });
+
+        initTheme();
+    </script>
+
+    <script>window.useCustomModals = true;</script>
+    <script src="modal.js"></script>
+    <script type="module" src="test-jury-switcher.js"></script>
+    <script type="module" src="script.js"></script>
+</body>
+</html>
+
