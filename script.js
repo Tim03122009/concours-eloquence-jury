@@ -1985,7 +1985,7 @@ async function showGrandeFinaleInterface() {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'jury-tab-btn';
-        btn.style.cssText = 'padding: 14px 20px; font-size: 1.05em; text-align: center; border-radius: 8px; border: 2px solid var(--border-color); background: var(--input-bg); color: var(--text-color); cursor: pointer;';
+        btn.style.cssText = 'padding: 14px 20px; font-size: 1.05em; text-align: center; border-radius: 8px; border: 2px solid var(--border-color); background: var(--input-bg); color: #000; cursor: pointer;';
         btn.textContent = c.name || c.id;
         btn.dataset.candidateId = c.id;
         btn.addEventListener('click', () => {
@@ -1995,6 +1995,7 @@ async function showGrandeFinaleInterface() {
                 b.classList.remove('active');
                 b.style.background = 'var(--input-bg)';
                 b.style.borderColor = 'var(--border-color)';
+                b.style.color = '#000';
             });
             btn.classList.add('active');
             btn.style.background = 'var(--primary-color)';
@@ -2125,7 +2126,7 @@ async function showGrandeFinaleInterface() {
                 b.classList.remove('active');
                 b.style.background = 'var(--input-bg)';
                 b.style.borderColor = 'var(--border-color)';
-                b.style.color = '';
+                b.style.color = '#000';
             });
             validateBtn.disabled = true;
             await updateGrandeFinaleCounter();
