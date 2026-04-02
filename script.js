@@ -954,19 +954,13 @@ document.getElementById('start-scoring-button').onclick = async () => {
     }
 
     try {
-        // Vérification mode classement (vue unique, accès par identifiant + mot de passe sur page d'accueil)
+        // Accès classement : identifiant "classement" et mot de passe vide (comme malus / qr / vidéo / finale)
         if (name.toLowerCase() === 'classement') {
-            const classementDoc = await getDoc(doc(db, "config", "classement"));
-            const storedPassword = classementDoc.exists() ? (classementDoc.data().password || 'classement') : 'classement';
-            if (!password) {
-                alert('Veuillez entrer le mot de passe pour accéder au classement.');
+            if (password && password.trim() !== '') {
+                alert('Pour l\'accès au classement, laissez le mot de passe vide.');
                 return;
             }
-            if (password === storedPassword) {
-                window.location.href = 'classement.html';
-            } else {
-                alert('Mot de passe incorrect');
-            }
+            window.location.href = 'classement.html';
             return;
         }
 

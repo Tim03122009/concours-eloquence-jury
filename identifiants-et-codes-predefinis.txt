@@ -1,0 +1,10 @@
+Identifiant : "admin" / code : Firebase ou "admin" (si config absente)
+Identifiant : "admin" (secours) / code : "mot-de-passe-de-secours-2026!!"
+Identifiant : "classement" / code : vide
+Identifiant : "malus" / code : vide
+Identifiant : "qr code" / code : vide
+Identifiant : "vidéo" / code : vide
+Identifiant : "video" / code : vide
+Identifiant : "final" / code : vide
+Identifiant : "finale" / code : vide
+Identifiant : nom jury (compte Firebase) / code : celui changé par le jury ou le mot de passe par défaut ("code")
