@@ -1293,6 +1293,20 @@
             }
         }
 
+        /** Retourne true si le x3 du critère spécifique est actif pour ce tour (par défaut: désactivé). */
+        async function isPetiteFinaleX3Enabled(roundId) {
+            try {
+                const snap = await getDoc(doc(db, "config", "petite_finale_critere_toggle"));
+                const data = snap.exists() ? snap.data() : {};
+                const byRound = data.enabledByRound || {};
+                if (typeof byRound[roundId] === 'boolean') return byRound[roundId];
+                return false;
+            } catch (e) {
+                console.error('isPetiteFinaleX3Enabled', e);
+                return false;
+            }
+        }
+
         /** Enregistre le choix « critère x3 » pour un candidat (petite finale). */
         window.savePetiteFinaleChoice = async function(roundId, candidateId, critereLabel) {
             try {
@@ -1308,6 +1322,24 @@
             } catch (e) {
                 console.error('savePetiteFinaleChoice', e);
                 await customAlert('Erreur lors de l\'enregistrement du critère : ' + (e.message || e));
+            }
+        };
+
+        /** Active/désactive globalement le x3 des critères spécifiques pour un tour de petite finale. */
+        window.togglePetiteFinaleX3ForRound = async function(roundId, enabled) {
+            try {
+                if (!roundId) return;
+                const snap = await getDoc(doc(db, "config", "petite_finale_critere_toggle"));
+                const data = snap.exists() ? snap.data() : {};
+                const byRound = data.enabledByRound || {};
+                byRound[roundId] = !!enabled;
+                await setDoc(doc(db, "config", "petite_finale_critere_toggle"), { enabledByRound: byRound }, { merge: true });
+                await updateClassementFromScoresForRound(roundId);
+                await renderNotesTable();
+                await loadActivationClassementsData();
+            } catch (e) {
+                console.error('togglePetiteFinaleX3ForRound', e);
+                await customAlert('Erreur lors du basculement global du x3 : ' + (e.message || e));
             }
         };
 
@@ -1446,18 +1478,19 @@
             }
         };
 
-        /** Score base pour un jury en petite finale : si juryCritere === chosenCritere, la note critère (score9) est multipliée par 3. */
-        function computeScoreBasePetiteFinaleOneJury(score1, score3, score7, score8, score9, juryCritere, chosenCritere) {
+        /** Score base pour un jury en petite finale : score1 (présentations) + score3 (œuvre) + (score7+score8+score9 avec x3 critère) + score10 (artefact). */
+        function computeScoreBasePetiteFinaleOneJury(score1, score3, score7, score8, score9, score10, juryCritere, chosenCritere) {
             const toNum = (s) => (s === 'EL' || s === '-' || s == null || s === '') ? 0 : (() => { const n = parseInt(s, 10); return isNaN(n) ? 0 : n; })();
             const base1 = toNum(score1);
             const base2 = toNum(score3);
             const noteCritere = toNum(score9);
             const mult = (chosenCritere && (juryCritere || '').trim() === (chosenCritere || '').trim()) ? 3 : 1;
             const base3 = toNum(score7) + toNum(score8) + (noteCritere * mult);
-            return base1 + base2 + base3;
+            const base4 = toNum(score10);
+            return base1 + base2 + base3 + base4;
         }
 
-        /** Score base : duel = fond+forme ; autre = fond×3+forme ; Petite finale : score1 + score3 + (score7+score8+score9) ; Grande finale : nombre de votes (score1). */
+        /** Score base : duel = fond+forme ; autre = fond×3+forme ; Petite finale : score1 + score3 + (score7+score8+score9) + score10 ; Grande finale : nombre de votes (score1). */
         function computeScoreBase(score1, score2, roundId, score3, score4, score5, score6, score7, score8, score9, score10) {
             const r = (typeof ROUNDS !== 'undefined' && Array.isArray(ROUNDS)) ? ROUNDS.find(x => x.id === roundId) : null;
             const isPetiteFinale = r && r.type === 'Petite finale';
@@ -1467,7 +1500,8 @@
                 const base1 = toNum(score1);
                 const base2 = toNum(score3);
                 const base3 = toNum(score7) + toNum(score8) + toNum(score9);
-                return base1 + base2 + base3;
+                const base4 = toNum(score10);
+                return base1 + base2 + base3 + base4;
             }
             if (isGrandeFinale) {
                 const toNum = (s) => (s === 'EL' || s === '-' || s == null || s === '') ? 0 : (() => { const n = parseInt(s, 10); return isNaN(n) ? 0 : n; })();
@@ -3753,8 +3787,10 @@
             
             // Petite finale : charger les choix « critère x3 » par candidat
             let petiteFinaleChoices = {};
+            let petiteFinaleX3Enabled = true;
             if (isPetiteFinale) {
                 petiteFinaleChoices = await loadPetiteFinaleChoices(displayRound);
+                petiteFinaleX3Enabled = await isPetiteFinaleX3Enabled(displayRound);
             }
 
             // Grande finale : points automatiques « max votes par séquence »
@@ -3819,6 +3855,30 @@
             
             // Charger les malus pour le tour affiché
             const malusByCandidate = await loadMalusForRound(displayRound);
+            let classementMalusDisabledSet = new Set();
+            try {
+                let classementId = null;
+                if (currentRound && currentRound.classementId && String(currentRound.classementId).trim()) {
+                    classementId = String(currentRound.classementId).trim();
+                }
+                if (!classementId) {
+                    const configActivationsSnap = await getDoc(doc(db, "config", "activations"));
+                    classementId = (configActivationsSnap.exists() && configActivationsSnap.data().classementIdActif)
+                        ? String(configActivationsSnap.data().classementIdActif).trim()
+                        : ('classement_' + displayRound);
+                }
+                const classementSnapForMalus = await getDoc(doc(db, "classements", classementId));
+                const classementDataForMalus = classementSnapForMalus.exists() ? classementSnapForMalus.data() : {};
+                if (Array.isArray(classementDataForMalus.malusDisabled)) {
+                    // [] = aucun candidat désactivé (donc malus actifs pour tous)
+                    classementMalusDisabledSet = new Set(classementDataForMalus.malusDisabled);
+                } else {
+                    // Compat historique: champ absent => malus désactivés pour tous
+                    classementMalusDisabledSet = new Set(CANDIDATES.map(c => c.id).filter(Boolean));
+                }
+            } catch (e) {
+                console.warn('Impossible de lire malusDisabled pour le tableau Notes:', e);
+            }
             
             // Calculer le score total pour chaque candidat
             console.log(`🔍 [renderNotesTable] Nombre de candidats à traiter: ${CANDIDATES.length}`);
@@ -3873,13 +3933,15 @@
                     sortedJuries.forEach(jury => {
                         const scores = scoresByCandidate[candidate.id]?.[jury.id];
                         if (scores) {
+                            const chosenCritereApplied = (isPetiteFinale && !petiteFinaleX3Enabled) ? '' : chosenCritere;
                             const base = isPetiteFinale
-                                ? computeScoreBasePetiteFinaleOneJury(scores.score1, scores.score3, scores.score7, scores.score8, scores.score9, jury.criterePetiteFinale || '', chosenCritere)
+                                ? computeScoreBasePetiteFinaleOneJury(scores.score1, scores.score3, scores.score7, scores.score8, scores.score9, scores.score10, jury.criterePetiteFinale || '', chosenCritereApplied)
                                 : (scores.score_base != null ? scores.score_base : computeScoreBase(scores.score1, scores.score2, displayRound, scores.score3, scores.score4, scores.score5, scores.score6, scores.score7, scores.score8, scores.score9, scores.score10));
                             const hasExo1 = isPetiteFinale ? (scores.score1 !== '-' && scores.score1 !== '') : (scores.score1 !== '-' && scores.score2 !== '-');
                             const hasExo2 = isPetiteFinale && (scores.score3 !== '-' && scores.score3 !== '');
                             const hasExo3 = isPetiteFinale && (scores.score7 !== '-' && scores.score7 !== '' || scores.score8 !== '-' || scores.score9 !== '-');
-                            if (hasExo1 || hasExo2 || hasExo3) {
+                            const hasExo4 = isPetiteFinale && (scores.score10 !== '-' && scores.score10 !== '');
+                            if (hasExo1 || hasExo2 || hasExo3 || hasExo4) {
                                 hasScores = true;
                                 if (scores.score1 === 'EL' || (isPetiteFinale ? false : scores.score2 === 'EL') || (isPetiteFinale && (scores.score3 === 'EL' || scores.score5 === 'EL' || scores.score7 === 'EL'))) {
                                     totalScore += 0;
@@ -3897,19 +3959,22 @@
                     sortedJuries.forEach(jury => {
                         const scores = scoresByCandidate[candidate.id]?.[jury.id];
                         if (scores) {
+                            const chosenCritereBaseApplied = (isPetiteFinale && !petiteFinaleX3Enabled) ? '' : chosenCritereBase;
                             const base = isPetiteFinale
-                                ? computeScoreBasePetiteFinaleOneJury(scores.score1, scores.score3, scores.score7, scores.score8, scores.score9, jury.criterePetiteFinale || '', chosenCritereBase)
+                                ? computeScoreBasePetiteFinaleOneJury(scores.score1, scores.score3, scores.score7, scores.score8, scores.score9, scores.score10, jury.criterePetiteFinale || '', chosenCritereBaseApplied)
                                 : (scores.score_base != null ? scores.score_base : computeScoreBase(scores.score1, scores.score2, displayRound, scores.score3, scores.score4, scores.score5, scores.score6, scores.score7, scores.score8, scores.score9, scores.score10));
                             const hasExo1 = isPetiteFinale ? (scores.score1 !== '-' && scores.score1 !== '') : (scores.score1 !== '-' && scores.score2 !== '-');
                             const hasExo2 = isPetiteFinale && (scores.score3 !== '-' && scores.score3 !== '');
                             const hasExo3 = isPetiteFinale && (scores.score7 !== '-' && scores.score7 !== '' || scores.score8 !== '-' || scores.score9 !== '-');
-                            if (hasExo1 || hasExo2 || hasExo3) totalScoreBase += base;
+                            const hasExo4 = isPetiteFinale && (scores.score10 !== '-' && scores.score10 !== '');
+                            if (hasExo1 || hasExo2 || hasExo3 || hasExo4) totalScoreBase += base;
                         }
                     });
                 }
                 
                 const malusList = Array.isArray(malusByCandidate[candidate.id]) ? malusByCandidate[candidate.id] : [];
-                const totalMalus = malusList.reduce((s, m) => s + (typeof m.points === 'number' ? m.points : parseFloat(m.points) || 0), 0);
+                const totalMalusRaw = malusList.reduce((s, m) => s + (typeof m.points === 'number' ? m.points : parseFloat(m.points) || 0), 0);
+                const totalMalus = classementMalusDisabledSet.has(candidate.id) ? 0 : totalMalusRaw;
                 const scoreAfterMalus = (totalScore !== null && totalScore !== undefined) ? Math.max(0, totalScore - totalMalus) : null;
                 const scoreBaseAfterMalus = (totalScoreBase > 0) ? Math.max(0, totalScoreBase - totalMalus) : null;
                 
@@ -3972,11 +4037,11 @@
                 return '';
             };
             
-            // En-tête différent pour repêchage / Petite finale (5 notes) / Grande finale (votes) / autres tours (2 notes)
+            // En-tête différent pour repêchage / Petite finale (6 notes) / Grande finale (votes) / autres tours (2 notes)
             const juryHeaders = isRepechage 
                 ? sortedJuries.map(j => `<th class="col-score" style="min-width: 90px;">${j.name}<br><small>(0 ou 1)</small></th>`).join('')
                 : isPetiteFinale
-                ? sortedJuries.map(j => `<th colspan="5" class="col-score" style="min-width: 300px;">${j.name}<br><small>Prés. | Œuvre (1 note) | Discours: glob./fond/crit.</small></th>`).join('')
+                ? sortedJuries.map(j => `<th colspan="6" class="col-score" style="min-width: 360px;">${j.name}<br><small>Prés. | Œuvre (1 note) | Discours: glob./fond/crit. | Artefact</small></th>`).join('')
                 : isGrandeFinale
                 ? sortedJuries.map(j => `<th class="col-score" style="min-width: 90px;">${j.name}<br><small>(votes)</small></th>`).join('')
                 : sortedJuries.map(j => `<th colspan="2" class="col-score" style="min-width: 180px;">${j.name}<br><small>(Fond | Forme)</small></th>`).join('');
@@ -4206,9 +4271,9 @@
                             cell.innerHTML = createRepechageScoreDropdown(null, '-', candidate.id, jury.id, readonly);
                         }
                     } else if (isPetiteFinale) {
-                        // Petite finale : 5 colonnes (Prés. = score1 ; Œuvre = score3 ; Discours = score7,8,9)
+                        // Petite finale : 6 colonnes (Prés. = score1 ; Œuvre = score3 ; Discours = score7,8,9 ; Artefact = score10)
                         const readonly = isRoundValidated || (candidate.status === 'Elimine' || candidate.status === 'Qualifie');
-                        for (const field of ['score1', 'score3', 'score7', 'score8', 'score9']) {
+                        for (const field of ['score1', 'score3', 'score7', 'score8', 'score9', 'score10']) {
                             const cell = row.insertCell();
                             cell.className = 'col-score';
                             cell.style.minWidth = '52px';
@@ -4270,9 +4335,11 @@
                 const round = roundsList.find(r => r.id === roundId);
                 const isPetiteFinale = round && round.type === 'Petite finale';
                 let petiteFinaleChoices = {};
+                let petiteFinaleX3Enabled = true;
                 if (isPetiteFinale) {
                     await loadJuries();
                     petiteFinaleChoices = await loadPetiteFinaleChoices(roundId);
+                    petiteFinaleX3Enabled = await isPetiteFinaleX3Enabled(roundId);
                 }
                 const scoresQuery = query(collection(db, "scores"), where("roundId", "==", roundId));
                 const scoresSnap = await getDocs(scoresQuery);
@@ -4284,8 +4351,8 @@
                     let base;
                     if (isPetiteFinale) {
                         const jury = JURIES.find(j => j.id === juryId);
-                        const chosenCritere = petiteFinaleChoices[cid] || '';
-                        base = computeScoreBasePetiteFinaleOneJury(data.score1, data.score3, data.score7, data.score8, data.score9, jury ? (jury.criterePetiteFinale || '') : '', chosenCritere);
+                        const chosenCritere = petiteFinaleX3Enabled ? (petiteFinaleChoices[cid] || '') : '';
+                        base = computeScoreBasePetiteFinaleOneJury(data.score1, data.score3, data.score7, data.score8, data.score9, data.score10, jury ? (jury.criterePetiteFinale || '') : '', chosenCritere);
                     } else {
                         base = data.score_base != null ? data.score_base : computeScoreBase(data.score1, data.score2, roundId, data.score3, data.score4, data.score5, data.score6, data.score7, data.score8, data.score9, data.score10);
                     }
@@ -4301,20 +4368,6 @@
                 const candidatsSnap = await getDoc(doc(db, "candidats", "liste_actuelle"));
                 const allCandidates = candidatsSnap.exists() ? (candidatsSnap.data().candidates || []) : [];
                 const roundCandidates = allCandidates.filter(c => (c.tour || '') === roundId);
-                const withScore = roundCandidates.map(c => {
-                    const base = totalBaseByCandidate[c.id] || 0;
-                    const malus = totalMalusByCandidate[c.id] || 0;
-                    return {
-                        candidateId: c.id,
-                        name: c.name || c.id,
-                        score_base: Math.max(0, base - malus)
-                    };
-                });
-                withScore.sort((a, b) => b.score_base - a.score_base);
-                if (withScore.length === 0) {
-                    console.log('[CLASSEMENT] updateClassementFromScoresForRound: withScore vide, return');
-                    return;
-                }
                 // Résolution du classementId identique à loadActivationClassementsData pour toujours écrire dans le même doc que l'onglet Activation (et donc lire les bons points d'activation)
                 let classementId = null;
                 if (round && round.classementId && String(round.classementId).trim()) {
@@ -4331,6 +4384,26 @@
                 const currentData = classementSnap.exists() ? classementSnap.data() : {};
                 if (classementSnap.exists() && currentData.code != null && currentData.code !== roundId) {
                     console.log('[CLASSEMENT] updateClassementFromScoresForRound: doc classement code !== roundId, return');
+                    return;
+                }
+                let malusDisabledList = Array.isArray(currentData.malusDisabled) ? [...currentData.malusDisabled] : null;
+                if (!Array.isArray(malusDisabledList)) {
+                    // Comportement historique: sans config explicite, les malus sont désactivés pour tous.
+                    malusDisabledList = roundCandidates.map(c => c.id).filter(Boolean);
+                }
+                const malusDisabledSet = new Set(malusDisabledList);
+                const withScore = roundCandidates.map(c => {
+                    const base = totalBaseByCandidate[c.id] || 0;
+                    const malus = malusDisabledSet.has(c.id) ? 0 : (totalMalusByCandidate[c.id] || 0);
+                    return {
+                        candidateId: c.id,
+                        name: c.name || c.id,
+                        score_base: Math.max(0, base - malus)
+                    };
+                });
+                withScore.sort((a, b) => b.score_base - a.score_base);
+                if (withScore.length === 0) {
+                    console.log('[CLASSEMENT] updateClassementFromScoresForRound: withScore vide, return');
                     return;
                 }
                 // Toujours relire les activations juste avant d'écrire (même doc que l'onglet Activation) pour ne jamais écraser les points
@@ -4437,9 +4510,16 @@
                 const allCandidates = candidatsSnap.exists() ? (candidatsSnap.data().candidates || []) : [];
                 let roundCandidates = allCandidates.filter(c => (c.tour || '') === roundId);
                 if (roundCandidates.length === 0) roundCandidates = allCandidates;
+                const classementSnapForMalus = await getDoc(doc(db, "classements", classementId));
+                const classementDataForMalus = classementSnapForMalus.exists() ? classementSnapForMalus.data() : {};
+                let malusDisabledList = Array.isArray(classementDataForMalus.malusDisabled) ? [...classementDataForMalus.malusDisabled] : null;
+                if (!Array.isArray(malusDisabledList)) {
+                    malusDisabledList = roundCandidates.map(c => c.id).filter(Boolean);
+                }
+                const malusDisabledSet = new Set(malusDisabledList);
                 const withScore = roundCandidates.map(c => {
                     const base = totalBaseByCandidate[c.id] || 0;
-                    const malus = totalMalusByCandidate[c.id] || 0;
+                    const malus = malusDisabledSet.has(c.id) ? 0 : (totalMalusByCandidate[c.id] || 0);
                     return {
                         candidateId: c.id,
                         name: c.name || c.id,
@@ -4997,15 +5077,28 @@
 
                 const duelWinnerIds = await getDuelWinnerIds(roundId);
                 const duelBonusEnabled = Array.isArray(classementData.duelBonusEnabled) ? classementData.duelBonusEnabled : [];
+                const isPetiteFinaleRound = !!(round && round.type === 'Petite finale');
+                const petiteFinaleX3Enabled = isPetiteFinaleRound ? await isPetiteFinaleX3Enabled(roundId) : false;
 
                 if (loadingEl) loadingEl.style.display = 'none';
                 if (emptyEl) emptyEl.style.display = 'none';
                 if (containerEl) containerEl.style.display = 'block';
                 // Par défaut (pas encore de champ malusDisabled) : tous les candidats sont marqués comme "malus désactivés" (bouton rouge)
-                if (!Array.isArray(malusDisabled) || malusDisabled.length === 0) {
+                if (!Array.isArray(malusDisabled)) {
                     malusDisabled = grid.map(row => row.candidateId).filter(Boolean);
                 }
-                renderActivationClassementsGrid(grid, juriesOnRound, classementId, roundId, activationsSnap.exists() ? activationsSnap.data().activated : [], duelWinnerIds, duelBonusEnabled, malusDisabled);
+                renderActivationClassementsGrid(
+                    grid,
+                    juriesOnRound,
+                    classementId,
+                    roundId,
+                    activationsSnap.exists() ? activationsSnap.data().activated : [],
+                    duelWinnerIds,
+                    duelBonusEnabled,
+                    malusDisabled,
+                    isPetiteFinaleRound,
+                    petiteFinaleX3Enabled
+                );
 
                 let firstJury = true, firstClassement = true, firstActivations = true, firstDuels = true;
                 const qJuryRankings = query(collection(db, "jury_rankings"), where("roundId", "==", roundId));
@@ -5032,7 +5125,7 @@
             }
         };
 
-        function renderActivationClassementsGrid(grid, juriesOnRound, classementId, roundId, activatedList, duelWinnerIds, duelBonusEnabled, malusDisabled) {
+        function renderActivationClassementsGrid(grid, juriesOnRound, classementId, roundId, activatedList, duelWinnerIds, duelBonusEnabled, malusDisabled, isPetiteFinaleRound, petiteFinaleX3Enabled) {
             duelWinnerIds = duelWinnerIds || [];
             duelBonusEnabled = duelBonusEnabled || [];
             malusDisabled = Array.isArray(malusDisabled) ? malusDisabled : [];
@@ -5045,6 +5138,29 @@
             thCand.textContent = 'Candidat';
             thCand.style.padding = '10px';
             thCand.style.textAlign = 'left';
+            if (isPetiteFinaleRound) {
+                const x3Btn = document.createElement('button');
+                x3Btn.type = 'button';
+                x3Btn.textContent = 'x3';
+                x3Btn.title = petiteFinaleX3Enabled
+                    ? 'x3 du critère spécifique activé pour tous les candidats (cliquer pour désactiver)'
+                    : 'x3 du critère spécifique désactivé pour tous les candidats (cliquer pour activer)';
+                x3Btn.style.marginLeft = '8px';
+                x3Btn.style.padding = '2px 8px';
+                x3Btn.style.fontSize = '0.95em';
+                x3Btn.style.borderRadius = '6px';
+                x3Btn.style.border = '2px solid var(--border-color)';
+                x3Btn.style.cursor = 'pointer';
+                if (petiteFinaleX3Enabled) {
+                    x3Btn.style.background = 'linear-gradient(135deg, #c8e6c9 0%, #81c784 100%)';
+                    x3Btn.style.color = '#1b5e20';
+                } else {
+                    x3Btn.style.background = 'linear-gradient(135deg, #ffcdd2 0%, #ef9a9a 100%)';
+                    x3Btn.style.color = '#b71c1c';
+                }
+                x3Btn.onclick = () => togglePetiteFinaleX3ForRound(roundId, !petiteFinaleX3Enabled);
+                thCand.appendChild(x3Btn);
+            }
             thead.appendChild(thCand);
             juriesOnRound.forEach(j => {
                 const th = document.createElement('th');
@@ -5083,7 +5199,7 @@
                     malusBtn.style.background = 'linear-gradient(135deg, #c8e6c9 0%, #81c784 100%)';
                     malusBtn.style.color = '#1b5e20';
                 }
-                malusBtn.onclick = () => toggleMalusForCandidate(classementId, row.candidateId);
+                malusBtn.onclick = () => toggleMalusForCandidate(classementId, roundId, row.candidateId);
                 tdCand.appendChild(malusBtn);
                 const isDuelWinner = duelWinnerIds.includes(row.candidateId);
                 const bonusEnabled = duelBonusEnabled.includes(row.candidateId);
@@ -5192,7 +5308,7 @@
             }
         };
 
-        window.toggleMalusForCandidate = async function(classementId, candidateId) {
+        window.toggleMalusForCandidate = async function(classementId, roundId, candidateId) {
             try {
                 const snap = await getDoc(doc(db, "classements", classementId));
                 if (!snap.exists()) {
@@ -5220,6 +5336,7 @@
                     list.push(candidateId);
                 }
                 await setDoc(doc(db, "classements", classementId), { ...data, malusDisabled: list, lastUpdateSource: 'admin_malus_toggle', updatedAt: new Date() }, { merge: true });
+                if (roundId) await updateClassementFromScoresForRound(roundId);
                 await loadActivationClassementsData();
             } catch (e) {
                 console.error('toggleMalusForCandidate', e);
@@ -5811,7 +5928,7 @@
                 for (const j of juriesOnRound) {
                     const s = byCandidate[c.id] && byCandidate[c.id][j.id];
                     if (isPetiteFinale) {
-                        const pfFields = ['score1', 'score3', 'score7', 'score8', 'score9'];
+                        const pfFields = ['score1', 'score3', 'score7', 'score8', 'score9', 'score10'];
                         const missingField = !s || pfFields.some(f => s[f] === '-' || s[f] === undefined || s[f] === '');
                         if (missingField) missing.push(`${c.name} (${j.name})`);
                     } else {

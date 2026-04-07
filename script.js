@@ -53,6 +53,9 @@ let selectedScore1Exo3 = null;  // globale /30
 let selectedScore2Exo3 = null;  // fond /20
 let selectedScore3Exo3 = null;  // critère spécifique
 let selectedScore4Exo3 = null;  // note /20
+// Petite finale — épreuve 4 (Artefact) : 1 note (fond /20), identique au mode "présentations" (1 candidat)
+let selectedCandidateIdExo4 = null;
+let selectedScore1Exo4 = null;  // fond /20
 let CANDIDATES = [];
 
 // Variables pour l'interface Repêchage
@@ -2198,6 +2201,7 @@ function showNotationInterface() {
             <button type="button" class="jury-tab-btn active" data-jury-tab="notation">${activeRoundType === 'Petite finale' ? 'Le temps des présentations' : 'Notation'}</button>
             <button type="button" class="jury-tab-btn jury-tab-notation2" data-jury-tab="notation2" style="display: none;">Œuvre contemporaine</button>
             <button type="button" class="jury-tab-btn jury-tab-notation3" data-jury-tab="notation3" style="display: none;">Le temps des discours</button>
+            <button type="button" class="jury-tab-btn jury-tab-notation4" data-jury-tab="notation4" style="display: none;">Artefact</button>
             <button type="button" class="jury-tab-btn" data-jury-tab="duels">Gagnants de duel</button>
             <button type="button" class="jury-tab-btn" data-jury-tab="mon-classement">Mon classement</button>
         </div>
@@ -2280,6 +2284,21 @@ function showNotationInterface() {
             </div>
             <button id="validate-button-3" class="jury-notation-validate" disabled>Valider la notation</button>
         </div>
+        <div id="jury-tab-notation4" class="jury-tab-content" style="display: none;">
+            <div class="jury-notation-cols">
+                <div class="jury-notation-card">
+                    <label for="candidate-select-1d" class="card-title">Candidat</label>
+                    <select id="candidate-select-1d">
+                        <option value="">-- Choisir --</option>
+                    </select>
+                    <p id="selected-candidate-display-1d" class="selection-info">Aucun</p>
+                    <p class="jury-notation-intro">Artefact — Une note : note de fond.</p>
+                    <hr class="jury-notation-sep">
+                    <div id="œuvre-notes-wrapper-4" class="œuvre-notes-wrapper"></div>
+                </div>
+            </div>
+            <button id="validate-button-4" class="jury-notation-validate" disabled>Valider la notation</button>
+        </div>
         <div id="jury-tab-duels" class="jury-tab-content">
             <p id="jury-duels-message" style="text-align: center; color: var(--text-secondary);">Chargement des duels…</p>
             <div id="jury-duels-list" style="display: none;"></div>
@@ -2298,6 +2317,8 @@ function showNotationInterface() {
     const notation2Panel = document.getElementById('jury-tab-notation2');
     const notation3TabBtn = document.querySelector('.jury-tab-notation3');
     const notation3Panel = document.getElementById('jury-tab-notation3');
+    const notation4TabBtn = document.querySelector('.jury-tab-notation4');
+    const notation4Panel = document.getElementById('jury-tab-notation4');
     const duelsTabBtn = document.querySelector('.jury-tab-btn[data-jury-tab="duels"]');
     const duelsPanel = document.getElementById('jury-tab-duels');
     if (activeRoundType === 'Petite finale') {
@@ -2305,6 +2326,8 @@ function showNotationInterface() {
         if (notation2Panel) notation2Panel.style.display = '';
         if (notation3TabBtn) notation3TabBtn.style.display = '';
         if (notation3Panel) notation3Panel.style.display = '';
+        if (notation4TabBtn) notation4TabBtn.style.display = '';
+        if (notation4Panel) notation4Panel.style.display = '';
         if (duelsTabBtn) duelsTabBtn.style.display = 'none';
         if (duelsPanel) duelsPanel.style.display = 'none';
     } else {
@@ -2312,6 +2335,8 @@ function showNotationInterface() {
         if (notation2Panel) notation2Panel.style.display = 'none';
         if (notation3TabBtn) notation3TabBtn.style.display = 'none';
         if (notation3Panel) notation3Panel.style.display = 'none';
+        if (notation4TabBtn) notation4TabBtn.style.display = 'none';
+        if (notation4Panel) notation4Panel.style.display = 'none';
     }
     
     // Mettre à jour les informations affichées
@@ -2359,6 +2384,12 @@ function showNotationInterface() {
         if (sel1c) sel1c.addEventListener('change', function() { loadCandidateNotationSideExo3(1, this.value || null); });
         const validateBtn3 = document.getElementById('validate-button-3');
         if (validateBtn3) validateBtn3.addEventListener('click', validateNotationExo3);
+        createGridsNotationExo4();
+        updateNotationSelectsExo4();
+        const sel1d = document.getElementById('candidate-select-1d');
+        if (sel1d) sel1d.addEventListener('change', function() { loadCandidateNotationSideExo4(1, this.value || null); });
+        const validateBtn4 = document.getElementById('validate-button-4');
+        if (validateBtn4) validateBtn4.addEventListener('click', validateNotationExo4);
     }
 
     async function loadCandidateNotationSide(candNum, candidateId) {
@@ -2797,7 +2828,7 @@ async function validateNotationExo3() {
     const roundId = activeRoundId || 'round1';
     const q = query(collection(db, "scores"), where("candidateId", "==", selectedCandidateIdExo3), where("juryId", "==", currentJuryName), where("roundId", "==", roundId));
     const existing = await getDocs(q);
-    const payload = { score7: selectedScore1Exo3, score8: selectedScore2Exo3, score9: selectedScore3Exo3, score10: '-', timestamp: new Date() };
+    const payload = { score7: selectedScore1Exo3, score8: selectedScore2Exo3, score9: selectedScore3Exo3, timestamp: new Date() };
     if (!existing.empty) {
         await setDoc(doc(db, "scores", existing.docs[0].id), payload, { merge: true });
     } else {
@@ -2818,6 +2849,127 @@ async function validateNotationExo3() {
     updateNotationSelectsExo3();
     checkValidationNotationExo3();
     await customAlert("✓ La notation (Le temps des discours) a été enregistrée.");
+}
+
+/** Grille Artefact (Petite finale — 1 candidat, 1 note de fond /20) */
+function createGridsNotationExo4() {
+    const wrapper = document.getElementById('œuvre-notes-wrapper-4');
+    if (!wrapper) return;
+    wrapper.innerHTML = `
+        <div class="œuvre-notes-top">
+            <label>Note de fond</label>
+            <div class="duel-score-input-wrap">
+                <div class="duel-slider-row">
+                    <span class="duel-slider-endcap">0</span>
+                    <input type="range" id="pf4-slider-fond-1" min="0" max="20" value="0" class="duel-range-input">
+                    <span class="duel-slider-endcap">20</span>
+                    <input type="number" id="pf4-num-fond-1" min="0" max="20" step="1" value="" placeholder="0" class="duel-num-input" inputmode="numeric">
+                </div>
+            </div>
+            <p id="display-oeuvre4-fond" class="selection-info">Note fond : -</p>
+        </div>
+    `;
+    const slider = document.getElementById('pf4-slider-fond-1');
+    const num = document.getElementById('pf4-num-fond-1');
+    const display = document.getElementById('display-oeuvre4-fond');
+    const setValue = (v) => {
+        const parsed = Math.min(20, Math.max(0, parseInt(String(v), 10)));
+        if (isNaN(parsed)) return;
+        selectedScore1Exo4 = String(parsed);
+        if (slider) slider.value = parsed;
+        if (num) num.value = parsed;
+        if (display) display.textContent = parsed;
+        checkValidationNotationExo4();
+    };
+    if (slider) slider.addEventListener('input', () => setValue(slider.value));
+    if (num) {
+        num.addEventListener('input', () => setValue(num.value));
+        num.addEventListener('change', () => setValue(num.value));
+    }
+}
+
+function updateNotationSelectsExo4() {
+    const filtered = CANDIDATES.filter(c => c.tour === (activeRoundId || 'round1'));
+    const sorted = [...filtered].sort((a, b) => (parseInt(a.id, 10) || 0) - (parseInt(b.id, 10) || 0));
+    const sel = document.getElementById('candidate-select-1d');
+    if (!sel) return;
+    const current = sel.value;
+    sel.innerHTML = '<option value="">-- Choisir --</option>' + sorted
+        .map(c => `<option value="${c.id}">${c.id} - ${c.name || c.id}</option>`)
+        .join('');
+    if (current) sel.value = current;
+}
+
+function checkValidationNotationExo4() {
+    const btn = document.getElementById('validate-button-4');
+    if (!btn) return;
+    btn.disabled = !(selectedCandidateIdExo4 && selectedScore1Exo4 != null);
+}
+
+async function loadCandidateNotationSideExo4(candNum, candidateId) {
+    if (!candidateId) {
+        selectedCandidateIdExo4 = null;
+        selectedScore1Exo4 = null;
+        const nameEl = document.getElementById('selected-candidate-display-1d');
+        if (nameEl) nameEl.textContent = 'Aucun';
+        const slider = document.getElementById('pf4-slider-fond-1');
+        const num = document.getElementById('pf4-num-fond-1');
+        const display = document.getElementById('display-oeuvre4-fond');
+        if (slider) slider.value = 0;
+        if (num) num.value = '';
+        if (display) display.textContent = 'Note fond : -';
+        updateNotationSelectsExo4();
+        checkValidationNotationExo4();
+        return;
+    }
+    const cand = CANDIDATES.find(x => x.id === candidateId);
+    if (!cand) return;
+    const q = query(collection(db, "scores"), where("candidateId", "==", candidateId), where("juryId", "==", currentJuryName), where("roundId", "==", activeRoundId || 'round1'));
+    const snap = await getDocs(q);
+    const data = snap.docs[0]?.data();
+    const s10 = data && (data.score10 != null && data.score10 !== '') ? data.score10 : '-';
+    selectedCandidateIdExo4 = candidateId;
+    selectedScore1Exo4 = s10 !== '-' ? s10 : null;
+    const nameEl = document.getElementById('selected-candidate-display-1d');
+    if (nameEl) nameEl.textContent = s10 !== '-' ? (cand.name + ' (déjà noté)') : ('Candidat : ' + cand.name);
+    const slider = document.getElementById('pf4-slider-fond-1');
+    const num = document.getElementById('pf4-num-fond-1');
+    const display = document.getElementById('display-oeuvre4-fond');
+    const value = s10 !== '-' ? parseInt(s10, 10) : null;
+    if (slider) slider.value = value != null && !isNaN(value) ? value : 0;
+    if (num) num.value = value != null && !isNaN(value) ? value : '';
+    if (display) display.textContent = value != null && !isNaN(value) ? String(value) : 'Note fond : -';
+    updateNotationSelectsExo4();
+    checkValidationNotationExo4();
+}
+
+async function validateNotationExo4() {
+    const roundId = activeRoundId || 'round1';
+    const q = query(collection(db, "scores"), where("candidateId", "==", selectedCandidateIdExo4), where("juryId", "==", currentJuryName), where("roundId", "==", roundId));
+    const existing = await getDocs(q);
+    const payload = { score10: selectedScore1Exo4, timestamp: new Date() };
+    if (!existing.empty) {
+        await setDoc(doc(db, "scores", existing.docs[0].id), payload, { merge: true });
+    } else {
+        const juryDoc = await getDoc(doc(db, "accounts", currentJuryName));
+        const juryName = juryDoc.exists() ? juryDoc.data().name : currentJuryName;
+        await addDoc(collection(db, "scores"), { juryId: currentJuryName, juryName, candidateId: selectedCandidateIdExo4, roundId, score1: '-', score2: '-', score3: '-', score4: '-', score5: '-', score6: '-', score7: '-', score8: '-', score9: '-', score10: selectedScore1Exo4, timestamp: new Date() });
+    }
+    selectedCandidateIdExo4 = null;
+    selectedScore1Exo4 = null;
+    const sel = document.getElementById('candidate-select-1d');
+    if (sel) sel.value = '';
+    const nameEl = document.getElementById('selected-candidate-display-1d');
+    if (nameEl) nameEl.textContent = 'Aucun';
+    const slider = document.getElementById('pf4-slider-fond-1');
+    const num = document.getElementById('pf4-num-fond-1');
+    const display = document.getElementById('display-oeuvre4-fond');
+    if (slider) slider.value = 0;
+    if (num) num.value = '';
+    if (display) display.textContent = 'Note fond : -';
+    updateNotationSelectsExo4();
+    checkValidationNotationExo4();
+    await customAlert("✓ La notation (Artefact) a été enregistrée.");
 }
 
 /** Gestion des onglets jury : Notation | Duels | Mon classement */

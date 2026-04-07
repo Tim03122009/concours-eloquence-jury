@@ -643,7 +643,7 @@
                     classementMalusByCandidate = malusMap;
                     const malusDisabledArrRaw = Array.isArray(data.malusDisabled) ? data.malusDisabled : null;
                     const entries = ensureArray(data.entries || []);
-                    if (malusDisabledArrRaw && malusDisabledArrRaw.length > 0) {
+                    if (Array.isArray(malusDisabledArrRaw)) {
                         classementMalusDisabled = new Set(malusDisabledArrRaw);
                     } else {
                         // Par défaut : tous les candidats ont leurs malus désactivés (bouton rouge)
@@ -698,7 +698,7 @@
                     classementMalusByCandidate = malusMap;
                     const malusDisabledArrRaw = Array.isArray(data.malusDisabled) ? data.malusDisabled : null;
                     const entries = ensureArray(data.entries || []);
-                    if (malusDisabledArrRaw && malusDisabledArrRaw.length > 0) {
+                    if (Array.isArray(malusDisabledArrRaw)) {
                         classementMalusDisabled = new Set(malusDisabledArrRaw);
                     } else {
                         const allIds = entries.map(e => e.candidateId).filter(Boolean);

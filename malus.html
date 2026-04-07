@@ -442,7 +442,7 @@
 
     <script type="module">
         import { db } from './firebase-init.js';
-        import { getDoc, setDoc, doc, onSnapshot, updateDoc, deleteField } from 'https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js';
+        import { getDoc, getDocs, setDoc, doc, onSnapshot, updateDoc, deleteField, query, collection, where } from 'https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js';
 
         const MALUS_REASONS = [
             'Dépassement du temps imparti',
@@ -662,6 +662,167 @@
             }
         }
 
+        async function loadPetiteFinaleChoices(roundId) {
+            try {
+                const snap = await getDoc(doc(db, 'config', 'petite_finale_critere_choix'));
+                const data = snap.exists() ? snap.data() : {};
+                const byRound = data.choicesByRound || {};
+                return byRound[roundId] || {};
+            } catch (e) {
+                console.error('loadPetiteFinaleChoices', e);
+                return {};
+            }
+        }
+
+        async function isPetiteFinaleX3Enabled(roundId) {
+            try {
+                const snap = await getDoc(doc(db, 'config', 'petite_finale_critere_toggle'));
+                const data = snap.exists() ? snap.data() : {};
+                const byRound = data.enabledByRound || {};
+                if (typeof byRound[roundId] === 'boolean') return byRound[roundId];
+                return false;
+            } catch (e) {
+                console.error('isPetiteFinaleX3Enabled', e);
+                return false;
+            }
+        }
+
+        function computeScoreBasePetiteFinaleOneJury(score1, score3, score7, score8, score9, juryCritere, chosenCritere) {
+            const toNum = (s) => (s === 'EL' || s === '-' || s == null || s === '') ? 0 : (() => { const n = parseInt(s, 10); return isNaN(n) ? 0 : n; })();
+            const base1 = toNum(score1);
+            const base2 = toNum(score3);
+            const noteCritere = toNum(score9);
+            const mult = (chosenCritere && (juryCritere || '').trim() === (chosenCritere || '').trim()) ? 3 : 1;
+            const base3 = toNum(score7) + toNum(score8) + (noteCritere * mult);
+            return base1 + base2 + base3;
+        }
+
+        function computeScoreBase(score1, score2, isDuelRound) {
+            if (score1 === 'EL' || score2 === 'EL' || score1 === '-' || score2 === '-' || score1 == null || score2 == null) return 0;
+            const s1 = parseInt(score1, 10);
+            const s2 = parseInt(score2, 10);
+            if (isNaN(s1) || isNaN(s2)) return 0;
+            if (isDuelRound) return s1 + s2;
+            return (s1 * 3) + s2;
+        }
+
+        async function refreshClassementForRound(roundId) {
+            if (!roundId) return;
+            try {
+                const roundsSnap = await getDoc(doc(db, 'config', 'rounds'));
+                const roundsList = roundsSnap.exists() ? (roundsSnap.data().rounds || []) : [];
+                const round = roundsList.find(r => r.id === roundId);
+                const isPetiteFinale = !!(round && round.type === 'Petite finale');
+                const isDuelRound = !!(round && (round.type === 'Duels' || round.type_epreuve === 'duels'));
+
+                let classementId = null;
+                if (round && round.classementId && String(round.classementId).trim()) {
+                    classementId = String(round.classementId).trim();
+                }
+                if (!classementId) {
+                    const activationsSnap = await getDoc(doc(db, 'config', 'activations'));
+                    classementId = (activationsSnap.exists() && activationsSnap.data().classementIdActif)
+                        ? String(activationsSnap.data().classementIdActif).trim()
+                        : ('classement_' + roundId);
+                }
+
+                const scoresSnap = await getDocs(query(collection(db, 'scores'), where('roundId', '==', roundId)));
+                const totalBaseByCandidate = {};
+
+                let juries = [];
+                let petiteFinaleChoices = {};
+                let petiteFinaleX3Enabled = false;
+                if (isPetiteFinale) {
+                    const juriesSnap = await getDoc(doc(db, 'jurys', 'liste_actuelle'));
+                    juries = (juriesSnap.exists() && juriesSnap.data().jurys) ? juriesSnap.data().jurys : [];
+                    petiteFinaleChoices = await loadPetiteFinaleChoices(roundId);
+                    petiteFinaleX3Enabled = await isPetiteFinaleX3Enabled(roundId);
+                }
+
+                scoresSnap.forEach(s => {
+                    const data = s.data();
+                    const cid = data.candidateId;
+                    const juryId = data.juryId || data.juryName;
+                    let base = 0;
+                    if (isPetiteFinale) {
+                        const jury = juries.find(j => j.id === juryId);
+                        const chosenCritere = petiteFinaleX3Enabled ? (petiteFinaleChoices[cid] || '') : '';
+                        base = computeScoreBasePetiteFinaleOneJury(data.score1, data.score3, data.score7, data.score8, data.score9, jury ? (jury.criterePetiteFinale || '') : '', chosenCritere);
+                    } else if (data.score_base != null) {
+                        base = (typeof data.score_base === 'number') ? data.score_base : (parseFloat(data.score_base) || 0);
+                    } else {
+                        base = computeScoreBase(data.score1, data.score2, isDuelRound);
+                    }
+                    totalBaseByCandidate[cid] = (totalBaseByCandidate[cid] || 0) + base;
+                });
+
+                const malusSnap = await getDoc(doc(db, 'config', 'malus'));
+                const malusData = malusSnap.exists() ? malusSnap.data() : {};
+                const byRound = malusData.byRound || {};
+                const malusByCandidate = byRound[roundId] || {};
+                const totalMalusByCandidate = {};
+                Object.keys(malusByCandidate).forEach(cid => {
+                    const list = Array.isArray(malusByCandidate[cid]) ? malusByCandidate[cid] : [];
+                    totalMalusByCandidate[cid] = list.reduce((sum, m) => sum + (typeof m.points === 'number' ? m.points : parseFloat(m.points) || 0), 0);
+                });
+
+                const candidatsSnap = await getDoc(doc(db, 'candidats', 'liste_actuelle'));
+                const allCandidates = candidatsSnap.exists() ? (candidatsSnap.data().candidates || []) : [];
+                let roundCandidates = allCandidates.filter(c => (c.tour || '') === roundId);
+                if (roundCandidates.length === 0) roundCandidates = allCandidates;
+
+                const classementRef = doc(db, 'classements', classementId);
+                const classementSnap = await getDoc(classementRef);
+                const currentData = classementSnap.exists() ? classementSnap.data() : {};
+                let malusDisabledList = Array.isArray(currentData.malusDisabled) ? [...currentData.malusDisabled] : null;
+                if (!malusDisabledList || malusDisabledList.length === 0) {
+                    malusDisabledList = roundCandidates.map(c => c.id).filter(Boolean);
+                }
+                const malusDisabledSet = new Set(malusDisabledList);
+
+                const withScore = roundCandidates.map(c => {
+                    const base = totalBaseByCandidate[c.id] || 0;
+                    const malus = malusDisabledSet.has(c.id) ? 0 : (totalMalusByCandidate[c.id] || 0);
+                    return {
+                        candidateId: c.id,
+                        name: c.name || c.id,
+                        score_base: Math.max(0, base - malus)
+                    };
+                });
+                withScore.sort((a, b) => b.score_base - a.score_base);
+
+                const activationsClassementSnap = await getDoc(doc(db, 'classement_activations', classementId));
+                const activated = activationsClassementSnap.exists() ? (activationsClassementSnap.data().activated || []) : [];
+                const pointsByCandidate = {};
+                activated.forEach(a => {
+                    if (a && a.candidateId && (a.points != null || a.points === 0)) {
+                        pointsByCandidate[a.candidateId] = (pointsByCandidate[a.candidateId] || 0) + (typeof a.points === 'number' ? a.points : parseFloat(a.points) || 0);
+                    }
+                });
+
+                const entries = withScore.map((x, i) => {
+                    const base = x.score_base != null ? (typeof x.score_base === 'number' ? x.score_base : parseFloat(x.score_base) || 0) : 0;
+                    const points = pointsByCandidate[x.candidateId] != null ? pointsByCandidate[x.candidateId] : 0;
+                    const total = Math.round((base + points) * 100) / 100;
+                    return { rank: i + 1, candidateId: x.candidateId, name: x.name, score_base: x.score_base, score_appliqué: total, score_affiché: total };
+                });
+                entries.sort((a, b) => (b.score_appliqué ?? 0) - (a.score_appliqué ?? 0));
+                entries.forEach((e, i) => { e.rank = i + 1; });
+
+                const duelBonusEnabled = Array.isArray(currentData.duelBonusEnabled) ? currentData.duelBonusEnabled : [];
+                await setDoc(classementRef, {
+                    ...currentData,
+                    code: roundId,
+                    entries,
+                    duelBonusEnabled,
+                    lastUpdateSource: 'malus_page_update',
+                    updatedAt: new Date()
+                }, { merge: true });
+            } catch (e) {
+                console.error('refreshClassementForRound', e);
+            }
+        }
+
         function renderMalusList(items, roundId, candidateId) {
             if (!malusListEl || !malusListSection) return;
             malusListEl.innerHTML = '';
@@ -731,6 +892,7 @@
                 } else {
                     await setDoc(malusRef, { byRound }, { merge: true });
                 }
+                await refreshClassementForRound(roundId);
                 showMsg('Malus supprimé.');
                 await refreshMalusListForSelectedCandidate();
             } catch (e) {
@@ -747,6 +909,7 @@
                 if (!byRound[roundId] || !byRound[roundId][candidateId] || !byRound[roundId][candidateId][index]) return;
                 byRound[roundId][candidateId][index] = { reason: reason || '(sans raison)', points, fromMalusPage: true };
                 await setDoc(doc(db, 'config', 'malus'), { byRound }, { merge: true });
+                await refreshClassementForRound(roundId);
                 showMsg('Malus modifié.');
             } catch (e) {
                 console.error(e);
@@ -832,6 +995,7 @@
                 if (!byRound[roundId][candidateId]) byRound[roundId][candidateId] = [];
                 byRound[roundId][candidateId].push({ reason: reason || '(sans raison)', points, fromMalusPage: true });
                 await setDoc(doc(db, 'config', 'malus'), { byRound }, { merge: true });
+                await refreshClassementForRound(roundId);
                 showMsg('Malus enregistré.');
                 reasonInput.value = '';
                 pointsInput.value = '';
