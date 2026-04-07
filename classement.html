@@ -117,6 +117,9 @@
             const v = entry.score_affiché != null ? entry.score_affiché : (entry.score_appliqué != null ? entry.score_appliqué : (entry.score_base != null ? entry.score_base : 0));
             return typeof v === 'number' ? v : parseFloat(v) || 0;
         }
+        function getNumericValue(v) {
+            return typeof v === 'number' ? v : parseFloat(v) || 0;
+        }
         /** Score affiché : note de base (malus appliqués par défaut, ou retirés par candidat) + 10% si le candidat a gagné un duel (calculé à l'affichage, pas stocké). */
         function getDisplayScore(entry, duelWinnerIds) {
             let base = getScoreBase(entry);
@@ -124,8 +127,16 @@
             const malus = classementMalusByCandidate && cid ? (classementMalusByCandidate[cid] || 0) : 0;
             // Si le candidat a ses malus désactivés dans le classement, on ré‑ajoute les points enlevés
             if (classementMalusDisabled && classementMalusDisabled.has(cid)) {
-                base = base + malus;
+                // Si score_base est disponible, on l'utilise en priorité pour éviter
+                // d'afficher un malus "en positif" quand le score réel est 0.
+                if (entry.score_base != null) {
+                    base = getNumericValue(entry.score_base);
+                } else {
+                    base = base + malus;
+                }
             }
+            // Le classement n'affiche jamais de score négatif.
+            base = Math.max(0, base);
             if (duelWinnerIds && duelWinnerIds.length && duelWinnerIds.includes(entry.candidateId)) {
                 return Math.round(base * 1.1 * 100) / 100;
             }

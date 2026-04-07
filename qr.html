@@ -280,6 +280,8 @@
                     if (pieCountdownTimer) { clearInterval(pieCountdownTimer); pieCountdownTimer = null; }
                     if (pieRevealInterval) { clearInterval(pieRevealInterval); pieRevealInterval = null; }
                     pieRevealComplete = false;
+                    pieHasAnimatedOnce = false;
+                    pendingPieRefresh = false;
                     var pieCdEl = document.getElementById('qr-pie-countdown');
                     if (pieCdEl) pieCdEl.textContent = '';
                     legendRevealIndex = 0;
@@ -307,6 +309,8 @@
             var pieRevealInterval = null;
             var pieRevealComplete = false;
             var legendRevealIndex = 0;
+            var pieHasAnimatedOnce = false;
+            var pendingPieRefresh = false;
 
             // Décompte : +5s uniquement quand arrêté ; arrière-plan relance au "nombre de lancement"
             var countdownEl = document.getElementById('countdown');
@@ -418,6 +422,10 @@
                 if (!legendInner) legendInner = legendEl;
                 var container = document.getElementById('qr-pie-container');
                 if (!canvas || !legendEl) return;
+                if (pieRevealInterval) {
+                    pendingPieRefresh = true;
+                    return;
+                }
                 legendEl.style.display = 'none';
                 if (pieRevealInterval) { clearInterval(pieRevealInterval); pieRevealInterval = null; }
                 if (container) {
@@ -581,6 +589,19 @@
                         }
                     }
                     drawCurrentPie();
+                    var shouldAnimateVotes = !pieHasAnimatedOnce;
+                    if (!shouldAnimateVotes) {
+                        voteIndex = voteQueue.length;
+                        list.forEach(function (item) { currentCounts[item.id] = item.count; });
+                        drawCurrentPie();
+                        pieRevealComplete = true;
+                        if (container) container.style.opacity = '1';
+                        if (pendingPieRefresh) {
+                            pendingPieRefresh = false;
+                            loadVotePieChart();
+                        }
+                        return;
+                    }
                     pieRevealInterval = setInterval(function () {
                         if (voteIndex < voteQueue.length) {
                             var id = voteQueue[voteIndex];
@@ -592,7 +613,12 @@
                             clearInterval(pieRevealInterval);
                             pieRevealInterval = null;
                             pieRevealComplete = true;
+                            pieHasAnimatedOnce = true;
                             if (container) container.style.opacity = '1';
+                            if (pendingPieRefresh) {
+                                pendingPieRefresh = false;
+                                loadVotePieChart();
+                            }
                         }
                     }, 100);
                 } catch (e) {
