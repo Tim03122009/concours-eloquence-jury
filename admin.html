@@ -1707,6 +1707,7 @@
                 const filtered = activated.filter(a => {
                     if (!a || typeof a.juryId !== 'string') return true;
                     if (a.juryId.startsWith('auto_grande_finale_step_')) return false;
+                    if (a.juryId === 'auto_grande_finale_manual_adjust') return false;
                     return true;
                 });
                 await setDoc(doc(db, "classement_activations", classementId), { activated: filtered, updatedAt: new Date() }, { merge: true });
@@ -1718,6 +1719,80 @@
             } catch (e) {
                 console.error(e);
                 await customAlert('Erreur lors du reset : ' + (e.message || e));
+            }
+        };
+
+        // Ajustement manuel de la note auto en Grande finale (+1 / -1), sans jamais descendre sous 0.
+        window.adjustGrandeFinaleAutoPoints = async function(roundId, candidateId, delta, classementIdFromUI) {
+            try {
+                const d = parseInt(delta, 10);
+                if (!roundId || !candidateId || isNaN(d) || ![1, -1].includes(d)) return;
+                const round = Array.isArray(ROUNDS) ? ROUNDS.find(r => r.id === roundId) : null;
+                const isGrandeFinale = round && (round.type === 'Grande finale' || round.type_epreuve === 'grande_finale');
+                if (!isGrandeFinale) {
+                    await customAlert('Action disponible uniquement en Grande finale.');
+                    return;
+                }
+
+                let classementId = (classementIdFromUI && String(classementIdFromUI).trim()) ? String(classementIdFromUI).trim() : '';
+                if (!classementId) {
+                    if (round && round.classementId && String(round.classementId).trim()) {
+                        classementId = String(round.classementId).trim();
+                    } else {
+                        const configActivationsSnap = await getDoc(doc(db, "config", "activations"));
+                        classementId = (configActivationsSnap.exists() && configActivationsSnap.data().classementIdActif)
+                            ? configActivationsSnap.data().classementIdActif.trim()
+                            : ('classement_' + roundId);
+                    }
+                }
+
+                const activationsRef = doc(db, "classement_activations", classementId);
+                const activationsSnap = await getDoc(activationsRef);
+                const activated = activationsSnap.exists() ? [...(activationsSnap.data().activated || [])] : [];
+
+                const autoBase = activated
+                    .filter(a => a && a.candidateId === candidateId && typeof a.juryId === 'string' && a.juryId.startsWith('auto_grande_finale_step_'))
+                    .reduce((sum, a) => sum + (typeof a.points === 'number' ? a.points : parseFloat(a.points) || 0), 0);
+
+                const manualIndex = activated.findIndex(a => a && a.candidateId === candidateId && a.juryId === 'auto_grande_finale_manual_adjust');
+                const manualCurrent = manualIndex >= 0
+                    ? (typeof activated[manualIndex].points === 'number' ? activated[manualIndex].points : parseFloat(activated[manualIndex].points) || 0)
+                    : 0;
+
+                const currentTotal = Math.max(0, autoBase + manualCurrent);
+                if (d < 0 && currentTotal <= 0) return;
+
+                let manualNext = manualCurrent + d;
+                if (autoBase + manualNext < 0) {
+                    manualNext = -autoBase;
+                }
+
+                if (manualIndex >= 0) {
+                    if (manualNext === 0) {
+                        activated.splice(manualIndex, 1);
+                    } else {
+                        activated[manualIndex] = {
+                            ...activated[manualIndex],
+                            candidateId,
+                            juryId: 'auto_grande_finale_manual_adjust',
+                            points: manualNext
+                        };
+                    }
+                } else if (manualNext !== 0) {
+                    activated.push({
+                        candidateId,
+                        juryId: 'auto_grande_finale_manual_adjust',
+                        points: manualNext
+                    });
+                }
+
+                await setDoc(activationsRef, { activated, updatedAt: new Date() }, { merge: true });
+                await updateClassementFromScoresForRound(roundId);
+                await renderNotesTable();
+                await loadResults();
+            } catch (e) {
+                console.error('Erreur ajustement note auto grande finale:', e);
+                await customAlert('Erreur lors de l\'ajustement de la note auto.');
             }
         };
         
@@ -3684,6 +3759,7 @@
 
             // Grande finale : points automatiques « max votes par séquence »
             let autoPointsByCandidate = {};
+            let grandeFinaleClassementId = '';
             if (isGrandeFinale) {
                 let classementId = null;
                 if (currentRound && currentRound.classementId && String(currentRound.classementId).trim()) {
@@ -3695,13 +3771,14 @@
                         ? configActivationsSnap.data().classementIdActif.trim()
                         : ('classement_' + displayRound);
                 }
+                grandeFinaleClassementId = classementId;
 
                 const activationsSnap = await getDoc(doc(db, "classement_activations", classementId));
                 const activated = activationsSnap.exists() ? (activationsSnap.data().activated || []) : [];
                 activated.forEach(a => {
                     if (!a || !a.candidateId) return;
                     const jid = a.juryId || '';
-                    if (!String(jid).startsWith('auto_grande_finale_step_')) return;
+                    if (!String(jid).startsWith('auto_grande_finale_step_') && String(jid) !== 'auto_grande_finale_manual_adjust') return;
                     const pts = (a.points != null) ? (typeof a.points === 'number' ? a.points : parseFloat(a.points) || 0) : 0;
                     autoPointsByCandidate[a.candidateId] = (autoPointsByCandidate[a.candidateId] || 0) + pts;
                 });
@@ -3969,10 +4046,18 @@
 
                 if (isGrandeFinale) {
                     const autoCell = row.insertCell();
-                    autoCell.textContent = autoPointsByCandidate[candidate.id] != null ? autoPointsByCandidate[candidate.id] : 0;
+                    const autoValueRaw = autoPointsByCandidate[candidate.id] != null ? autoPointsByCandidate[candidate.id] : 0;
+                    const autoValue = Math.max(0, autoValueRaw);
+                    autoCell.innerHTML = `
+                        <div style="display:flex; align-items:center; justify-content:center; gap:6px;">
+                            <button type="button" title="Retirer 1 point auto" onclick="adjustGrandeFinaleAutoPoints('${displayRound}', '${candidate.id}', -1, '${grandeFinaleClassementId}')" style="width:24px; height:24px; border:1px solid var(--border-color); border-radius:4px; background:var(--input-bg); color:var(--text-color); cursor:pointer; font-weight:700;">-</button>
+                            <span style="min-width:20px; text-align:center;">${autoValue}</span>
+                            <button type="button" title="Ajouter 1 point auto" onclick="adjustGrandeFinaleAutoPoints('${displayRound}', '${candidate.id}', 1, '${grandeFinaleClassementId}')" style="width:24px; height:24px; border:1px solid var(--border-color); border-radius:4px; background:var(--input-bg); color:var(--text-color); cursor:pointer; font-weight:700;">+</button>
+                        </div>
+                    `;
                     autoCell.style.textAlign = 'center';
                     autoCell.style.fontWeight = 'bold';
-                    autoCell.title = 'Points automatiques : max votes par séquence (tous les ex-aequo recoivent +1).';
+                    autoCell.title = 'Points auto Grande finale (auto + ajustement manuel). La valeur reste >= 0.';
                 }
                 
                 // Petite finale : menu déroulant « critère x3 » par candidat

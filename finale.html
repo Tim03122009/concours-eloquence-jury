@@ -127,11 +127,14 @@
             min-width: 0;
             max-width: 200px;
             border: 6px solid transparent; /* couleur du cadre définie par chaque médaille */
+            height: 120px;
+            transition: height 260ms ease, background 260ms ease, box-shadow 260ms ease, border-color 260ms ease;
         }
-        /* Disposition comme sur l'image : 2e (gauche), 1er (centre, plus haut), 3e (droite) */
-        .podium-item.podium-silver { order: 1; height: 140px; }
-        .podium-item.podium-gold   { order: 2; height: 200px; }
-        .podium-item.podium-bronze { order: 3; height: 100px; }
+        /* Podium fixe : les colonnes candidats ne bougent pas, seule la case évolue */
+        .podium-item.rank-first  { height: 200px; }
+        .podium-item.rank-second { height: 140px; }
+        .podium-item.rank-third  { height: 100px; }
+        .podium-item.rank-none   { height: 120px; }
         .podium-rank {
             font-weight: 400;
         }
@@ -256,6 +259,7 @@
         let flashUntilByCell = {};
         let lastRenderArgs = null;
         let flashTimeoutId = null;
+        let lastManualAdjustByCandidate = {};
 
         function setStatus(msg) {
             if (statusEl) statusEl.textContent = msg;
@@ -392,13 +396,19 @@
             tableContainerEl.style.display = 'block';
             setStatus('');
 
-            // Podium (3 premiers par score total - total non affiché, juste pour l'ordre)
-            totals.sort((a, b) => b.total - a.total);
-            const podiumData = [
-                { rankLabel: '1er', css: 'podium-gold', data: totals[0] || null },
-                { rankLabel: '2e', css: 'podium-silver', data: totals[1] || null },
-                { rankLabel: '3e', css: 'podium-bronze', data: totals[2] || null }
-            ];
+            // Podium fixe par candidat : seules couleur/hauteur changent selon le score.
+            const uniqueScoresDesc = [...new Set(totals.map(t => t.total).sort((a, b) => b - a))];
+            const scoreToRank = {};
+            uniqueScoresDesc.forEach((score, idx) => {
+                scoreToRank[score] = idx + 1; // 1, 2, 3...
+            });
+            const podiumData = totals.map(t => {
+                const rank = scoreToRank[t.total] || 99;
+                if (rank === 1) return { rankLabel: '1er', cssMedal: 'podium-gold', cssRank: 'rank-first', data: t };
+                if (rank === 2) return { rankLabel: '2e', cssMedal: 'podium-silver', cssRank: 'rank-second', data: t };
+                if (rank === 3) return { rankLabel: '3e', cssMedal: 'podium-bronze', cssRank: 'rank-third', data: t };
+                return { rankLabel: '—', cssMedal: 'podium-bronze', cssRank: 'rank-none', data: t };
+            });
 
             podiumEl.innerHTML = '';
             const podiumBlock = podiumEl.parentElement;
@@ -408,7 +418,7 @@
             }
             podiumData.forEach(item => {
                 const div = document.createElement('div');
-                div.className = `podium-item ${item.css}`;
+                div.className = `podium-item ${item.cssMedal} ${item.cssRank}`;
                 const rankEl = document.createElement('div');
                 rankEl.className = 'podium-rank';
                 rankEl.textContent = item.rankLabel;
@@ -494,7 +504,7 @@
             );
 
             // Lire en temps réel la "note auto" calculée côté admin (classement_activations)
-            // => elle est stockée dans des activations avec juryId = auto_grande_finale_step_<step>
+            // => activations auto par étape + éventuel ajustement manuel (+/-)
             const roundsSnapForClassement = await getDoc(doc(db, "config", "rounds"));
             const roundsListForClassement = roundsSnapForClassement.exists() ? (roundsSnapForClassement.data().rounds || []) : [];
             const roundObjForClassement = roundsListForClassement.find(r => r.id === roundId) || null;
@@ -513,13 +523,37 @@
             onSnapshot(autoRef, (snap) => {
                 const activated = snap.exists() ? (snap.data().activated || []) : [];
                 const map = {};
+                const manualMap = {};
                 activated.forEach(a => {
                     if (!a || !a.juryId || !a.candidateId) return;
-                    if (!String(a.juryId).startsWith('auto_grande_finale_step_')) return;
+                    const jid = String(a.juryId);
+                    if (!jid.startsWith('auto_grande_finale_step_') && jid !== 'auto_grande_finale_manual_adjust') return;
                     const pts = (a.points != null)
                         ? (typeof a.points === 'number' ? a.points : (parseFloat(a.points) || 0))
                         : 0;
                     map[a.candidateId] = (map[a.candidateId] || 0) + pts;
+                    if (jid === 'auto_grande_finale_manual_adjust') {
+                        manualMap[a.candidateId] = (manualMap[a.candidateId] || 0) + pts;
+                    }
+                });
+                // Si on détecte une baisse manuelle ("-"), retirer immédiatement tous les carrés verts.
+                const anyManualDecrease = Object.keys({ ...lastManualAdjustByCandidate, ...manualMap }).some(cid => {
+                    const prev = lastManualAdjustByCandidate[cid] || 0;
+                    const next = manualMap[cid] || 0;
+                    return next < prev;
+                });
+                if (anyManualDecrease) {
+                    pendingFlash.clear();
+                    flashUntilByCell = {};
+                    if (flashTimeoutId) {
+                        clearTimeout(flashTimeoutId);
+                        flashTimeoutId = null;
+                    }
+                }
+                lastManualAdjustByCandidate = manualMap;
+                // Sécurité d'affichage : ne jamais montrer de valeur négative.
+                Object.keys(map).forEach(cid => {
+                    map[cid] = Math.max(0, map[cid]);
                 });
                 autoPointsByCandidate = map;
                 if (lastRenderArgs) {

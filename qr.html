@@ -283,8 +283,6 @@
                     var pieCdEl = document.getElementById('qr-pie-countdown');
                     if (pieCdEl) pieCdEl.textContent = '';
                     legendRevealIndex = 0;
-                    voteLockTimerStarted = false;
-                    if (voteLockTimerId) { clearTimeout(voteLockTimerId); voteLockTimerId = null; }
                     var leg = document.getElementById('qr-vote-legend');
                     if (leg) {
                         leg.classList.remove('qr-pie-legend-reveal');
@@ -309,8 +307,6 @@
             var pieRevealInterval = null;
             var pieRevealComplete = false;
             var legendRevealIndex = 0;
-            var voteLockTimerId = null;
-            var voteLockTimerStarted = false;
 
             // Décompte : +5s uniquement quand arrêté ; arrière-plan relance au "nombre de lancement"
             var countdownEl = document.getElementById('countdown');
@@ -330,19 +326,6 @@
                     document.querySelector('.qr-page').classList.add('minimized');
                     startPieCountdown();
                     setupVotePieRealtime();
-                    if (!voteLockTimerStarted) {
-                        voteLockTimerStarted = true;
-                        voteLockTimerId = setTimeout(function () {
-                            (function () {
-                                import('https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js').then(function (firestore) {
-                                    return import('./firebase-init.js').then(function (m) {
-                                        var setDoc = firestore.setDoc, doc = firestore.doc;
-                                        return setDoc(doc(m.db, 'vote_public', 'stats'), { locked: true }, { merge: true });
-                                    });
-                                }).catch(function (e) { console.error('vote lock', e); });
-                            })();
-                        }, 30000);
-                    }
                 }
             }
 
