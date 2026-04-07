@@ -5627,7 +5627,9 @@
             const isDuels = round && (round.type === 'Duels' || round.type_epreuve === 'duels');
             const isPetiteFinale = round && round.type === 'Petite finale';
             const isGrandeFinale = round && (round.type === 'Grande finale' || round.type_epreuve === 'grande_finale');
-            const optionLength = (isPetiteFinale && (field === 'score3' || field === 'score7')) ? 31 : 21;
+            const optionLength = (isPetiteFinale && (field === 'score3' || field === 'score7'))
+                ? 31
+                : (isPetiteFinale && field === 'score10') ? 16 : 21;
             const options = (isDuels || isPetiteFinale || isGrandeFinale)
                 ? ['-'].concat(Array.from({ length: optionLength }, (_, i) => String(i)))
                 : ['-', '5', '10', '15', '20', 'EL'];

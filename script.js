@@ -53,9 +53,9 @@ let selectedScore1Exo3 = null;  // globale /30
 let selectedScore2Exo3 = null;  // fond /20
 let selectedScore3Exo3 = null;  // critère spécifique
 let selectedScore4Exo3 = null;  // note /20
-// Petite finale — épreuve 4 (Artefact) : 1 note (fond /20), identique au mode "présentations" (1 candidat)
+// Petite finale — épreuve 4 (Artefact) : 1 note (fond /15), identique au mode "présentations" (1 candidat)
 let selectedCandidateIdExo4 = null;
-let selectedScore1Exo4 = null;  // fond /20
+let selectedScore1Exo4 = null;  // fond /15
 let CANDIDATES = [];
 
 // Variables pour l'interface Repêchage
@@ -2851,7 +2851,7 @@ async function validateNotationExo3() {
     await customAlert("✓ La notation (Le temps des discours) a été enregistrée.");
 }
 
-/** Grille Artefact (Petite finale — 1 candidat, 1 note de fond /20) */
+/** Grille Artefact (Petite finale — 1 candidat, 1 note de fond /15) */
 function createGridsNotationExo4() {
     const wrapper = document.getElementById('œuvre-notes-wrapper-4');
     if (!wrapper) return;
@@ -2861,9 +2861,9 @@ function createGridsNotationExo4() {
             <div class="duel-score-input-wrap">
                 <div class="duel-slider-row">
                     <span class="duel-slider-endcap">0</span>
-                    <input type="range" id="pf4-slider-fond-1" min="0" max="20" value="0" class="duel-range-input">
-                    <span class="duel-slider-endcap">20</span>
-                    <input type="number" id="pf4-num-fond-1" min="0" max="20" step="1" value="" placeholder="0" class="duel-num-input" inputmode="numeric">
+                    <input type="range" id="pf4-slider-fond-1" min="0" max="15" value="0" class="duel-range-input">
+                    <span class="duel-slider-endcap">15</span>
+                    <input type="number" id="pf4-num-fond-1" min="0" max="15" step="1" value="" placeholder="0" class="duel-num-input" inputmode="numeric">
                 </div>
             </div>
             <p id="display-oeuvre4-fond" class="selection-info">Note fond : -</p>
@@ -2873,7 +2873,7 @@ function createGridsNotationExo4() {
     const num = document.getElementById('pf4-num-fond-1');
     const display = document.getElementById('display-oeuvre4-fond');
     const setValue = (v) => {
-        const parsed = Math.min(20, Math.max(0, parseInt(String(v), 10)));
+        const parsed = Math.min(15, Math.max(0, parseInt(String(v), 10)));
         if (isNaN(parsed)) return;
         selectedScore1Exo4 = String(parsed);
         if (slider) slider.value = parsed;
