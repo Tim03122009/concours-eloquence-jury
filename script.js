@@ -2203,8 +2203,8 @@ function showNotationInterface() {
         </div>
         <div id="jury-tab-notation" class="jury-tab-content active">
             <p class="jury-notation-intro">Noter deux candidats : Fond et Forme pour chacun.</p>
-            <div class="jury-notation-cols">
-                <div class="jury-notation-card">
+            <div id="jury-notation-cols-main" class="jury-notation-cols">
+                <div id="jury-notation-card-1" class="jury-notation-card">
                     <label for="candidate-select-1" class="card-title">Candidat 1</label>
                     <select id="candidate-select-1">
                         <option value="">-- Choisir --</option>
@@ -2223,7 +2223,7 @@ function showNotationInterface() {
                         <p id="display-score-1-forme" class="selection-info">Note Forme : -</p>
         </div>
                 </div>
-                <div class="jury-notation-card">
+                <div id="jury-notation-card-2" class="jury-notation-card">
                     <label for="candidate-select-2" class="card-title">Candidat 2</label>
                     <select id="candidate-select-2">
                         <option value="">-- Choisir --</option>
@@ -2325,7 +2325,19 @@ function showNotationInterface() {
     createGridsNotationTwo();
     if (activeRoundType === 'Petite finale') {
         const intro1 = document.querySelector('#jury-tab-notation .jury-notation-intro');
-if (intro1) intro1.textContent = 'Noter deux candidats : Fond pour chacun.';
+        if (intro1) intro1.textContent = 'Noter un candidat à la fois : note de fond.';
+        const card2 = document.getElementById('jury-notation-card-2');
+        const card1 = document.getElementById('jury-notation-card-1');
+        const cols = document.getElementById('jury-notation-cols-main');
+        if (card2) card2.style.display = 'none';
+        if (card1) {
+            card1.style.width = '100%';
+            card1.style.maxWidth = '100%';
+            card1.style.flex = '1 1 100%';
+        }
+        if (cols) cols.style.gridTemplateColumns = '1fr';
+        const validateBtnMain = document.getElementById('validate-button');
+        if (validateBtnMain) validateBtnMain.textContent = 'Valider la notation';
             document.querySelectorAll('#jury-tab-notation .control-group label').forEach(lab => { if (lab.textContent.includes('Fond')) lab.textContent = 'Fond'; });
     }
     updateNotationTwoSelects();
@@ -2455,16 +2467,19 @@ if (intro1) intro1.textContent = 'Noter deux candidats : Fond pour chacun.';
         if (!candidateId) { selectedCandidateId = null; document.getElementById('selected-candidate-display-1').textContent = 'Aucun'; checkValidationNotationTwo(); updateNotationTwoSelects(); return; }
         await loadCandidateNotationSide(1, candidateId);
     };
-    document.getElementById('candidate-select-2').onchange = async function() {
-        const candidateId = this.value;
-        if (!candidateId) { selectedCandidate2Id = null; document.getElementById('selected-candidate-display-2').textContent = 'Aucun'; checkValidationNotationTwo(); updateNotationTwoSelects(); return; }
-        await loadCandidateNotationSide(2, candidateId);
-    };
+    const candidateSelect2 = document.getElementById('candidate-select-2');
+    if (candidateSelect2) {
+        candidateSelect2.onchange = async function() {
+            const candidateId = this.value;
+            if (!candidateId) { selectedCandidate2Id = null; document.getElementById('selected-candidate-display-2').textContent = 'Aucun'; checkValidationNotationTwo(); updateNotationTwoSelects(); return; }
+            await loadCandidateNotationSide(2, candidateId);
+        };
+    }
 
     document.getElementById('validate-button').onclick = async () => {
         const lockSnap = await getDoc(doc(db, "config", "locks"));
         const locks = lockSnap.exists() ? lockSnap.data().locks || {} : {};
-        if (locks[selectedCandidateId]?.[currentJuryName] || locks[selectedCandidate2Id]?.[currentJuryName]) {
+        if (locks[selectedCandidateId]?.[currentJuryName] || (selectedCandidate2Id && locks[selectedCandidate2Id]?.[currentJuryName])) {
             await customAlert(`❌ Un candidat est verrouillé.`);
             return;
         }
@@ -2487,12 +2502,18 @@ if (intro1) intro1.textContent = 'Noter deux candidats : Fond pour chacun.';
         const s2a = activeRoundType === 'Petite finale' ? (selectedScore2 || '0') : selectedScore2;
         const s2b = activeRoundType === 'Petite finale' ? (selectedScore2_c2 || '0') : selectedScore2_c2;
         await saveOneScore(selectedCandidateId, selectedScore1, s2a);
-        await saveOneScore(selectedCandidate2Id, selectedScore1_c2, s2b);
+        if (activeRoundType !== 'Petite finale') {
+            await saveOneScore(selectedCandidate2Id, selectedScore1_c2, s2b);
+        }
 
         selectedCandidateId = null; selectedScore1 = null; selectedScore2 = null;
         selectedCandidate2Id = null; selectedScore1_c2 = null; selectedScore2_c2 = null;
-        document.getElementById('candidate-select-1').value = ''; document.getElementById('candidate-select-2').value = '';
-        document.getElementById('selected-candidate-display-1').textContent = 'Aucun'; document.getElementById('selected-candidate-display-2').textContent = 'Aucun';
+        document.getElementById('candidate-select-1').value = '';
+        const sel2 = document.getElementById('candidate-select-2');
+        if (sel2) sel2.value = '';
+        document.getElementById('selected-candidate-display-1').textContent = 'Aucun';
+        const selectedDisplay2 = document.getElementById('selected-candidate-display-2');
+        if (selectedDisplay2) selectedDisplay2.textContent = 'Aucun';
         document.querySelectorAll('#grid-fond-1 .score-btn, #grid-forme-1 .score-btn, #grid-fond-2 .score-btn, #grid-forme-2 .score-btn').forEach(b => { b.classList.remove('selected'); b.disabled = false; b.style.opacity = '1'; });
         document.getElementById('grid-forme-1').style.opacity = '1'; document.getElementById('grid-forme-1').style.pointerEvents = 'auto';
         document.getElementById('grid-forme-2').style.opacity = '1'; document.getElementById('grid-forme-2').style.pointerEvents = 'auto';
@@ -2510,10 +2531,15 @@ if (intro1) intro1.textContent = 'Noter deux candidats : Fond pour chacun.';
             if (n) n.value = '';
         });
         document.getElementById('display-score-1-fond').textContent = 'Note Fond : -'; document.getElementById('display-score-1-forme').textContent = 'Note Forme : -';
-        document.getElementById('display-score-2-fond').textContent = 'Note Fond : -'; document.getElementById('display-score-2-forme').textContent = 'Note Forme : -';
+        const display2Fond = document.getElementById('display-score-2-fond');
+        const display2Forme = document.getElementById('display-score-2-forme');
+        if (display2Fond) display2Fond.textContent = 'Note Fond : -';
+        if (display2Forme) display2Forme.textContent = 'Note Forme : -';
         updateNotationTwoSelects();
         checkValidationNotationTwo();
-        await customAlert("✓ Les deux notations ont été enregistrées.");
+        await customAlert(activeRoundType === 'Petite finale'
+            ? "✓ La notation a été enregistrée."
+            : "✓ Les deux notations ont été enregistrées.");
     };
 }
 
@@ -2523,22 +2549,26 @@ async function updateNotationTwoSelects() {
     const opts = (excludeId) => sorted.filter(c => c.id !== excludeId).map(c => ({ value: c.id, text: c.id + ' - ' + (c.name || c.id) }));
     const sel1 = document.getElementById('candidate-select-1');
     const sel2 = document.getElementById('candidate-select-2');
-    if (!sel1 || !sel2) return;
+    if (!sel1) return;
     const cur1 = sel1.value;
-    const cur2 = sel2.value;
-    sel1.innerHTML = '<option value="">-- Choisir --</option>' + opts(cur2).map(o => `<option value="${o.value}">${o.text}</option>`).join('');
-    sel2.innerHTML = '<option value="">-- Choisir --</option>' + opts(cur1).map(o => `<option value="${o.value}">${o.text}</option>`).join('');
+    const cur2 = sel2 ? sel2.value : '';
+    const optionsFor1 = sel2 ? opts(cur2) : sorted.map(c => ({ value: c.id, text: c.id + ' - ' + (c.name || c.id) }));
+    sel1.innerHTML = '<option value="">-- Choisir --</option>' + optionsFor1.map(o => `<option value="${o.value}">${o.text}</option>`).join('');
+    if (sel2) sel2.innerHTML = '<option value="">-- Choisir --</option>' + opts(cur1).map(o => `<option value="${o.value}">${o.text}</option>`).join('');
     if (cur1) sel1.value = cur1;
-    if (cur2) sel2.value = cur2;
+    if (sel2 && cur2) sel2.value = cur2;
     if (document.getElementById('candidate-select-1b')) updateNotationTwoSelectsExo2();
 }
 
 function checkValidationNotationTwo() {
     const btn = document.getElementById('validate-button');
     if (!btn) return;
-    const ok = selectedCandidateId && selectedScore1 != null && selectedScore2 != null &&
-               selectedCandidate2Id && selectedScore1_c2 != null && selectedScore2_c2 != null &&
-               selectedCandidateId !== selectedCandidate2Id;
+    const isPetiteFinale = activeRoundType === 'Petite finale';
+    const ok = isPetiteFinale
+        ? (selectedCandidateId && selectedScore1 != null && selectedScore2 != null)
+        : (selectedCandidateId && selectedScore1 != null && selectedScore2 != null &&
+           selectedCandidate2Id && selectedScore1_c2 != null && selectedScore2_c2 != null &&
+           selectedCandidateId !== selectedCandidate2Id);
     btn.disabled = !ok;
 }
 
