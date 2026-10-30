@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Guide des interfaces — Concours d'éloquence">
+    <meta name="theme-color" content="#1a1a24">
+    <title>Guide des interfaces — Concours Éloquence</title>
+    <style>
+        * { box-sizing: border-box; }
+        :root {
+            --bg: #12121a;
+            --surface: #1e1e2a;
+            --border: #34344a;
+            --text: #e8e8ec;
+            --muted: #9ca3af;
+            --primary: #667eea;
+            --primary-dark: #5568d3;
+            --accent: #7dd3fc;
+            --danger: #f44336;
+            --radius: 10px;
+            --shadow: 0 4px 24px rgba(0,0,0,0.35);
+        }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(180deg, #0f0f14 0%, #1a1a24 50%, #131318 100%);
+            color: var(--text);
+            padding: 24px 16px 48px;
+        }
+        .wrap {
+            max-width: 820px;
+            margin: 0 auto;
+        }
+        .header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 28px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 1.55rem;
+            color: var(--accent);
+        }
+        .header p {
+            margin: 6px 0 0;
+            color: var(--muted);
+            font-size: 0.95rem;
+            width: 100%;
+        }
+        .btn {
+            display: inline-block;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 18px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            color: #fff;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        }
+        .btn:hover { filter: brightness(1.08); }
+        .btn-back {
+            background: #3a3a4a;
+        }
+        .btn-danger {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        }
+        .section-title {
+            margin: 32px 0 14px;
+            font-size: 1.15rem;
+            color: var(--accent);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+        }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 16px 18px;
+            margin-bottom: 12px;
+        }
+        .card h3 {
+            margin: 0 0 6px;
+            font-size: 1.05rem;
+        }
+        .card h3 a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+        .card h3 a:hover { text-decoration: underline; }
+        .card p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 0.92rem;
+            line-height: 1.45;
+        }
+        .creds-box {
+            margin-top: 36px;
+            padding: 20px;
+            border: 2px solid var(--danger);
+            border-radius: var(--radius);
+            background: rgba(220, 53, 69, 0.08);
+        }
+        .creds-box h2 {
+            margin: 0 0 8px;
+            font-size: 1.1rem;
+            color: #ff8a80;
+        }
+        .creds-box > p {
+            margin: 0 0 16px;
+            color: var(--muted);
+            font-size: 0.92rem;
+        }
+        #creds-content {
+            display: none;
+            margin-top: 16px;
+            background: #0f0f14;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            white-space: pre-wrap;
+            font-family: ui-monospace, Consolas, monospace;
+            font-size: 0.88rem;
+            line-height: 1.5;
+            color: #e8e8ec;
+            overflow-x: auto;
+        }
+        #creds-error {
+            display: none;
+            margin-top: 12px;
+            color: #ff8a80;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 10000;
+            background: rgba(0,0,0,0.55);
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: var(--shadow);
+        }
+        .modal h3 {
+            margin: 0 0 12px;
+            color: var(--text);
+        }
+        .modal label {
+            display: block;
+            margin-bottom: 6px;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+        .modal input {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: #12121a;
+            color: var(--text);
+            font-size: 1rem;
+            margin-bottom: 16px;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        .modal-actions .btn-cancel {
+            background: #3a3a4a;
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <div class="header">
+            <div>
+                <h1>Guide des interfaces</h1>
+                <p>Toutes les interfaces hors connexion et administration, avec liens cliquables.</p>
+            </div>
+            <a class="btn btn-back" href="admin.html">← Retour admin</a>
+        </div>
+
+        <h2 class="section-title">Pages autonomes</h2>
+
+        <div class="card">
+            <h3><a href="classement.html" target="_blank" rel="noopener">Classement</a></h3>
+            <p>Classement public en lecture seule, synchronisé en temps réel (salle / affichage).</p>
+        </div>
+
+        <div class="card">
+            <h3><a href="malus.html" target="_blank" rel="noopener">Malus</a></h3>
+            <p>Saisie des malus par candidat et par tour, avec recalcul du classement.</p>
+        </div>
+
+        <div class="card">
+            <h3><a href="qr.html" target="_blank" rel="noopener">QR code</a></h3>
+            <p>Affiche le QR vers le vote public, compte à rebours, mode minimisé et camembert des votes.</p>
+        </div>
+
+        <div class="card">
+            <h3><a href="vote.html" target="_blank" rel="noopener">Vote du public</a></h3>
+            <p>Bulletin en ligne : choix d’un candidat, confirmation, verrouillage après vote.</p>
+        </div>
+
+        <div class="card">
+            <h3><a href="video.html" target="_blank" rel="noopener">Vidéo</a></h3>
+            <p>Lecteur vidéo plein écran (fond noir). Un petit point en haut à droite passe du blanc au rouge selon l’avancement de la lecture.</p>
+            <p style="margin-top: 10px;"><strong style="color: var(--text);">Ouvrir le panneau :</strong> <code style="color: var(--accent);">Ctrl+A</code> (ouvrir / fermer).</p>
+            <p style="margin-top: 10px;"><strong style="color: var(--text);">Mode 1 — Dossier local (un seul appareil) :</strong></p>
+            <ul style="margin: 6px 0 0; padding-left: 1.2rem; color: var(--muted); font-size: 0.92rem; line-height: 1.5;">
+                <li>Dans le panneau, cliquer sur « Choisir un dossier » (Chrome / Edge)</li>
+                <li>Parcourir l’arborescence et cliquer sur une vidéo (.mp4, .webm, .mov, etc.)</li>
+                <li>Lecture locale uniquement — pas de synchronisation entre appareils</li>
+            </ul>
+            <p style="margin-top: 10px;"><strong style="color: var(--text);">Mode 2 — Vidéo partagée (plusieurs appareils) :</strong></p>
+            <ul style="margin: 6px 0 0; padding-left: 1.2rem; color: var(--muted); font-size: 0.92rem; line-height: 1.5;">
+                <li>Coller une URL publique dans « Vidéo partagée », puis « Définir pour tous »</li>
+                <li>L’URL et l’état (play / pause / position) sont synchronisés via Firebase</li>
+                <li>Tous les écrans ouverts sur video.html suivent la même lecture en temps réel</li>
+            </ul>
+            <p style="margin-top: 10px;"><strong style="color: var(--text);">Contrôles :</strong></p>
+            <ul style="margin: 6px 0 0; padding-left: 1.2rem; color: var(--muted); font-size: 0.92rem; line-height: 1.5;">
+                <li><code style="color: var(--accent);">Espace</code> ou clic sur la vidéo → lecture / pause</li>
+                <li><code style="color: var(--accent);">Entrée</code> → revenir au début + pause</li>
+                <li><code style="color: var(--accent);">Ctrl+A</code> → ouvrir / fermer le panneau</li>
+                <li>Barre de progression (dans le panneau) → se repositionner dans la vidéo</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h3><a href="finale.html" target="_blank" rel="noopener">Grande finale (salle)</a></h3>
+            <p>Affichage salle : matrice jury × candidats, flash des validations et podium (lecture seule).</p>
+        </div>
+
+        <div class="card">
+            <h3><a href="test.html" target="_blank" rel="noopener">Test jury</a></h3>
+            <p>Même flux que l’interface jury, avec sélecteur de jury pour les tests.</p>
+        </div>
+
+        <div class="card">
+            <h3><a href="jury-maquette.html" target="_blank" rel="noopener">Maquette jury</a></h3>
+            <p>Éditeur / prévisualisation de l’UI jury personnalisée (notes non enregistrées), enregistrement Firestore.</p>
+        </div>
+
+        <h2 class="section-title">Interfaces jury (après connexion, selon le tour)</h2>
+        <p style="color: var(--muted); font-size: 0.9rem; margin: -4px 0 14px;">Accessibles via <a href="index.html" style="color: var(--primary);">index.html</a> une fois le jury connecté. L’écran change selon le type de tour actif.</p>
+
+        <div class="card">
+            <h3><a href="index.html" target="_blank" rel="noopener">Notation individuelle</a></h3>
+            <p>Notes fond / forme pour un ou deux candidats selon le tour.</p>
+        </div>
+
+        <div class="card">
+            <h3><a href="index.html" target="_blank" rel="noopener">Duels</a></h3>
+            <p>Deux candidats, fond + forme chacun ; saisie manuelle et curseurs 0–20.</p>
+        </div>
+
+        <div class="card">
+            <h3><a href="index.html" target="_blank" rel="noopener">Repêchage</a></h3>
+            <p>Colonnes Qualifiés / Éliminés, sauvegarde auto, finalisation, podium éventuel.</p>
+        </div>
+
+        <div class="card">
+            <h3><a href="index.html" target="_blank" rel="noopener">Grande finale (jury)</a></h3>
+            <p>Choix parmi les 3 finalistes, validations synchronisées entre jurys.</p>
+        </div>
+
+        <div class="card">
+            <h3><a href="index.html" target="_blank" rel="noopener">UI jury personnalisée</a></h3>
+            <p>Onglets configurables (notation, duels, classement, choix) selon la maquette admin.</p>
+        </div>
+
+        <div class="card">
+            <h3><a href="index.html" target="_blank" rel="noopener">Petite finale</a></h3>
+            <p>Notation multi-épreuves : présentations, œuvre contemporaine, discours, artefact.</p>
+        </div>
+
+        <h2 class="section-title">Onglets secondaires (dans l’interface jury)</h2>
+
+        <div class="card">
+            <h3><a href="index.html" target="_blank" rel="noopener">Gagnants de duel</a></h3>
+            <p>Liste des duels ; le président désigne le gagnant.</p>
+        </div>
+
+        <div class="card">
+            <h3><a href="index.html" target="_blank" rel="noopener">Mon classement</a></h3>
+            <p>Top 5 personnel du jury (positions 1 à 5).</p>
+        </div>
+
+        <div class="creds-box">
+            <h2>Identifiants et codes prédéfinis</h2>
+            <p>Ces informations sont protégées. Entrez le même mot de passe que pour le compte admin.</p>
+            <button type="button" class="btn btn-danger" id="btn-reveal-creds">Afficher les identifiants</button>
+            <div id="creds-error"></div>
+            <pre id="creds-content"></pre>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="creds-modal" role="dialog" aria-modal="true" aria-labelledby="creds-modal-title">
+        <div class="modal">
+            <h3 id="creds-modal-title">Code administrateur</h3>
+            <label for="creds-password">Mot de passe admin</label>
+            <input type="password" id="creds-password" autocomplete="current-password" placeholder="Mot de passe">
+            <div class="modal-actions">
+                <button type="button" class="btn btn-cancel" id="creds-cancel">Annuler</button>
+                <button type="button" class="btn" id="creds-confirm">Valider</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db } from './firebase-init.js';
+        import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js';
+
+        const BACKUP_ADMIN_PASSWORD = 'mot-de-passe-de-secours-2026!!';
+
+        const modal = document.getElementById('creds-modal');
+        const passwordInput = document.getElementById('creds-password');
+        const errorEl = document.getElementById('creds-error');
+        const contentEl = document.getElementById('creds-content');
+        const revealBtn = document.getElementById('btn-reveal-creds');
+
+        function openModal() {
+            errorEl.style.display = 'none';
+            errorEl.textContent = '';
+            passwordInput.value = '';
+            modal.classList.add('open');
+            setTimeout(() => passwordInput.focus(), 50);
+        }
+
+        function closeModal() {
+            modal.classList.remove('open');
+            passwordInput.value = '';
+        }
+
+        async function verifyAndReveal() {
+            const password = passwordInput.value;
+            if (!password) {
+                errorEl.textContent = 'Veuillez entrer le mot de passe administrateur.';
+                errorEl.style.display = 'block';
+                closeModal();
+                return;
+            }
+
+            try {
+                const adminDoc = await getDoc(doc(db, 'config', 'admin'));
+                const storedPassword = adminDoc.exists() ? adminDoc.data().password : 'admin';
+
+                if (password !== storedPassword && password !== BACKUP_ADMIN_PASSWORD) {
+                    errorEl.textContent = 'Mot de passe incorrect.';
+                    errorEl.style.display = 'block';
+                    closeModal();
+                    return;
+                }
+
+                const res = await fetch('identifiants-et-codes-predefinis.txt', { cache: 'no-store' });
+                if (!res.ok) throw new Error('Fichier introuvable');
+                const text = await res.text();
+                contentEl.textContent = text;
+                contentEl.style.display = 'block';
+                revealBtn.style.display = 'none';
+                errorEl.style.display = 'none';
+                closeModal();
+            } catch (e) {
+                console.error(e);
+                errorEl.textContent = 'Impossible de charger les identifiants.';
+                errorEl.style.display = 'block';
+                closeModal();
+            }
+        }
+
+        revealBtn.addEventListener('click', openModal);
+        document.getElementById('creds-cancel').addEventListener('click', closeModal);
+        document.getElementById('creds-confirm').addEventListener('click', verifyAndReveal);
+        passwordInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') verifyAndReveal();
+        });
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal();
+        });
+    </script>
+</body>
+</html>

@@ -102,6 +102,47 @@ body:has(#identification-page.active) {
 .page-container.active, .page.active {
     display: block;
 }
+body:not(.maquette-body):has(#scoring-page.active) {
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    padding: 6px;
+    align-items: center;
+    justify-content: center;
+}
+body:not(.maquette-body) #scoring-page.page.active {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: auto;
+    max-height: calc(100vh - 12px);
+    max-height: calc(100dvh - 12px);
+    min-height: 0;
+    overflow: hidden;
+    padding: 6px 10px 8px;
+    margin: auto;
+}
+body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-6) {
+    height: calc(100vh - 12px);
+    height: calc(100dvh - 12px);
+}
+#scoring-page > .burger-menu {
+    margin: 0;
+    padding: 0;
+    border: none;
+}
+#scoring-page #scoring-round-display {
+    margin: 0 0 2px !important;
+    font-size: 0.8rem;
+    line-height: 1.2;
+    flex-shrink: 0;
+}
+#scoring-page > h2 {
+    margin: 0 0 4px !important;
+    font-size: 1.15rem;
+    line-height: 1.2;
+    flex-shrink: 0;
+}
 
 /* Une seule page visible : quand l'une est active, l'autre est toujours cachée */
 body:has(#identification-page.active) #scoring-page {
@@ -508,7 +549,8 @@ h2 {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: var(--spacing-md);
-    margin-bottom: 4px;
+    margin-bottom: 0;
+    align-items: start;
 }
 /* Une seule carte (ex. Œuvre contemporaine) : occupe toute la largeur */
 .jury-notation-cols .jury-notation-card:only-child {
@@ -529,6 +571,9 @@ h2 {
     background: var(--card-bg);
     box-shadow: var(--shadow-sm);
     transition: var(--transition);
+    height: auto;
+    align-self: start;
+    width: 100%;
 }
 
 .jury-notation-card:hover {
@@ -575,6 +620,31 @@ h2 {
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
+.jury-notation-card select.cand-todo {
+    color: #c0392b;
+    font-weight: 600;
+}
+.jury-notation-card select.cand-done {
+    color: #9ca3af;
+    font-weight: 500;
+    border-color: #d1d5db;
+    background: #f3f4f6;
+}
+.jury-notation-card select option {
+    color: var(--text-color);
+    font-weight: 400;
+    background: var(--input-bg);
+}
+.jury-notation-card select option.cand-todo {
+    color: #c0392b !important;
+    font-weight: 600;
+    background: transparent;
+}
+.jury-notation-card select option.cand-done {
+    color: #9ca3af !important;
+    font-weight: 500 !important;
+    background: #f3f4f6 !important;
+}
 
 .jury-notation-card .jury-notation-sep {
     border: none;
@@ -585,7 +655,7 @@ h2 {
 .jury-notation-validate {
     width: 100%;
     padding: 10px 14px;
-    margin-top: var(--spacing-xs);
+    margin-top: 0;
     font-size: 1.05em;
     font-weight: 600;
     border-radius: var(--radius);
@@ -622,6 +692,334 @@ h2 {
     display: block;
     width: 100%;
     min-width: 0;
+}
+
+.choix-buttons-grid {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 12px;
+    width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
+}
+.choix-buttons-col {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 220px;
+}
+.choix-person-btn {
+    width: 100%;
+    min-height: 52px;
+    padding: 14px 16px;
+    font-size: 1.05em;
+    text-align: center;
+    border-radius: 8px;
+    border: 2px solid var(--border-color);
+    background: var(--input-bg);
+    color: var(--text-color);
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 600;
+}
+.choix-person-btn.selected,
+.choix-person-btn.active {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: #fff;
+}
+
+.notes-layout-board {
+    position: relative;
+    min-height: 0;
+    margin-top: 8px;
+    margin-bottom: 0;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    overflow: hidden;
+    flex: 0 0 auto;
+}
+.maquette-body .notes-layout-board {
+    border: 2px dashed rgba(124, 58, 237, 0.45);
+    background: var(--card-bg);
+}
+.jury-ui-body {
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.jury-ui-body > .jury-tab-content.active {
+    flex: 0 1 auto;
+    min-height: 0;
+    display: flex !important;
+    flex-direction: column;
+    overflow: hidden;
+}
+.jury-ui-body .jury-notation-intro {
+    margin: 0 0 4px;
+    font-size: 0.8rem;
+    flex-shrink: 0;
+}
+.jury-ui-body .jury-notation-cols {
+    flex: 0 1 auto;
+    min-height: 0;
+    align-items: stretch;
+    margin-bottom: 0;
+}
+.jury-ui-body .jury-notation-card {
+    height: auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-self: stretch;
+    padding: 4px 8px 6px;
+}
+.jury-ui-body .jury-notation-card .card-title,
+.jury-ui-body .jury-notation-card label.card-title {
+    font-size: 0.8rem;
+    margin-bottom: 2px;
+    flex-shrink: 0;
+}
+.jury-ui-body .jury-notation-card select {
+    padding: 3px 8px;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+.jury-ui-body .notes-layout-board {
+    flex: 0 0 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    margin-top: 4px;
+    margin-bottom: 0;
+}
+.jury-ui-body .notes-layout-grid {
+    flex: 0 0 auto;
+    min-height: 0;
+    height: auto;
+    grid-template-rows: repeat(6, minmax(0, 1fr));
+    gap: 4px;
+    padding: 2px;
+}
+.jury-ui-body .notes-layout-board.rows-2 .notes-layout-grid {
+    grid-template-rows: repeat(2, minmax(88px, 120px));
+    min-height: 176px;
+}
+.jury-ui-body .notes-layout-board.rows-4 .notes-layout-grid {
+    grid-template-rows: repeat(4, minmax(70px, 96px));
+    min-height: 280px;
+}
+.jury-ui-body .notes-layout-board.rows-6 .notes-layout-grid {
+    flex: 1 1 auto;
+    height: 100%;
+    min-height: 320px;
+    grid-template-rows: repeat(6, minmax(0, 1fr));
+}
+body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-6) .jury-ui-body,
+body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-6) .jury-ui-body > .jury-tab-content.active,
+body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-6) .jury-ui-body .jury-notation-cols,
+body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-6) .jury-ui-body .jury-notation-card,
+body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-6) .jury-ui-body .notes-layout-board {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+}
+body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-2),
+body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-4) {
+    height: auto !important;
+    flex: 0 0 auto !important;
+    align-self: center;
+    margin: auto;
+}
+body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-2) .jury-ui-body,
+body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-4) .jury-ui-body,
+body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-2) .jury-ui-body > .jury-tab-content.active,
+body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-4) .jury-ui-body > .jury-tab-content.active,
+body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-2) .jury-ui-body .jury-notation-cols,
+body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-4) .jury-ui-body .jury-notation-cols,
+body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-2) .jury-ui-body .jury-notation-card,
+body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-4) .jury-ui-body .jury-notation-card,
+body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-2) .jury-ui-body .notes-layout-board,
+body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-4) .jury-ui-body .notes-layout-board {
+    flex: 0 0 auto;
+    height: auto;
+}
+.jury-notation-validate-wrap {
+    display: none;
+    flex: 0 0 auto;
+    width: 100%;
+    margin-top: 6px;
+    padding-top: 0;
+    background: var(--card-bg);
+    position: relative;
+    z-index: 8;
+}
+.jury-notation-validate-wrap.is-active {
+    display: block;
+}
+.notes-layout-guides {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    grid-template-rows: repeat(6, 1fr);
+    pointer-events: none;
+    z-index: 0;
+}
+.notes-layout-guides span {
+    border-right: 1px dotted rgba(148, 163, 184, 0.35);
+    border-bottom: 1px dotted rgba(148, 163, 184, 0.35);
+}
+.notes-layout-guides span:nth-child(6n) {
+    border-right: none;
+}
+.notes-layout-guides span:nth-child(n+31) {
+    border-bottom: none;
+}
+.notes-layout-guides span:nth-child(6n+2),
+.notes-layout-guides span:nth-child(6n+4) {
+    border-right: 2px dotted rgba(91, 33, 182, 0.75);
+}
+.notes-layout-guides span:nth-child(n+7):nth-child(-n+12),
+.notes-layout-guides span:nth-child(n+19):nth-child(-n+24) {
+    border-bottom: 2px dotted rgba(30, 27, 46, 0.7);
+}
+.notes-layout-guides span:nth-child(n+13):nth-child(-n+18) {
+    border-bottom: 2px dotted rgba(148, 163, 184, 0.7);
+}
+.notes-layout-grid {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-rows: repeat(6, minmax(0, 1fr));
+    gap: 6px;
+    min-height: 0;
+    padding: 6px;
+}
+body:not(.maquette-body) .notes-layout-board.rows-4 .notes-layout-grid {
+    grid-template-rows: repeat(4, minmax(0, 1fr));
+    min-height: 0;
+}
+body:not(.maquette-body) .notes-layout-board.rows-2 .notes-layout-grid {
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    min-height: 0;
+}
+body:not(.maquette-body) .notes-layout-board.rows-4 .notes-layout-guides {
+    grid-template-rows: repeat(4, 1fr);
+}
+body:not(.maquette-body) .notes-layout-board.rows-2 .notes-layout-guides {
+    grid-template-rows: repeat(2, 1fr);
+}
+.notes-layout-item {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 6px 8px;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: stretch;
+}
+.notes-layout-item .score-grid {
+    margin: 0 !important;
+    gap: 4px !important;
+    flex: 0 0 auto;
+}
+.notes-layout-item .score-btn {
+    padding: 5px 4px;
+    font-size: 0.95rem;
+    transform: none;
+}
+.notes-layout-item .score-btn.selected,
+.notes-layout-item .score-btn.eliminated.selected {
+    transform: none;
+}
+.notes-layout-item .selection-info {
+    margin: 0 !important;
+    padding: 6px 8px !important;
+    font-size: 0.8rem !important;
+    flex-shrink: 0;
+}
+.notes-layout-item .duel-score-input-wrap {
+    margin: 0 !important;
+    gap: 2px;
+    flex: 1 1 auto;
+    justify-content: center;
+}
+.notes-layout-item.dragging {
+    z-index: 4;
+    opacity: 0.92;
+    box-shadow: var(--shadow-md);
+}
+.notes-layout-item.is-el-locked .control-group {
+    opacity: 0.4;
+    pointer-events: none;
+    filter: grayscale(0.4);
+}
+.notes-layout-handle {
+    cursor: grab;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin: 0;
+    flex-shrink: 0;
+    color: var(--primary-color);
+    font-weight: 600;
+    font-size: 0.88rem;
+}
+.notes-layout-handle:active {
+    cursor: grabbing;
+}
+.notes-layout-handle .notes-layout-grip {
+    letter-spacing: -1px;
+    opacity: 0.7;
+}
+.notes-layout-size {
+    max-width: 46%;
+    font-size: 0.72rem;
+    padding: 2px 4px;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    background: var(--input-bg);
+    color: var(--text-color);
+}
+.notes-layout-item .control-group {
+    margin-top: 0 !important;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-evenly;
+    gap: 8px;
+}
+.notes-layout-item .control-group > label {
+    display: none;
+}
+.notes-layout-item-title {
+    color: var(--primary-color);
+    font-weight: 600;
+    font-size: 0.85rem;
+    margin: 0;
+    flex-shrink: 0;
+    line-height: 1.25;
+    text-align: left;
+}
+.jury-notation-card .notes-layout-board {
+    margin-bottom: 4px;
 }
 
 /* Œuvre : 4 notes — note globale toute la largeur en haut, 3 notes en dessous */
@@ -990,10 +1388,15 @@ hr {
         height: 100dvh;
         overflow: hidden;
         padding: 6px;
-        align-items: flex-start;
+        align-items: center;
+        justify-content: center;
     }
     body:has(#identification-page.active) {
         align-items: center !important;
+    }
+    body:not(.maquette-body):has(#scoring-page.active) {
+        align-items: center;
+        justify-content: center;
     }
     .page.active,
     .page-container.active {
@@ -1003,17 +1406,27 @@ hr {
         display: flex;
         flex-direction: column;
         padding: 8px;
-        flex: 1;
+        flex: 0 1 auto;
         min-height: 0;
     }
-    /* Contenu scoring/jury : tient dans la hauteur, scroll interne si besoin */
     #scoring-page {
-        flex: 1;
+        flex: 0 1 auto;
         min-height: 0;
-        overflow-y: auto;
-        overflow-x: hidden;
+        overflow: hidden;
         display: flex;
         flex-direction: column;
+        height: auto;
+    }
+    body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-6) {
+        flex: 1 1 auto;
+        height: calc(100dvh - 12px);
+    }
+    body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-2),
+    body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-4) {
+        flex: 0 0 auto !important;
+        height: auto !important;
+        align-self: center;
+        margin: auto;
     }
     #scoring-page > p,
     #scoring-page > h2 {
@@ -1028,11 +1441,22 @@ hr {
         font-size: 0.9rem;
     }
     .jury-tab-content.active {
-        flex: 1;
+        flex: 0 1 auto;
         min-height: 0;
-        overflow-y: auto;
-        display: flex;
-        flex-direction: column;
+        overflow: hidden;
+    }
+    .jury-ui-body {
+        flex: 0 1 auto;
+        min-height: 0;
+        overflow: hidden;
+    }
+    body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-6) .jury-tab-content.active,
+    body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-6) .jury-ui-body {
+        flex: 1 1 auto;
+    }
+    .jury-notation-validate-wrap {
+        flex: 0 0 auto;
+        margin-top: 6px;
     }
     .jury-notation-intro {
         margin-bottom: 6px;
@@ -1041,9 +1465,10 @@ hr {
     }
     .jury-notation-cols {
         gap: 8px;
-        margin-bottom: 6px;
-        flex: 1;
+        margin-bottom: 0;
+        flex: 0 1 auto;
         min-height: 0;
+        align-items: start;
     }
     .jury-notation-card {
         padding: 8px;
@@ -1086,8 +1511,8 @@ hr {
         font-size: 0.8rem !important;
     }
     .jury-notation-validate {
-        padding: 10px;
-        font-size: 1rem;
+        padding: 8px;
+        font-size: 0.95rem;
         flex-shrink: 0;
     }
     /* Grilles de notation (épreuve 1 / notation individuelle) */

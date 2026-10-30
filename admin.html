@@ -352,6 +352,91 @@
         }
 
         /* Reset Zone */
+        .note-types-editor {
+            margin: 0 0 16px 0;
+            padding: 12px 14px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+        }
+        .note-types-editor-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+        .note-types-editor h3 {
+            margin: 0;
+            font-size: 0.95rem;
+            color: var(--text-color);
+        }
+        .note-types-editor p {
+            margin: 0 0 10px 0;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        .note-types-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        .note-types-table th,
+        .note-types-table td {
+            padding: 6px 8px;
+            border-bottom: 1px solid var(--border-color);
+            text-align: left;
+            vertical-align: middle;
+        }
+        .note-types-table input,
+        .note-types-table select {
+            width: 100%;
+            padding: 5px 6px;
+            border: 1px solid var(--border-color);
+            background: var(--input-bg);
+            color: var(--text-color);
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 0.9em;
+        }
+        .note-types-table input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        .note-types-scale-cell {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        .note-types-scale-cell select {
+            flex: 1;
+            min-width: 140px;
+        }
+        .note-types-range-max {
+            width: 76px;
+            flex: 0 0 76px;
+        }
+        .note-types-editor.locked {
+            opacity: 0.95;
+        }
+        .note-types-lock-banner {
+            margin: 0 0 10px 0;
+            padding: 10px 12px;
+            background: rgba(245, 158, 11, 0.15);
+            border: 1px solid #d97706;
+            border-radius: 6px;
+            color: var(--text-color);
+            font-size: 0.88rem;
+        }
+        .note-types-editor.locked input,
+        .note-types-editor.locked select,
+        .note-types-editor.locked button.icon-btn {
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
         .reset-zone { 
             margin-top: 50px;
             padding: clamp(15px, 3vw, 25px);
@@ -963,7 +1048,7 @@
         <!-- TAB 4: NOTES -->
         <div id="tab-notes" class="tab-content">
             <p style="color: var(--text-secondary); margin-bottom: 10px;">
-                Saisie <strong>Fond</strong> et <strong>Forme</strong> (5, 10, 15, 20 ou Éliminé). Les notes peuvent être identiques (Fond = Forme). Modifications sauvegardées automatiquement.
+                Saisie des notes du tour affiché. Les types de notes (nom, coefficient, barème) se règlent dans le tableau ci-dessous. Modifications sauvegardées automatiquement.
             </p>
             <p id="notes-validated-message" style="display: none; margin-bottom: 15px; padding: 12px; background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border: 1px solid var(--success); border-radius: 8px; color: #1e7e34; font-weight: 600;">
                 ✓ Tour validé — verrouillage définitif (plus de modification possible).
@@ -993,6 +1078,30 @@
                     <input type="file" id="csv-import-file" accept=".csv" style="display: none;" onchange="importNotesFromCSV(event)">
                     <button onclick="document.getElementById('csv-import-file').click()" class="action-button import-button">📤 Importer depuis CSV</button>
                 </div>
+            </div>
+
+            <div class="note-types-editor" id="note-types-editor">
+                <div class="note-types-editor-head">
+                    <h3>Types de notes de ce tour</h3>
+                    <button type="button" id="open-jury-maquette-btn" onclick="openJuryMaquette()" class="action-button" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 8px 14px; margin: 0;">Aperçu interface jury</button>
+                </div>
+                <p id="note-types-help">Chaque ligne est une note saisie par les jurys. Le score pondéré = somme (valeur × coefficient). Barème : de 5 en 5, 0 ou 1, 0 à 20, ou 0 à X (X jusqu’à 4 chiffres). Si X = 20, le barème redevient automatiquement « 0 à 20 ». L’aperçu ouvre une fausse page jury (même mise en page, aucune note enregistrée) pour régler onglets, 1 ou 2 candidats, boutons ou curseurs.</p>
+                <p id="note-types-lock-banner" class="note-types-lock-banner" style="display: none;">Repêchage : paramètres bloqués. L’interface jury reste Qualifiés (1) / Éliminés (0). Seul le nombre de candidats suivants peut être réglé dans l’onglet Tours.</p>
+                <div class="table-container" style="max-height: none; overflow: auto;">
+                    <table class="note-types-table" id="note-types-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 44px;"></th>
+                                <th>Nom</th>
+                                <th style="width: 90px;">Coefficient</th>
+                                <th style="width: 280px;">Barème</th>
+                                <th style="width: 80px; text-align: center;">EL</th>
+                            </tr>
+                        </thead>
+                        <tbody id="note-types-table-body"></tbody>
+                    </table>
+                </div>
+                <button type="button" id="add-note-type-btn" onclick="addNoteTypeToDisplayedRound()" class="action-button" style="margin-top: 10px; background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white;">+ Ajouter une note</button>
             </div>
             
             <div class="table-container">
@@ -1135,6 +1244,12 @@
         </div>
 
         <div id="tab-reinitialiser" class="tab-content">
+            <div class="reset-zone" style="background: var(--info-bg-start); border: 2px solid var(--primary); margin-bottom: 24px;">
+                <h3 style="color: var(--primary);">📚 Guide des interfaces</h3>
+                <p>Liste de toutes les interfaces du concours (hors connexion et admin), avec liens et descriptions. Accès aux identifiants prédefinis en bas de page (code admin requis).</p>
+                <a href="guide-interfaces.html" class="action-button" style="display: inline-block; text-decoration: none; background: var(--primary); color: #fff; text-align: center;">Ouvrir le guide des interfaces</a>
+            </div>
+
         <h2>Zone de Danger</h2>
             <p style="color: var(--danger-color); font-weight: 600; margin-bottom: 20px;">
                 ⚠️ Attention: Ces actions sont irréversibles !
@@ -1201,6 +1316,12 @@
                 <button onclick="confirmResetDuelWinners()" class="action-button" style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); color: white;">Supprimer les gagnants des duels</button>
             </div>
 
+            <div class="reset-zone" style="margin-top: 30px;">
+                <h3 style="color: var(--text-color);">Réinitialiser les malus</h3>
+                <p>Supprime <strong>tous les malus</strong> de tous les tours et de tous les candidats. Les notes, jurys, duels et classements de points sont conservés. Les scores affichés seront recalculés sans malus.</p>
+                <button onclick="confirmResetMalus()" class="action-button" style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); color: white;">Réinitialiser les malus</button>
+            </div>
+
             <div class="reset-zone" style="margin-top: 30px; border: 2px solid var(--danger); border-radius: 8px; padding: 15px;">
                 <h3 style="color: var(--text-color);">🗑️ Vider tout le classement (notes et bonus)</h3>
                 <p>Supprime <strong>toutes les notes</strong> (scores) et <strong>tous les bonus</strong> : scores, classements affichés, points activés, « Mon classement » des jurys, gagnants des duels. Il faudra tout rentrer à nouveau. Les jurys et la liste des candidats sont conservés.</p>
@@ -1265,9 +1386,22 @@
         let isFirstSnapshot = true;
         let isFirstCandidatesSnapshot = true;
         let isFirstRoundsSnapshot = true;
+        let lastAdminNoteTypesSig = '';
+        function noteTypesSyncSig(types) {
+            return (types || []).map(t => [
+                t.id,
+                t.field,
+                t.name,
+                t.scale,
+                t.rangeMax == null || t.rangeMax === '' ? '' : String(t.rangeMax),
+                t.allowEL ? 1 : 0,
+                t.coefficient == null || t.coefficient === '' ? '' : String(t.coefficient)
+            ].join(':')).join('|');
+        }
         let pendingRefresh = false;
         let isManualChange = false; // Flag pour ignorer les listeners pendant un changement manuel
         let isRenderingNotesTable = false; // Flag pour éviter les appels multiples à renderNotesTable
+        let notesTableNeedsRerender = false;
 
         /** Liste unique des critères renseignés par les jurys pour la petite finale (pour menu déroulant). */
         function getListeCriteresPetiteFinale() {
@@ -1493,6 +1627,11 @@
         /** Score base : duel = fond+forme ; autre = fond×3+forme ; Petite finale : score1 + score3 + (score7+score8+score9) + score10 ; Grande finale : nombre de votes (score1). */
         function computeScoreBase(score1, score2, roundId, score3, score4, score5, score6, score7, score8, score9, score10) {
             const r = (typeof ROUNDS !== 'undefined' && Array.isArray(ROUNDS)) ? ROUNDS.find(x => x.id === roundId) : null;
+            if (r && typeof getNoteTypesForRound === 'function' && roundHasCustomNoteTypes(r)) {
+                return computeScoreFromNoteTypes({
+                    score1, score2, score3, score4, score5, score6, score7, score8, score9, score10
+                }, getNoteTypesForRound(r));
+            }
             const isPetiteFinale = r && r.type === 'Petite finale';
             const isGrandeFinale = r && (r.type === 'Grande finale' || r.type_epreuve === 'grande_finale');
             if (isPetiteFinale) {
@@ -1870,6 +2009,13 @@
                 const notesTab = document.getElementById('tab-notes');
                 const isNotesActive = notesTab && notesTab.classList.contains('active');
                 console.log('[CLASSEMENT] Listener scores: onglet Notes actif ?', isNotesActive);
+                const listenerAffectedCandidateIds = new Set();
+                changes.forEach(ch => {
+                    const d = ch.doc.data();
+                    if (d && d.candidateId && d.roundId === activeRoundId) {
+                        listenerAffectedCandidateIds.add(d.candidateId);
+                    }
+                });
                 // Ne jamais mettre à jour le classement depuis le listener quand l'onglet Notes est affiché : sinon on écrase les points d'activation (bonus). Les changements de notes dans l'admin sont gérés par handleScoreChange qui appelle updateClassementFromScoresForRound.
                 if (isNotesActive) {
                     console.log('[CLASSEMENT] Listener scores: SKIP updateClassementFromScoresForRound (onglet Notes actif), refresh tableau Notes uniquement');
@@ -1894,6 +2040,11 @@
                                 }
                             }
                         } catch (_) {}
+
+                        for (const candidateId of listenerAffectedCandidateIds) {
+                            console.log(`🔍 Checking qualification for candidate ${candidateId} (from jury interface)`);
+                            await checkAndQualifyCandidate(candidateId);
+                        }
 
                         console.log('[CLASSEMENT] Refreshing Notes table...');
                         await renderNotesTable();
@@ -1934,6 +2085,14 @@
                 }, 100);
                 
                 pendingRefresh = true;
+                if (listenerAffectedCandidateIds.size > 0) {
+                    (async () => {
+                        for (const candidateId of listenerAffectedCandidateIds) {
+                            console.log(`🔍 Checking qualification for candidate ${candidateId} (background)`);
+                            await checkAndQualifyCandidate(candidateId);
+                        }
+                    })();
+                }
             }, (error) => {
                 console.error('[CLASSEMENT] ❌ Error listening to scores:', error);
             });
@@ -2016,10 +2175,7 @@
             console.log('🔄 Setting up real-time rounds listener...');
             const roundsDocRef = doc(db, "config", "rounds");
             roundsListener = onSnapshot(roundsDocRef, (snapshot) => {
-                if (isFirstRoundsSnapshot) {
-                    isFirstRoundsSnapshot = false;
-                    return;
-                }
+                isFirstRoundsSnapshot = false;
                 if (!snapshot.exists()) return;
                 const data = snapshot.data();
                 ROUNDS = (data.rounds || []).map(r => ({
@@ -2030,6 +2186,17 @@
                 console.log('✨ Rounds updated from Firestore');
                 renderRoundsTable();
                 populateNotesRoundDropdown();
+                const displayRound = notesDisplayRound || activeRoundId || 'round1';
+                const shown = ROUNDS.find(r => r.id === displayRound);
+                const sig = noteTypesSyncSig(shown && shown.noteTypes);
+                if (typeof renderNoteTypesEditor === 'function' && sig !== lastAdminNoteTypesSig) {
+                    lastAdminNoteTypesSig = sig;
+                    renderNoteTypesEditor();
+                }
+                const notesTab = document.getElementById('tab-notes');
+                if (notesTab && notesTab.classList.contains('active') && typeof renderNotesTable === 'function') {
+                    renderNotesTable();
+                }
                 if (typeof populatePodiumRoundDropdown === 'function') populatePodiumRoundDropdown();
                 if (typeof populateDuelsRoundDropdown === 'function') populateDuelsRoundDropdown();
             }, (error) => {
@@ -2096,6 +2263,7 @@
                     notesDisplayRound = notesSelect.value;
                 }
                 renderNotesTable();
+                renderNoteTypesEditor();
                 // Rafraîchir si des changements sont en attente
                 if (pendingRefresh) {
                     console.log('🔄 Applying pending refresh...');
@@ -3292,7 +3460,8 @@
             if (type === 'Duels') return 'duels';
             if (type === 'Classement') return 'classement';
             if (type === 'Repêchage') return 'repechage';
-            if (type === 'Petite finale' || type === 'Grande finale') return 'notation';
+            if (type === 'Grande finale') return 'grande_finale';
+            if (type === 'Petite finale') return 'notation';
             return 'notation';
         }
         
@@ -3317,6 +3486,8 @@
                 round[field] = value;
                 if (field === 'type') {
                     round.type_epreuve = getTypeEpreuveFromType(value);
+                    round.noteTypes = defaultNoteTypesForRound(round);
+                    delete round.juryUi;
                 }
                 console.log(`🔄 Mise à jour du tour ${roundId}: ${field} = ${value}`);
                 await saveRounds();
@@ -3676,6 +3847,417 @@
         let notesSortColumn = 'id'; // Tri par défaut par ID
         let notesSortAscending = true;
         let notesDisplayRound = null; // Tour affiché dans le tableau Notes
+        const NOTE_SCALE_OPTIONS = [
+            { id: 'step5', label: 'De 5 en 5 (5, 10, 15, 20)' },
+            { id: 'binary', label: '0 ou 1' },
+            { id: 'range20', label: '0 à 20' },
+            { id: 'rangeCustom', label: '0 à X' }
+        ];
+        const NOTE_RANGE_SELECT_LIMIT = 100;
+
+        function defaultNoteTypesForRound(round) {
+            const t = round && round.type;
+            if (t === 'Repêchage') {
+                return [{ id: 'nt_vote', name: 'Vote', field: 'score1', coefficient: 1, scale: 'binary', allowEL: false }];
+            }
+            if (t === 'Duels') {
+                return [
+                    { id: 'nt_fond', name: 'Fond', field: 'score1', coefficient: 1, scale: 'range20', allowEL: false },
+                    { id: 'nt_forme', name: 'Forme', field: 'score2', coefficient: 1, scale: 'range20', allowEL: false }
+                ];
+            }
+            if (t === 'Petite finale') {
+                return [
+                    { id: 'nt_pres', name: 'Présentations', field: 'score1', coefficient: 1, scale: 'range20', allowEL: false },
+                    { id: 'nt_oeuvre', name: 'Œuvre contemporaine', field: 'score3', coefficient: 1, scale: 'rangeCustom', rangeMax: 30, allowEL: false },
+                    { id: 'nt_disc_glob', name: 'Discours (globale)', field: 'score7', coefficient: 1, scale: 'rangeCustom', rangeMax: 30, allowEL: false },
+                    { id: 'nt_disc_fond', name: 'Discours (fond)', field: 'score8', coefficient: 1, scale: 'range20', allowEL: false },
+                    { id: 'nt_disc_crit', name: 'Discours (critère)', field: 'score9', coefficient: 1, scale: 'range20', allowEL: false },
+                    { id: 'nt_artefact', name: 'Artefact', field: 'score10', coefficient: 1, scale: 'rangeCustom', rangeMax: 15, allowEL: false }
+                ];
+            }
+            if (t === 'Grande finale') {
+                return [{ id: 'nt_votes', name: 'Votes', field: 'score1', coefficient: 1, scale: 'range20', allowEL: false }];
+            }
+            return [
+                { id: 'nt_fond', name: 'Fond', field: 'score1', coefficient: 3, scale: 'step5', allowEL: true },
+                { id: 'nt_forme', name: 'Forme', field: 'score2', coefficient: 1, scale: 'step5', allowEL: true }
+            ];
+        }
+
+        function clampRangeMax(value) {
+            const digits = String(value ?? '').replace(/\D/g, '').slice(0, 4);
+            let n = parseInt(digits, 10);
+            if (isNaN(n) || n < 1) n = 1;
+            if (n > 9999) n = 9999;
+            return n;
+        }
+
+        function normalizeNoteType(nt, index) {
+            let scale = nt && nt.scale ? nt.scale : 'step5';
+            let rangeMax = nt && nt.rangeMax != null ? clampRangeMax(nt.rangeMax) : null;
+            if (scale === 'range15') { scale = 'rangeCustom'; rangeMax = 15; }
+            if (scale === 'range30') { scale = 'rangeCustom'; rangeMax = 30; }
+            if (scale === 'range' || scale === 'rangeX') scale = 'rangeCustom';
+            if (scale === 'range20') rangeMax = 20;
+            if (scale === 'rangeCustom') {
+                if (rangeMax == null) rangeMax = 10;
+                if (rangeMax === 20) {
+                    scale = 'range20';
+                    rangeMax = 20;
+                }
+            }
+            return {
+                id: (nt && nt.id) ? nt.id : ('nt_' + (index + 1)),
+                name: (nt && nt.name) ? nt.name : ('Note ' + (index + 1)),
+                field: (nt && nt.field) ? nt.field : ('score' + (index + 1)),
+                coefficient: (nt && (nt.coefficient === 0 || nt.coefficient)) ? Number(nt.coefficient) : 1,
+                scale,
+                rangeMax: rangeMax,
+                allowEL: !!nt?.allowEL
+            };
+        }
+
+        function getNoteTypeRangeMax(nt) {
+            if (!nt) return null;
+            if (nt.scale === 'range20') return 20;
+            if (nt.scale === 'rangeCustom') return clampRangeMax(nt.rangeMax);
+            return null;
+        }
+
+        function getNoteTypesForRound(round) {
+            if (round && Array.isArray(round.noteTypes) && round.noteTypes.length > 0) {
+                return round.noteTypes.map((nt, i) => normalizeNoteType(nt, i));
+            }
+            return defaultNoteTypesForRound(round).map((nt, i) => normalizeNoteType(nt, i));
+        }
+
+        function roundHasCustomNoteTypes(round) {
+            return !!(round && Array.isArray(round.noteTypes) && round.noteTypes.length > 0);
+        }
+
+        function criteriaFromNoteTypesList(noteTypes) {
+            return (noteTypes || []).map(nt => ({
+                id: nt.id,
+                name: nt.name,
+                field: nt.field,
+                widget: (nt.scale === 'step5' || nt.scale === 'binary') ? 'buttons' : 'slider',
+                scale: nt.scale,
+                rangeMax: nt.rangeMax,
+                allowEL: !!nt.allowEL,
+                coefficient: nt.coefficient
+            }));
+        }
+
+        function collectJuryUiLayoutsByField(ui) {
+            const map = {};
+            ((ui && ui.tabs) || []).forEach(tab => {
+                (tab.criteria || []).forEach(c => {
+                    if (!c.field) return;
+                    map[c.field] = { layout: c.layout, elLocksNext: !!c.elLocksNext };
+                });
+            });
+            return map;
+        }
+
+        function attachJuryUiLayouts(criteria, extrasByField) {
+            return (criteria || []).map(c => {
+                const prev = extrasByField && c.field ? extrasByField[c.field] : null;
+                if (!prev) return c;
+                if (prev.layout) c.layout = prev.layout;
+                if (prev.elLocksNext) c.elLocksNext = true;
+                return c;
+            });
+        }
+
+        function syncRoundJuryUiWithNoteTypes(round, noteTypes) {
+            if (!round || isRepechageRound(round)) return;
+            const layoutByField = collectJuryUiLayoutsByField(round.juryUi);
+            const criteria = attachJuryUiLayouts(criteriaFromNoteTypesList(noteTypes), layoutByField);
+            if (!round.juryUi || !Array.isArray(round.juryUi.tabs)) {
+                const isIndiv = round.type === 'Notation individuelle' || round.type === 'Normal';
+                round.juryUi = {
+                    forType: round.type,
+                    showTabsBar: !(isIndiv || round.type === 'Grande finale'),
+                    candidateCount: (isIndiv || round.type === 'Petite finale' || round.type === 'Grande finale') ? 1 : 2,
+                    intro: '',
+                    validateLabel: 'Valider la notation',
+                    cardTitle1: 'Candidat',
+                    cardTitle2: 'Candidat 2',
+                    tabs: [{ id: 'tab_notation', name: 'Notation', type: 'notation', intro: '', criteria }],
+                    revision: Date.now()
+                };
+                return;
+            }
+            const tabs = round.juryUi.tabs;
+            const notationTabs = tabs.filter(t => t.type === 'notation' || !t.type);
+            if (notationTabs.length === 0) {
+                tabs.unshift({ id: 'tab_notation', name: 'Notation', type: 'notation', intro: '', criteria });
+                round.juryUi.showTabsBar = true;
+            } else if (notationTabs.length === 1) {
+                notationTabs[0].criteria = criteria;
+            } else {
+                const used = new Set();
+                notationTabs.forEach(tab => {
+                    tab.criteria = (tab.criteria || []).map(c => {
+                        const nt = noteTypes.find(t => t.id === c.id || t.field === c.field);
+                        if (!nt) return null;
+                        used.add(nt.field);
+                        return attachJuryUiLayouts(criteriaFromNoteTypesList([nt]), layoutByField)[0];
+                    }).filter(Boolean);
+                });
+                const extra = criteria.filter(c => !used.has(c.field));
+                if (extra.length) {
+                    const last = notationTabs[notationTabs.length - 1];
+                    last.criteria = [...(last.criteria || []), ...extra];
+                }
+            }
+            round.juryUi.forType = round.type;
+            round.juryUi.revision = Date.now();
+        }
+
+        async function clearNoteTypeScoresForRound(roundId, field) {
+            if (!roundId || !field) return;
+            const snap = await getDocs(query(collection(db, "scores"), where("roundId", "==", roundId)));
+            let batch = writeBatch(db);
+            let n = 0;
+            for (const d of snap.docs) {
+                const data = d.data();
+                if (data[field] == null || data[field] === '') continue;
+                batch.update(d.ref, { [field]: deleteField() });
+                n += 1;
+                if (n >= 400) {
+                    await batch.commit();
+                    batch = writeBatch(db);
+                    n = 0;
+                }
+            }
+            if (n > 0) await batch.commit();
+        }
+
+        function getOptionsForNoteType(nt) {
+            const opts = ['-'];
+            if (nt.scale === 'binary') {
+                opts.push('0', '1');
+            } else if (nt.scale === 'range20' || nt.scale === 'rangeCustom') {
+                const max = Math.min(getNoteTypeRangeMax(nt) || 20, NOTE_RANGE_SELECT_LIMIT);
+                for (let i = 0; i <= max; i++) opts.push(String(i));
+            } else {
+                opts.push('5', '10', '15', '20');
+            }
+            if (nt.allowEL) opts.push('EL');
+            return opts;
+        }
+
+        function computeScoreFromNoteTypes(scores, noteTypes) {
+            if (!scores || !noteTypes || !noteTypes.length) return 0;
+            if (noteTypes.some(nt => scores[nt.field] === 'EL')) return 0;
+            let total = 0;
+            noteTypes.forEach(nt => {
+                const v = scores[nt.field];
+                if (v === '-' || v == null || v === '') return;
+                total += (parseFloat(v) || 0) * (Number(nt.coefficient) || 0);
+            });
+            return total;
+        }
+
+        function areNoteTypesComplete(scores, noteTypes) {
+            if (!scores || !noteTypes || !noteTypes.length) return false;
+            return noteTypes.every(nt => {
+                const v = scores[nt.field];
+                return v != null && v !== '' && v !== '-';
+            });
+        }
+
+        function escapeHtmlAttr(value) {
+            return String(value ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+        }
+
+        function isRepechageRound(round) {
+            return !!(round && (round.type === 'Repêchage' || round.type_epreuve === 'repechage'));
+        }
+
+        function renderNoteTypesEditor() {
+            const tbody = document.getElementById('note-types-table-body');
+            if (!tbody) return;
+            const displayRound = notesDisplayRound || activeRoundId || 'round1';
+            const round = ROUNDS.find(r => r.id === displayRound);
+            const locked = isRepechageRound(round);
+            const editor = document.getElementById('note-types-editor');
+            const help = document.getElementById('note-types-help');
+            const banner = document.getElementById('note-types-lock-banner');
+            const addBtn = document.getElementById('add-note-type-btn');
+            if (editor) editor.classList.toggle('locked', locked);
+            if (help) help.style.display = locked ? 'none' : '';
+            if (banner) banner.style.display = locked ? '' : 'none';
+            if (addBtn) addBtn.style.display = locked ? 'none' : '';
+            const types = locked ? defaultNoteTypesForRound(round).map((nt, i) => normalizeNoteType(nt, i)) : getNoteTypesForRound(round);
+            tbody.innerHTML = types.map((nt, index) => {
+                const scaleOpts = NOTE_SCALE_OPTIONS.map(opt =>
+                    `<option value="${opt.id}" ${nt.scale === opt.id ? 'selected' : ''}>${opt.label}</option>`
+                ).join('');
+                const rangeInput = nt.scale === 'rangeCustom'
+                    ? `<input type="text" inputmode="numeric" maxlength="4" class="note-types-range-max" value="${escapeHtmlAttr(nt.rangeMax || '')}" placeholder="X" title="Maximum (1 à 9999)" oninput="this.value=this.value.replace(/\\D/g,'').slice(0,4)" onkeydown="if(event.key==='Enter'){event.preventDefault();commitNoteTypeRangeMax(${index}, this);}" onblur="commitNoteTypeRangeMax(${index}, this)">`
+                    : '';
+                return `<tr>
+                    <td><button type="button" class="icon-btn delete" onclick="deleteNoteTypeFromDisplayedRound(${index})" title="Supprimer">🗑️</button></td>
+                    <td><input type="text" value="${escapeHtmlAttr(nt.name)}" onchange="updateNoteTypeOnDisplayedRound(${index}, 'name', this.value)"></td>
+                    <td><input type="number" step="0.1" value="${escapeHtmlAttr(nt.coefficient)}" onchange="updateNoteTypeOnDisplayedRound(${index}, 'coefficient', this.value)"></td>
+                    <td><div class="note-types-scale-cell"><select onchange="updateNoteTypeOnDisplayedRound(${index}, 'scale', this.value)">${scaleOpts}</select>${rangeInput}</div></td>
+                    <td style="text-align: center;"><input type="checkbox" ${nt.allowEL ? 'checked' : ''} onchange="updateNoteTypeOnDisplayedRound(${index}, 'allowEL', this.checked)"></td>
+                </tr>`;
+            }).join('');
+        }
+
+        async function persistNoteTypesForDisplayedRound(noteTypes) {
+            const displayRound = notesDisplayRound || activeRoundId || 'round1';
+            const round = ROUNDS.find(r => r.id === displayRound);
+            if (!round) {
+                await customAlert('Aucun tour à afficher.');
+                return;
+            }
+            if (isRepechageRound(round)) {
+                await customAlert('Les paramètres du repêchage sont bloqués (vote 0 ou 1, interface Qualifiés / Éliminés).');
+                return;
+            }
+            const normalized = noteTypes.map((nt, i) => normalizeNoteType(nt, i));
+            const snap = await getDoc(doc(db, 'config', 'rounds'));
+            const data = snap.exists() ? snap.data() : { rounds: ROUNDS, activeRoundId };
+            const rounds = (data.rounds || ROUNDS || []).map(r => {
+                if (r.id !== displayRound) return r;
+                const next = { ...r, noteTypes: normalized };
+                next.type_epreuve = next.type_epreuve != null ? next.type_epreuve : getTypeEpreuveFromType(next.type);
+                syncRoundJuryUiWithNoteTypes(next, next.noteTypes);
+                return next;
+            });
+            await setDoc(doc(db, 'config', 'rounds'), {
+                ...data,
+                rounds,
+                activeRoundId: data.activeRoundId || activeRoundId
+            });
+            ROUNDS = rounds.map(r => ({
+                ...r,
+                type_epreuve: r.type_epreuve != null ? r.type_epreuve : getTypeEpreuveFromType(r.type)
+            }));
+            lastAdminNoteTypesSig = noteTypesSyncSig(normalized);
+            try {
+                const saved = ROUNDS.find(r => r.id === displayRound);
+                await setDoc(doc(db, 'config', 'juryLayoutPing'), {
+                    roundId: displayRound,
+                    revision: (saved && saved.juryUi && saved.juryUi.revision) || Date.now(),
+                    at: Date.now()
+                });
+            } catch (e) { console.warn('juryLayoutPing', e); }
+            renderRoundsTable();
+            renderNoteTypesEditor();
+            await renderNotesTable();
+        }
+
+        window.updateNoteTypeOnDisplayedRound = async function(index, field, value) {
+            const displayRound = notesDisplayRound || activeRoundId || 'round1';
+            const round = ROUNDS.find(r => r.id === displayRound);
+            if (!round || isRepechageRound(round)) return;
+            const types = getNoteTypesForRound(round);
+            if (!types[index]) return;
+            if (field === 'coefficient') {
+                const n = parseFloat(value);
+                types[index].coefficient = isNaN(n) ? 1 : n;
+            } else if (field === 'allowEL') {
+                types[index].allowEL = value === true || value === 'true';
+            } else if (field === 'scale') {
+                types[index].scale = value;
+                if (value === 'range20') {
+                    types[index].rangeMax = 20;
+                } else if (value === 'rangeCustom') {
+                    const hasMax = types[index].rangeMax != null && types[index].rangeMax !== '';
+                    const currentMax = hasMax ? clampRangeMax(types[index].rangeMax) : 10;
+                    types[index].rangeMax = (currentMax === 20) ? 10 : currentMax;
+                }
+            } else {
+                types[index][field] = value;
+            }
+            await persistNoteTypesForDisplayedRound(types);
+        };
+
+        window.commitNoteTypeRangeMax = async function(index, input) {
+            const displayRound = notesDisplayRound || activeRoundId || 'round1';
+            const round = ROUNDS.find(r => r.id === displayRound);
+            if (!round || !input || isRepechageRound(round)) return;
+            const types = getNoteTypesForRound(round);
+            if (!types[index]) return;
+            const n = clampRangeMax(input.value);
+            if (n === 20) {
+                types[index].scale = 'range20';
+                types[index].rangeMax = 20;
+            } else {
+                types[index].scale = 'rangeCustom';
+                types[index].rangeMax = n;
+            }
+            if (types[index].scale === (round.noteTypes && round.noteTypes[index] && round.noteTypes[index].scale) &&
+                types[index].rangeMax === (round.noteTypes && round.noteTypes[index] && round.noteTypes[index].rangeMax)) {
+                input.value = String(n);
+                return;
+            }
+            await persistNoteTypesForDisplayedRound(types);
+        };
+
+        window.addNoteTypeToDisplayedRound = async function() {
+            const displayRound = notesDisplayRound || activeRoundId || 'round1';
+            const round = ROUNDS.find(r => r.id === displayRound);
+            if (!round) {
+                await customAlert('Aucun tour à afficher.');
+                return;
+            }
+            if (isRepechageRound(round)) {
+                await customAlert('Les paramètres du repêchage sont bloqués.');
+                return;
+            }
+            const types = getNoteTypesForRound(round);
+            const used = new Set(types.map(nt => nt.field));
+            let field = null;
+            for (let i = 1; i <= 10; i++) {
+                const f = 'score' + i;
+                if (!used.has(f)) { field = f; break; }
+            }
+            if (!field) {
+                await customAlert('Maximum 10 types de notes par tour.');
+                return;
+            }
+            types.push({
+                id: 'nt_' + Date.now(),
+                name: 'Nouvelle note',
+                field,
+                coefficient: 1,
+                scale: 'range20',
+                allowEL: false
+            });
+            await persistNoteTypesForDisplayedRound(types);
+        };
+
+        window.openJuryMaquette = function() {
+            const displayRound = notesDisplayRound || activeRoundId || 'round1';
+            window.open('jury-maquette.html?round=' + encodeURIComponent(displayRound), '_blank', 'noopener');
+        };
+
+        window.deleteNoteTypeFromDisplayedRound = async function(index) {
+            const displayRound = notesDisplayRound || activeRoundId || 'round1';
+            const round = ROUNDS.find(r => r.id === displayRound);
+            if (!round || isRepechageRound(round)) return;
+            const types = getNoteTypesForRound(round);
+            if (types.length <= 1) {
+                await customAlert('Il faut au moins un type de note.');
+                return;
+            }
+            if (!await customConfirm('Supprimer ce type de note ?\n\nLes notes déjà saisies pour ce critère seront aussi supprimées.')) {
+                return;
+            }
+            const removed = types.splice(index, 1)[0];
+            if (removed && removed.field) {
+                await clearNoteTypeScoresForRound(displayRound, removed.field);
+            }
+            await persistNoteTypesForDisplayedRound(types);
+            try { await updateClassementFromScoresForRound(displayRound); } catch (e) { console.warn(e); }
+        };
         let podiumDisplayRound = null; // Tour affiché dans le podium
         let podiumFinalList = null;     // Classement final (avec bonus et points activés) pour l'onglet Podium uniquement
         let podiumFinalListRound = null;
@@ -3688,7 +4270,8 @@
             console.log('[CLASSEMENT] renderNotesTable ENTRÉE (lecture seule, n\'écrit pas au classement)');
             // Éviter les appels multiples en parallèle
             if (isRenderingNotesTable) {
-                console.log('[CLASSEMENT] renderNotesTable déjà en cours, skip');
+                notesTableNeedsRerender = true;
+                console.log('[CLASSEMENT] renderNotesTable déjà en cours, reporté');
                 return;
             }
             isRenderingNotesTable = true;
@@ -3927,6 +4510,17 @@
                             }
                         });
                     }
+                } else if (roundHasCustomNoteTypes(currentRound)) {
+                    const noteTypes = getNoteTypesForRound(currentRound);
+                    sortedJuries.forEach(jury => {
+                        const scores = scoresByCandidate[candidate.id]?.[jury.id];
+                        if (!scores) return;
+                        const any = noteTypes.some(nt => scores[nt.field] != null && scores[nt.field] !== '' && scores[nt.field] !== '-');
+                        if (any) {
+                            hasScores = true;
+                            totalScore += computeScoreFromNoteTypes(scores, noteTypes);
+                        }
+                    });
                 } else {
                     // Pour les autres tours (dont Petite finale), utiliser les jurys présents sur ce tour
                     const chosenCritere = isPetiteFinale ? (petiteFinaleChoices[candidate.id] || '') : null;
@@ -3954,7 +4548,9 @@
                 }
                 
                 let totalScoreBase = 0;
-                if (!isRepechage) {
+                if (!isRepechage && roundHasCustomNoteTypes(currentRound)) {
+                    totalScoreBase = totalScore;
+                } else if (!isRepechage) {
                     const chosenCritereBase = isPetiteFinale ? (petiteFinaleChoices[candidate.id] || '') : null;
                     sortedJuries.forEach(jury => {
                         const scores = scoresByCandidate[candidate.id]?.[jury.id];
@@ -4037,8 +4633,11 @@
                 return '';
             };
             
-            // En-tête différent pour repêchage / Petite finale (6 notes) / Grande finale (votes) / autres tours (2 notes)
-            const juryHeaders = isRepechage 
+            // En-tête aligné sur le tableau des types de notes (sauf repêchage, interface 0/1 figée)
+            const customNoteTypes = (!isRepechage && currentRound) ? getNoteTypesForRound(currentRound) : null;
+            const juryHeaders = customNoteTypes
+                ? sortedJuries.map(j => `<th colspan="${customNoteTypes.length}" class="col-score" style="min-width: ${Math.max(90, customNoteTypes.length * 70)}px;">${j.name}<br><small>(${customNoteTypes.map(nt => nt.name).join(' | ')})</small></th>`).join('')
+                : isRepechage 
                 ? sortedJuries.map(j => `<th class="col-score" style="min-width: 90px;">${j.name}<br><small>(0 ou 1)</small></th>`).join('')
                 : isPetiteFinale
                 ? sortedJuries.map(j => `<th colspan="6" class="col-score" style="min-width: 360px;">${j.name}<br><small>Prés. | Œuvre (1 note) | Discours: glob./fond/crit. | Artefact</small></th>`).join('')
@@ -4254,7 +4853,18 @@
                 sortedJuries.forEach(jury => {
                     const scores = item.scoresByJury[jury.id];
                     
-                    if (isRepechage) {
+                    if (customNoteTypes) {
+                        const readonly = isRoundValidated || (candidate.status === 'Elimine' || candidate.status === 'Qualifie');
+                        customNoteTypes.forEach(nt => {
+                            const cell = row.insertCell();
+                            cell.className = 'col-score';
+                            cell.style.minWidth = '90px';
+                            cell.style.width = '90px';
+                            cell.style.textAlign = 'center';
+                            const currentVal = scores ? (scores[nt.field] != null ? scores[nt.field] : '-') : '-';
+                            cell.innerHTML = createScoreDropdown(scores ? scores.id : null, nt.field, currentVal, candidate.id, jury.id, readonly);
+                        });
+                    } else if (isRepechage) {
                         // Pour repêchage : une seule colonne par jury (0 ou 1)
                         const cell = row.insertCell();
                         cell.className = 'col-score';
@@ -4322,6 +4932,10 @@
 
             } finally {
                 isRenderingNotesTable = false;
+                if (notesTableNeedsRerender) {
+                    notesTableNeedsRerender = false;
+                    renderNotesTable();
+                }
             }
         }
 
@@ -4625,6 +5239,7 @@
         // Fonction pour changer le tour affiché dans Notes
         window.changeNotesRound = (roundId) => {
             notesDisplayRound = roundId;
+            renderNoteTypesEditor();
             renderNotesTable();
         };
         
@@ -5496,6 +6111,11 @@
             // Récupérer le tour actif pour connaître la limite de candidats
             const activeRound = ROUNDS.find(r => r.id === activeRoundId);
             if (!activeRound) return;
+            const skipTypes = ['Petite finale', 'Grande finale', 'Classement'];
+            const skipEpreuves = ['petite_finale', 'grande_finale', 'classement'];
+            if (skipTypes.includes(activeRound.type) || skipEpreuves.includes(activeRound.type_epreuve)) {
+                return;
+            }
             
             // Charger les jurys présents sur ce tour
             await loadJuries();
@@ -5531,15 +6151,13 @@
                     scoresByCandidate[data.candidateId] = {};
                 }
                 const juryId = data.juryId || data.juryName;
-                scoresByCandidate[data.candidateId][juryId] = {
-                    score1: data.score1,
-                    score2: data.score2
-                };
+                scoresByCandidate[data.candidateId][juryId] = data;
             });
             
             // Vérifier si TOUS les candidats ont toutes leurs notes complètes
             let allCandidatesComplete = true;
             const candidateScores = [];
+            const customTypes = roundHasCustomNoteTypes(activeRound) ? getNoteTypesForRound(activeRound) : null;
             
             for (const c of candidatesInRound) {
                 const candidateScoreData = scoresByCandidate[c.id] || {};
@@ -5548,6 +6166,16 @@
                 
                 for (const jury of juriesOnRound) {
                     const scores = candidateScoreData[jury.id];
+                    if (customTypes) {
+                        if (!areNoteTypesComplete(scores, customTypes)) {
+                            isComplete = false;
+                            allCandidatesComplete = false;
+                            console.log(`  ❌ ${c.name}: notes manquantes pour jury ${jury.name} (${jury.id})`);
+                            break;
+                        }
+                        totalScore += computeScoreFromNoteTypes(scores, customTypes);
+                        continue;
+                    }
                     if (!scores || 
                         !scores.score1 || scores.score1 === '-' ||
                         !scores.score2 || scores.score2 === '-') {
@@ -5624,18 +6252,29 @@
         function createScoreDropdown(scoreId, field, currentValue, candidateId, juryId, readonly = false) {
             const displayRound = notesDisplayRound || activeRoundId || 'round1';
             const round = ROUNDS.find(r => r.id === displayRound);
+            const noteType = round ? getNoteTypesForRound(round).find(nt => nt.field === field) : null;
             const isDuels = round && (round.type === 'Duels' || round.type_epreuve === 'duels');
             const isPetiteFinale = round && round.type === 'Petite finale';
             const isGrandeFinale = round && (round.type === 'Grande finale' || round.type_epreuve === 'grande_finale');
             const optionLength = (isPetiteFinale && (field === 'score3' || field === 'score7'))
                 ? 31
                 : (isPetiteFinale && field === 'score10') ? 16 : 21;
-            const options = (isDuels || isPetiteFinale || isGrandeFinale)
-                ? ['-'].concat(Array.from({ length: optionLength }, (_, i) => String(i)))
-                : ['-', '5', '10', '15', '20', 'EL'];
+            const rangeMax = noteType ? getNoteTypeRangeMax(noteType) : null;
+            const useNumberInput = !!(noteType && noteType.scale === 'rangeCustom' && rangeMax > NOTE_RANGE_SELECT_LIMIT);
             const selectId = `score-${candidateId}-${juryId}-${field}`;
             const disabledAttr = readonly ? 'disabled' : '';
             const currentStr = currentValue === undefined || currentValue === null ? '-' : String(currentValue);
+
+            if (useNumberInput) {
+                const displayVal = (currentStr === '-' || currentStr === '' || currentStr === 'EL') ? '' : currentStr;
+                return `<input type="number" id="${selectId}" min="0" max="${rangeMax}" step="1" value="${escapeHtmlAttr(displayVal)}" ${disabledAttr} style="width: 72px; text-align: center;" onchange="handleScoreChange('${scoreId}', '${field}', (this.value===''?'-':String(Math.min(${rangeMax}, Math.max(0, parseInt(this.value,10)||0)))), '${candidateId}', '${juryId}')">`;
+            }
+
+            const options = noteType
+                ? getOptionsForNoteType(noteType)
+                : (isDuels || isPetiteFinale || isGrandeFinale)
+                ? ['-'].concat(Array.from({ length: optionLength }, (_, i) => String(i)))
+                : ['-', '5', '10', '15', '20', 'EL'];
 
             let html = `<select id="${selectId}" onchange="handleScoreChange('${scoreId}', '${field}', this.value, '${candidateId}', '${juryId}')" ${disabledAttr} style="text-align: center;">`;
             options.forEach(opt => {
@@ -5741,6 +6380,9 @@
                 
                 await updateClassementFromScoresForRound(displayRound);
                 await new Promise(resolve => setTimeout(resolve, 300));
+                
+                // Vérifier si le candidat doit être qualifié automatiquement
+                await checkAndQualifyCandidate(candidateId);
                 
                 // Rafraîchir les deux onglets
                 await renderNotesTable();
@@ -7936,15 +8578,13 @@
                         scoresByCandidate[data.candidateId] = {};
                     }
                     const juryId = data.juryId || data.juryName;
-                    scoresByCandidate[data.candidateId][juryId] = {
-                        score1: data.score1,
-                        score2: data.score2
-                    };
+                    scoresByCandidate[data.candidateId][juryId] = data;
                 });
                 
                 // Calculer les scores totaux pour chaque candidat
                 const candidateScores = [];
                 let incompleteCount = 0;
+                const customTypes = roundHasCustomNoteTypes(activeRound) ? getNoteTypesForRound(activeRound) : null;
                 
                 for (const c of candidatesInRound) {
                     const candidateScoreData = scoresByCandidate[c.id] || {};
@@ -7953,6 +8593,15 @@
                     
                     for (const jury of juriesOnRound) {
                         const scores = candidateScoreData[jury.id];
+                        if (customTypes) {
+                            if (!areNoteTypesComplete(scores, customTypes)) {
+                                isComplete = false;
+                                incompleteCount++;
+                                break;
+                            }
+                            totalScore += computeScoreFromNoteTypes(scores, customTypes);
+                            continue;
+                        }
                         if (!scores || 
                             !scores.score1 || scores.score1 === '-' ||
                             !scores.score2 || scores.score2 === '-') {
@@ -8189,6 +8838,61 @@
             } catch (e) {
                 console.error('Erreur:', e);
                 await customAlert('❌ Erreur : ' + (e.message || e));
+            }
+        };
+
+        window.confirmResetMalus = async () => {
+            if (!await customConfirm('Réinitialiser tous les malus ?\n\n❌ Tous les malus de tous les tours et de tous les candidats seront supprimés\n✅ Les notes, jurys, duels et points de classement sont conservés\n\nCette action est IRRÉVERSIBLE !\n\nContinuer ?')) {
+                return;
+            }
+            try {
+                const malusSnap = await getDoc(doc(db, "config", "malus"));
+                const byRound = malusSnap.exists() ? (malusSnap.data().byRound || {}) : {};
+                let malusCount = 0;
+                Object.values(byRound).forEach(byCandidate => {
+                    if (!byCandidate || typeof byCandidate !== 'object') return;
+                    Object.values(byCandidate).forEach(list => {
+                        malusCount += Array.isArray(list) ? list.length : 0;
+                    });
+                });
+                if (malusCount === 0) {
+                    await customAlert('Aucun malus à réinitialiser.');
+                    return;
+                }
+                await setDoc(doc(db, "config", "malus"), { byRound: {} });
+                const classementsSnap = await getDocs(collection(db, "classements"));
+                for (const docSnap of classementsSnap.docs) {
+                    try {
+                        await updateDoc(docSnap.ref, {
+                            malusDisabled: deleteField(),
+                            lastUpdateSource: 'admin_reset_malus',
+                            updatedAt: new Date()
+                        });
+                    } catch (e) {
+                        console.warn('Réinitialisation malusDisabled impossible pour', docSnap.id, e);
+                    }
+                }
+                if (typeof updateClassementFromScoresForRound === 'function' && Array.isArray(ROUNDS)) {
+                    for (const round of ROUNDS) {
+                        if (round && round.id) {
+                            try {
+                                await updateClassementFromScoresForRound(round.id);
+                            } catch (e) {
+                                console.warn('Recalcul classement après reset malus:', round.id, e);
+                            }
+                        }
+                    }
+                }
+                if (typeof renderNotesTable === 'function') {
+                    try { await renderNotesTable(); } catch (e) { console.warn(e); }
+                }
+                if (typeof loadActivationClassementsData === 'function') {
+                    try { loadActivationClassementsData(); } catch (e) { console.warn(e); }
+                }
+                await customAlert(`✓ Malus réinitialisés.\n\n${malusCount} malus supprimé(s). Les scores affichés ne tiennent plus compte des malus.`);
+            } catch (e) {
+                console.error('Erreur:', e);
+                await customAlert('❌ Erreur lors de la réinitialisation des malus:\n' + e.message);
             }
         };
 

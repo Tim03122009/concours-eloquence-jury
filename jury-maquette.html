@@ -1,0 +1,1703 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maquette interface jury</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        html, body.maquette-body {
+            height: 100%;
+        }
+        body.maquette-body {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            min-height: 100vh;
+            height: 100vh;
+            overflow: hidden;
+            padding: 0;
+            background: #1b1738;
+        }
+        .maquette-toolbar {
+            position: relative;
+            flex: 0 0 auto;
+            z-index: 40;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            padding: 10px 16px;
+            background: #11102a;
+            color: #fff;
+            border-bottom: 1px solid rgba(255,255,255,0.12);
+        }
+        .maquette-toolbar h1 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 700;
+        }
+        .maquette-toolbar .hint {
+            margin: 2px 0 0;
+            font-size: 0.8rem;
+            color: #c4b5fd;
+        }
+        .maquette-toolbar-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .maquette-toolbar button, .maquette-editor button, .maquette-editor select, .maquette-editor input {
+            font-family: inherit;
+        }
+        .maquette-toolbar button {
+            border: none;
+            border-radius: 6px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #fff;
+        }
+        .btn-save { background: #16a34a; }
+        .btn-reset { background: #b45309; }
+        .btn-back { background: #4f46e5; }
+        .maquette-layout {
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: hidden;
+        }
+        .maquette-editor {
+            background: #15132b;
+            color: #e5e7eb;
+            padding: 12px 14px 18px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            border-right: 1px solid rgba(255,255,255,0.08);
+        }
+        .maquette-editor-nav {
+            flex: 0 0 auto;
+            margin-bottom: 10px;
+        }
+        .maquette-editor-nav label {
+            display: block;
+            font-size: 0.8rem;
+            margin-bottom: 4px;
+            color: #cbd5e1;
+        }
+        .maquette-editor-nav select {
+            width: 100%;
+            padding: 9px 10px;
+            border-radius: 6px;
+            border: 1px solid #6366f1;
+            background: #0f172a;
+            color: #f8fafc;
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+        .maquette-editor-body {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 4px;
+        }
+        .maquette-editor h2 {
+            margin: 0 0 10px;
+            font-size: 0.95rem;
+            color: #c4b5fd;
+        }
+        .maquette-editor h3 {
+            margin: 16px 0 8px;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #a5b4fc;
+        }
+        .maquette-editor h3:first-child {
+            margin-top: 0;
+        }
+        .crit-group {
+            margin: 0 0 16px;
+            padding: 8px 8px 4px;
+            border: 1px solid rgba(129, 140, 248, 0.28);
+            border-radius: 10px;
+            background: rgba(15, 23, 42, 0.45);
+        }
+        .crit-group h4 {
+            margin: 0 0 8px;
+            padding: 2px 2px 8px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            color: #e0e7ff;
+            border-bottom: 1px solid rgba(129, 140, 248, 0.25);
+        }
+        .crit-group-empty {
+            margin: 0 0 8px;
+            font-size: 0.8rem;
+            color: #94a3b8;
+        }
+        .maquette-field {
+            margin-bottom: 10px;
+        }
+        .maquette-field label {
+            display: block;
+            font-size: 0.8rem;
+            margin-bottom: 4px;
+            color: #cbd5e1;
+        }
+        .maquette-field input[type="text"],
+        .maquette-field select,
+        .maquette-editor textarea {
+            width: 100%;
+            padding: 7px 8px;
+            border-radius: 6px;
+            border: 1px solid #334155;
+            background: #0f172a;
+            color: #f8fafc;
+        }
+        .maquette-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+        .chip input { margin: 0; }
+        .tab-edit, .crit-edit {
+            background: #1e1b3a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 8px;
+            margin-bottom: 8px;
+        }
+        .tab-edit.active-tab-edit {
+            border-color: #818cf8;
+        }
+        .mini-btn {
+            background: #334155;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 0.75rem;
+        }
+        .mini-btn.danger { background: #b91c1c; }
+        .mini-btn.add { background: #166534; }
+        .maquette-stage {
+            padding: 10px;
+            overflow: hidden;
+            display: flex;
+            min-height: 0;
+        }
+        .maquette-stage-inner {
+            flex: 1 1 auto;
+            min-height: 0;
+            display: flex;
+            justify-content: center;
+            align-items: stretch;
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            border-radius: 12px;
+            padding: 10px 10px 12px;
+        }
+        .maquette-stage #scoring-page {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 1200px;
+            min-height: 0;
+            height: 100%;
+            max-height: 100%;
+            overflow: hidden;
+            padding: 8px 12px 8px;
+        }
+        .maquette-stage #scoring-page h2 {
+            font-size: 1.05rem;
+            margin-bottom: 4px !important;
+        }
+        .maquette-body .jury-ui-body,
+        .maquette-body .jury-ui-body > .jury-tab-content.active,
+        .maquette-body .jury-notation-cols,
+        .maquette-body .jury-notation-card {
+            flex: 1 1 auto;
+            min-height: 0;
+            height: auto;
+        }
+        .maquette-body .jury-ui-body {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .maquette-body .jury-ui-body > .jury-tab-content.active {
+            display: flex !important;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .maquette-body .jury-notation-cols {
+            display: grid;
+            align-items: stretch;
+        }
+        .maquette-body .jury-notation-card {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .maquette-body .notes-layout-board,
+        .maquette-body .notes-layout-board.rows-2,
+        .maquette-body .notes-layout-board.rows-4,
+        .maquette-body .notes-layout-board.rows-6 {
+            flex: 1 1 auto;
+            height: auto;
+            min-height: 0;
+            overflow: hidden;
+        }
+        .maquette-body .notes-layout-grid,
+        .maquette-body .notes-layout-board.rows-2 .notes-layout-grid,
+        .maquette-body .notes-layout-board.rows-4 .notes-layout-grid,
+        .maquette-body .notes-layout-board.rows-6 .notes-layout-grid {
+            height: 100%;
+            min-height: 0;
+            grid-template-rows: repeat(6, minmax(0, 1fr));
+        }
+        .maquette-body .notes-layout-guides,
+        .maquette-body .notes-layout-board.rows-2 .notes-layout-guides,
+        .maquette-body .notes-layout-board.rows-4 .notes-layout-guides {
+            grid-template-rows: repeat(6, 1fr);
+        }
+        .toast {
+            position: fixed;
+            bottom: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #111827;
+            color: #fff;
+            padding: 10px 14px;
+            border-radius: 8px;
+            display: none;
+            z-index: 50;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+        }
+        .status-line {
+            font-size: 0.8rem;
+            color: #86efac;
+            min-height: 1.2em;
+            margin-bottom: 8px;
+        }
+        .maquette-lock-box {
+            background: #422006;
+            border: 1px solid #d97706;
+            color: #fde68a;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.88rem;
+            line-height: 1.45;
+        }
+        .btn-save:disabled, .btn-reset:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+        .repechage-preview-cols {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .repechage-preview-col {
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            padding: 12px;
+            background: var(--card-bg);
+        }
+        .repechage-preview-col h3 { margin: 0 0 10px; font-size: 1rem; }
+        .repechage-preview-col.ok { border-color: var(--success-color); }
+        .repechage-preview-col.ko { border-color: var(--danger-color); }
+        @media (max-width: 980px) {
+            body.maquette-body { height: auto; overflow: auto; }
+            .maquette-layout { grid-template-columns: 1fr; overflow: visible; }
+            .maquette-editor {
+                max-height: 48vh;
+                border-right: none;
+                border-bottom: 1px solid rgba(255,255,255,0.08);
+            }
+        }
+    </style>
+</head>
+<body class="maquette-body">
+    <div class="maquette-toolbar">
+        <div>
+            <h1>Maquette interface jury</h1>
+            <p class="hint" id="toolbar-hint">Même mise en page que le jury — les notes ne sont pas enregistrées.</p>
+        </div>
+        <div class="maquette-toolbar-actions">
+            <button type="button" class="btn-save" id="btn-save">Enregistrer la mise en page</button>
+            <button type="button" class="btn-reset" id="btn-reset">Réinitialiser</button>
+            <button type="button" class="btn-back" id="btn-back">Retour admin</button>
+        </div>
+    </div>
+    <div class="maquette-layout">
+        <aside class="maquette-editor" id="editor"></aside>
+        <main class="maquette-stage">
+            <div class="maquette-stage-inner">
+                <div id="scoring-page" class="page active"></div>
+            </div>
+        </main>
+    </div>
+    <div class="toast" id="toast"></div>
+    <script src="modal.js"></script>
+    <script type="module">
+        import { db } from './firebase-init.js';
+        import { doc, getDoc, setDoc, onSnapshot, collection, getDocs, query, where, writeBatch, deleteField } from 'https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js';
+
+        const params = new URLSearchParams(location.search);
+        const roundId = params.get('round') || 'round1';
+        const FAKE_CANDIDATES = [
+            { id: 'demo-1', name: 'Candidat exemple 1' },
+            { id: 'demo-2', name: 'Candidat exemple 2' },
+            { id: 'demo-3', name: 'Candidat exemple 3' }
+        ];
+
+        let round = null;
+        let ui = null;
+        let activeTabId = null;
+        let persistTimer = null;
+        let notesSyncTimer = null;
+        let lastAppliedNtSig = '';
+        let writingSync = false;
+        let pendingRemoteRound = null;
+        let pendingPersist = false;
+        let editorSection = 'layout';
+
+        const $ = (sel, root = document) => root.querySelector(sel);
+        const uid = (prefix) => prefix + '_' + Math.random().toString(36).slice(2, 8);
+
+        function toast(msg) {
+            const el = $('#toast');
+            el.textContent = msg;
+            el.style.display = 'block';
+            setTimeout(() => { el.style.display = 'none'; }, 2200);
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+        }
+
+        function widgetForScale(scale) {
+            return (scale === 'step5' || scale === 'binary') ? 'buttons' : 'slider';
+        }
+
+        function findNoteTypeForCrit(crit, noteTypes) {
+            return (noteTypes || []).find(n => (crit.id && n.id === crit.id) || (crit.field && n.field === crit.field));
+        }
+
+        function sameNoteVal(a, b) {
+            if (a === b) return true;
+            if (a == null && (b == null || b === '')) return true;
+            if (b == null && (a == null || a === '')) return true;
+            return String(a) === String(b);
+        }
+
+        function noteTypesSig(types) {
+            return (types || []).map(t => [
+                t.id,
+                t.field,
+                t.name,
+                t.scale,
+                t.rangeMax == null || t.rangeMax === '' ? '' : String(t.rangeMax),
+                t.allowEL ? 1 : 0,
+                t.coefficient == null || t.coefficient === '' ? '' : String(t.coefficient)
+            ].join(':')).join('|');
+        }
+
+        function collectCritExtras(layout) {
+            const map = {};
+            (layout?.tabs || []).forEach(tab => {
+                (tab.criteria || []).forEach(c => {
+                    if (!c.field && !c.id) return;
+                    map[c.field || c.id] = { layout: c.layout, elLocksNext: !!c.elLocksNext, widget: c.widget };
+                });
+            });
+            return map;
+        }
+
+        function patchCriterionFromNoteType(crit, nt, extras) {
+            let changed = false;
+            const widget = widgetForScale(nt.scale);
+            const next = {
+                id: nt.id || crit.id,
+                name: nt.name || crit.name,
+                field: nt.field || crit.field,
+                scale: nt.scale || crit.scale,
+                rangeMax: nt.rangeMax,
+                allowEL: !!nt.allowEL,
+                coefficient: nt.coefficient,
+                widget
+            };
+            Object.keys(next).forEach(k => {
+                if (next[k] === undefined) return;
+                if (k === 'allowEL') {
+                    if (!!crit.allowEL !== !!next.allowEL) {
+                        crit.allowEL = !!next.allowEL;
+                        changed = true;
+                    }
+                    return;
+                }
+                if (!sameNoteVal(crit[k], next[k])) {
+                    crit[k] = next[k];
+                    changed = true;
+                }
+            });
+            if (!crit.allowEL && crit.elLocksNext) {
+                crit.elLocksNext = false;
+                changed = true;
+            }
+            const ex = extras && (extras[crit.field] || extras[crit.id]);
+            if (ex && ex.layout) crit.layout = ex.layout;
+            if (ex && ex.elLocksNext && crit.allowEL) crit.elLocksNext = true;
+            return changed;
+        }
+
+        function applyNoteTypesToMaquetteUi(layout, noteTypes) {
+            if (!layout || !Array.isArray(noteTypes) || !noteTypes.length) return false;
+            let changed = false;
+            const extras = collectCritExtras(layout);
+            const tabs = layout.tabs || [];
+            const notationTabs = tabs.filter(t => t.type === 'notation' || !t.type);
+            if (!notationTabs.length) return false;
+            const used = new Set();
+            notationTabs.forEach(tab => {
+                const prevLen = (tab.criteria || []).length;
+                tab.criteria = (tab.criteria || []).map(c => {
+                    const nt = findNoteTypeForCrit(c, noteTypes);
+                    if (!nt) {
+                        changed = true;
+                        return null;
+                    }
+                    used.add(nt.field);
+                    if (patchCriterionFromNoteType(c, nt, extras)) changed = true;
+                    return c;
+                }).filter(Boolean);
+                if ((tab.criteria || []).length !== prevLen) changed = true;
+            });
+            const extra = noteTypes.filter(nt => !used.has(nt.field)).map(nt => {
+                const c = { id: nt.id };
+                patchCriterionFromNoteType(c, nt, extras);
+                return c;
+            });
+            if (extra.length) {
+                const last = notationTabs[notationTabs.length - 1];
+                last.criteria = [...(last.criteria || []), ...extra];
+                changed = true;
+            }
+            return changed;
+        }
+
+        function noteTypesFromUi(layout, existing) {
+            const types = Array.isArray(existing) && existing.length ? existing.map(t => ({ ...t })) : [];
+            (layout?.tabs || []).forEach(tab => {
+                (tab.criteria || []).forEach(crit => {
+                    if (!crit.field && !crit.id) return;
+                    let nt = types.find(n => (crit.id && n.id === crit.id) || (crit.field && n.field === crit.field));
+                    if (!nt) {
+                        nt = { id: crit.id, field: crit.field, coefficient: 1 };
+                        types.push(nt);
+                    }
+                    if (crit.id) nt.id = crit.id;
+                    if (crit.field) nt.field = crit.field;
+                    if (crit.name) nt.name = crit.name;
+                    if (crit.scale) nt.scale = crit.scale;
+                    if (crit.rangeMax != null && crit.rangeMax !== '') {
+                        const n = parseInt(String(crit.rangeMax).replace(/\D/g, ''), 10);
+                        nt.rangeMax = isNaN(n) ? crit.rangeMax : n;
+                    }
+                    nt.allowEL = !!crit.allowEL;
+                    if (crit.coefficient != null && crit.coefficient !== '') nt.coefficient = crit.coefficient;
+                });
+            });
+            return types;
+        }
+
+        function applyUiElToNoteTypes(layout, noteTypes) {
+            return noteTypesFromUi(layout, noteTypes);
+        }
+
+        async function clearNoteTypeScoresForRound(targetRoundId, field) {
+            if (!targetRoundId || !field) return;
+            const snap = await getDocs(query(collection(db, 'scores'), where('roundId', '==', targetRoundId)));
+            let batch = writeBatch(db);
+            let n = 0;
+            for (const d of snap.docs) {
+                const data = d.data();
+                if (data[field] == null || data[field] === '') continue;
+                batch.update(d.ref, { [field]: deleteField() });
+                n += 1;
+                if (n >= 400) {
+                    await batch.commit();
+                    batch = writeBatch(db);
+                    n = 0;
+                }
+            }
+            if (n > 0) await batch.commit();
+        }
+
+        async function deleteCriterionFromMaquette(critId) {
+            if (isRepechageLocked()) {
+                toast('Les paramètres du repêchage sont bloqués.');
+                return;
+            }
+            const all = [];
+            (ui.tabs || []).forEach(t => (t.criteria || []).forEach(c => all.push(c)));
+            const crit = all.find(c => c.id === critId);
+            if (!crit) return;
+            const noteTypes = Array.isArray(round?.noteTypes) ? round.noteTypes : [];
+            const nt = findNoteTypeForCrit(crit, noteTypes);
+            const typesCount = noteTypes.length || all.length;
+            if (typesCount <= 1) {
+                if (typeof customAlert === 'function') await customAlert('Il faut au moins un type de note.');
+                else toast('Il faut au moins un type de note.');
+                return;
+            }
+            const ok = typeof customConfirm === 'function'
+                ? await customConfirm('Supprimer ce type de note ?\n\nLes notes déjà saisies pour ce critère seront aussi supprimées.')
+                : window.confirm('Supprimer ce type de note ?\n\nLes notes déjà saisies pour ce critère seront aussi supprimées.');
+            if (!ok) return;
+            const field = crit.field || (nt && nt.field);
+            (ui.tabs || []).forEach(t => {
+                if (!t.criteria) return;
+                t.criteria = t.criteria.filter(c => c.id !== critId && !(field && c.field === field));
+            });
+            writingSync = true;
+            try {
+                if (field) await clearNoteTypeScoresForRound(roundId, field);
+                const snap = await getDoc(doc(db, 'config', 'rounds'));
+                if (!snap.exists()) {
+                    renderAll();
+                    return;
+                }
+                const data = snap.data();
+                stampUiForSave(ui, round);
+                const rounds = (data.rounds || []).map(r => {
+                    if (r.id !== roundId) return r;
+                    const nextTypes = (Array.isArray(r.noteTypes) ? r.noteTypes : []).filter(n => {
+                        if (nt && n.id && nt.id && n.id === nt.id) return false;
+                        if (field && n.field === field) return false;
+                        if (crit.id && n.id === crit.id) return false;
+                        return true;
+                    });
+                    ui.revision = Date.now();
+                    return { ...r, noteTypes: nextTypes, juryUi: JSON.parse(JSON.stringify(ui)) };
+                });
+                await setDoc(doc(db, 'config', 'rounds'), { ...data, rounds });
+                await setDoc(doc(db, 'config', 'juryLayoutPing'), { roundId, revision: ui.revision, at: Date.now() });
+                round = rounds.find(r => r.id === roundId) || round;
+                lastAppliedNtSig = noteTypesSig(round?.noteTypes);
+            } finally {
+                writingSync = false;
+                pendingRemoteRound = null;
+            }
+            renderAll();
+            toast('Type de note supprimé (admin et jury mis à jour).');
+        }
+
+        function usedScoreFields() {
+            const used = new Set();
+            (round?.noteTypes || []).forEach(nt => { if (nt.field) used.add(nt.field); });
+            (ui?.tabs || []).forEach(t => (t.criteria || []).forEach(c => { if (c.field) used.add(c.field); }));
+            return used;
+        }
+
+        async function persistRoundNotesAndUi() {
+            if (writingSync) {
+                pendingPersist = true;
+                return;
+            }
+            writingSync = true;
+            try {
+                const snap = await getDoc(doc(db, 'config', 'rounds'));
+                if (!snap.exists()) throw new Error('Impossible de trouver les tours.');
+                const data = snap.data();
+                const current = (data.rounds || []).find(r => r.id === roundId);
+                const merged = noteTypesFromUi(ui, current?.noteTypes || round?.noteTypes || []);
+                stampUiForSave(ui, { ...(current || round), noteTypes: merged });
+                ui.revision = Date.now();
+                lastAppliedNtSig = noteTypesSig(merged);
+                const rounds = (data.rounds || []).map(r => r.id === roundId ? { ...r, noteTypes: merged, juryUi: JSON.parse(JSON.stringify(ui)) } : r);
+                await setDoc(doc(db, 'config', 'rounds'), { ...data, rounds });
+                await setDoc(doc(db, 'config', 'juryLayoutPing'), { roundId, revision: ui.revision, at: Date.now() });
+                round = rounds.find(r => r.id === roundId) || round;
+            } finally {
+                writingSync = false;
+                if (pendingPersist) {
+                    pendingPersist = false;
+                    pendingRemoteRound = null;
+                    persistRoundNotesAndUi().catch(err => toast('Sync admin : ' + (err.message || err)));
+                } else if (pendingRemoteRound) {
+                    const pending = pendingRemoteRound;
+                    pendingRemoteRound = null;
+                    applyRemoteNoteTypes(pending);
+                }
+            }
+        }
+
+        function scheduleNotesSync() {
+            scheduleLocalSave();
+            if (isRepechageLocked()) return;
+            clearTimeout(notesSyncTimer);
+            notesSyncTimer = setTimeout(() => {
+                persistNotesAndUi().catch(err => toast('Sync admin : ' + (err.message || err)));
+            }, 400);
+        }
+
+        async function persistNotesAndUi() {
+            if (isRepechageLocked() || !ui) return;
+            await persistRoundNotesAndUi();
+        }
+
+        async function addCriterionFromMaquette() {
+            if (isRepechageLocked()) {
+                toast('Les paramètres du repêchage sont bloqués.');
+                return;
+            }
+            const current = activeTab();
+            const tabNow = (current && (!current.type || current.type === 'notation')) ? current : notationTabs()[0];
+            if (!tabNow) {
+                toast('Ajoutez d’abord un onglet de notation.');
+                return;
+            }
+            const used = usedScoreFields();
+            let field = null;
+            for (let i = 1; i <= 10; i++) {
+                const f = 'score' + i;
+                if (!used.has(f)) { field = f; break; }
+            }
+            if (!field) {
+                if (typeof customAlert === 'function') await customAlert('Maximum 10 types de notes par tour.');
+                else toast('Maximum 10 types de notes par tour.');
+                return;
+            }
+            const id = 'nt_' + Date.now();
+            const crit = {
+                id,
+                name: 'Nouvelle note',
+                field,
+                widget: 'slider',
+                scale: 'range20',
+                rangeMax: 20,
+                allowEL: false,
+                coefficient: 1
+            };
+            tabNow.criteria = tabNow.criteria || [];
+            tabNow.criteria.push(crit);
+            ensureNotesLayouts(tabNow.criteria);
+            editorSection = 'criteria';
+            await persistRoundNotesAndUi();
+            renderAll();
+            toast('Note ajoutée (admin et jury mis à jour).');
+        }
+
+
+        function criteriaFromNoteTypes(noteTypes) {
+            return (noteTypes || []).map((nt, i) => ({
+                id: nt.id || ('crit_' + (i + 1)),
+                name: nt.name || ('Note ' + (i + 1)),
+                field: nt.field || ('score' + (i + 1)),
+                widget: widgetForScale(nt.scale),
+                scale: nt.scale || 'step5',
+                rangeMax: nt.rangeMax || (nt.scale === 'range20' ? 20 : 10),
+                allowEL: !!nt.allowEL,
+                coefficient: nt.coefficient
+            }));
+        }
+
+        function defaultUi(currentRound) {
+            const type = currentRound?.type || 'Notation individuelle';
+            const noteTypes = Array.isArray(currentRound?.noteTypes) && currentRound.noteTypes.length
+                ? currentRound.noteTypes
+                : [{ id: 'nt_fond', name: 'Fond / Argumentation', coefficient: 3, scale: 'step5', allowEL: true },
+                   { id: 'nt_forme', name: 'Forme / Éloquence', coefficient: 1, scale: 'step5', allowEL: false }];
+            const criteria = criteriaFromNoteTypes(noteTypes);
+
+            if (type === 'Petite finale') {
+                return {
+                    forType: type,
+                    showTabsBar: true,
+                    candidateCount: 1,
+                    intro: 'Noter un candidat à la fois.',
+                    validateLabel: 'Valider la notation',
+                    cardTitle1: 'Candidat',
+                    cardTitle2: 'Candidat 2',
+                    tabs: [
+                        { id: 'tab_pres', name: 'Le temps des présentations', type: 'notation', intro: 'Note de fond.', criteria: criteria.slice(0, 1) },
+                        { id: 'tab_oeuvre', name: 'Œuvre contemporaine', type: 'notation', intro: 'Note globale du discours.', criteria: criteria.slice(1, 2) },
+                        { id: 'tab_discours', name: 'Le temps des discours', type: 'notation', intro: 'Trois notes : globale, fond, critère.', criteria: criteria.slice(2, 5) },
+                        { id: 'tab_artefact', name: 'Artefact', type: 'notation', intro: 'Note de fond.', criteria: criteria.slice(5, 6) },
+                        { id: 'tab_classement', name: 'Mon classement', type: 'classement' }
+                    ]
+                };
+            }
+            if (type === 'Duels') {
+                return {
+                    forType: type,
+                    showTabsBar: true,
+                    candidateCount: 2,
+                    intro: 'Duel — Notez les deux candidats : Fond et Forme pour chacun.',
+                    validateLabel: 'Valider le duel',
+                    cardTitle1: 'Candidat 1',
+                    cardTitle2: 'Candidat 2',
+                    tabs: [
+                        { id: 'tab_notation', name: 'Notation', type: 'notation', intro: 'Notez les deux candidats.', criteria },
+                        { id: 'tab_duels', name: 'Gagnants de duel', type: 'duels' },
+                        { id: 'tab_classement', name: 'Mon classement', type: 'classement' }
+                    ]
+                };
+            }
+            if (type === 'Repêchage') {
+                return {
+                    forType: type,
+                    showTabsBar: false,
+                    candidateCount: 1,
+                    intro: 'Votez pour un candidat (0 ou 1).',
+                    validateLabel: 'Valider le vote',
+                    cardTitle1: 'Candidat',
+                    cardTitle2: 'Candidat 2',
+                    tabs: [
+                        { id: 'tab_vote', name: 'Vote', type: 'notation', intro: 'Votez pour un candidat (0 ou 1).', criteria }
+                    ]
+                };
+            }
+            if (type === 'Grande finale') {
+                return {
+                    forType: type,
+                    showTabsBar: false,
+                    candidateCount: 1,
+                    intro: 'Choisissez le meilleur candidat pour ce passage.',
+                    validateLabel: 'Valider',
+                    cardTitle1: 'Candidat',
+                    cardTitle2: 'Candidat 2',
+                    tabs: [
+                        { id: 'tab_finale', name: 'Finale', type: 'choix', intro: 'Choisissez le meilleur candidat pour ce passage.', personCount: 3, personSource: 'top' }
+                    ]
+                };
+            }
+            if (type === 'Notation individuelle' || type === 'Normal' || !type) {
+                return {
+                    forType: type || 'Notation individuelle',
+                    showTabsBar: false,
+                    candidateCount: 1,
+                    intro: 'Noter un candidat à la fois : Fond et Forme.',
+                    validateLabel: 'Valider la notation',
+                    cardTitle1: 'Candidat',
+                    cardTitle2: 'Candidat 2',
+                    tabs: [
+                        { id: 'tab_notation', name: 'Notation', type: 'notation', intro: 'Noter un candidat à la fois : Fond et Forme.', criteria }
+                    ]
+                };
+            }
+            return {
+                forType: type,
+                showTabsBar: true,
+                candidateCount: 2,
+                intro: 'Noter deux candidats : Fond et Forme pour chacun.',
+                validateLabel: 'Valider les deux notations',
+                cardTitle1: 'Candidat 1',
+                cardTitle2: 'Candidat 2',
+                tabs: [
+                    { id: 'tab_notation', name: 'Notation', type: 'notation', intro: 'Noter deux candidats : Fond et Forme pour chacun.', criteria },
+                    { id: 'tab_duels', name: 'Gagnants de duel', type: 'duels' },
+                    { id: 'tab_classement', name: 'Mon classement', type: 'classement' }
+                ]
+            };
+        }
+
+        function choixColumnCounts(n) {
+            const total = Math.max(0, parseInt(n, 10) || 0);
+            if (total <= 0) return [];
+            const cols = total <= 3 ? 1 : total <= 6 ? 2 : 3;
+            const counts = Array(cols).fill(0);
+            let left = total;
+            for (let i = 0; i < cols && left > 0; i++) {
+                const take = Math.min(3, left);
+                counts[i] = take;
+                left -= take;
+            }
+            let i = 0;
+            while (left > 0) {
+                counts[i % cols] += 1;
+                left -= 1;
+                i += 1;
+            }
+            return counts;
+        }
+
+        const LAYOUT_SIZES = [
+            { id: 'cell3', label: 'Case 3×3', w: 2, h: 2 },
+            { id: 'cell23', label: 'Case 2×3', w: 3, h: 2 },
+            { id: 'band13', label: 'Bande 1×3', w: 6, h: 2 },
+            { id: 'sq22', label: 'Carré 2×2', w: 4, h: 4 },
+            { id: 'rect23', label: 'Rectangle 2×3', w: 4, h: 6 },
+            { id: 'rect32', label: 'Rectangle 3×2', w: 6, h: 4 },
+            { id: 'col13', label: 'Colonne 1×3', w: 2, h: 6 },
+            { id: 'half22', label: 'Quart 2×2', w: 3, h: 3 },
+            { id: 'full', label: 'Toute la grille', w: 6, h: 6 }
+        ];
+
+        function clampNotesLayout(layout) {
+            const L = layout && typeof layout === 'object' ? layout : {};
+            const w = Math.max(1, Math.min(6, parseInt(L.w, 10) || 2));
+            const h = Math.max(1, Math.min(6, parseInt(L.h, 10) || 2));
+            const col = Math.max(1, Math.min(7 - w, parseInt(L.col, 10) || 1));
+            const row = Math.max(1, Math.min(7 - h, parseInt(L.row, 10) || 1));
+            return { col, row, w, h };
+        }
+
+        function ensureNotesLayouts(criteria) {
+            let col = 1;
+            let row = 1;
+            (criteria || []).forEach(c => {
+                if (c.layout && (c.layout.w || c.layout.h || c.layout.col || c.layout.row)) {
+                    c.layout = clampNotesLayout(c.layout);
+                    return;
+                }
+                if (col + 1 > 6) {
+                    col = 1;
+                    row += 2;
+                    if (row > 5) row = 1;
+                }
+                c.layout = { col, row, w: 2, h: 2 };
+                col += 2;
+            });
+            return criteria;
+        }
+
+        function layoutSizeId(layout) {
+            const L = clampNotesLayout(layout);
+            const hit = LAYOUT_SIZES.find(s => s.w === L.w && s.h === L.h);
+            return hit ? hit.id : '';
+        }
+
+        function sizeSelectHtml(crit) {
+            const current = layoutSizeId(crit.layout);
+            return `<select class="notes-layout-size" data-crit-size="${crit.id}">
+                ${LAYOUT_SIZES.map(s => `<option value="${s.id}" ${s.id === current ? 'selected' : ''}>${s.label}</option>`).join('')}
+            </select>`;
+        }
+
+        function applySizeToCrit(crit, sizeId) {
+            const size = LAYOUT_SIZES.find(s => s.id === sizeId) || LAYOUT_SIZES[0];
+            const prev = clampNotesLayout(crit.layout);
+            crit.layout = clampNotesLayout({ col: prev.col, row: prev.row, w: size.w, h: size.h });
+        }
+
+        function isRepechageLocked() {
+            return !!(round && (round.type === 'Repêchage' || round.type_epreuve === 'repechage'));
+        }
+
+        function setToolbarLocked(locked) {
+            const save = $('#btn-save');
+            const reset = $('#btn-reset');
+            const hint = $('#toolbar-hint');
+            if (save) save.disabled = locked;
+            if (reset) reset.disabled = locked;
+            if (hint) {
+                hint.textContent = locked
+                    ? 'Repêchage : interface fixe (Qualifiés / Éliminés). Les paramètres de mise en page sont bloqués.'
+                    : 'Même mise en page que le jury — les notes ne sont pas enregistrées.';
+            }
+        }
+
+        function activeTab() {
+            return (ui.tabs || []).find(t => t.id === activeTabId) || (ui.tabs && ui.tabs[0]);
+        }
+
+        function notationTabs() {
+            return (ui.tabs || []).filter(t => t.type === 'notation' || !t.type);
+        }
+
+        function findCriterionLocation(critId) {
+            for (const t of (ui.tabs || [])) {
+                const index = (t.criteria || []).findIndex(c => c.id === critId);
+                if (index >= 0) return { tab: t, index, crit: t.criteria[index] };
+            }
+            return null;
+        }
+
+        function criterionById(critId) {
+            const loc = findCriterionLocation(critId);
+            return loc ? loc.crit : null;
+        }
+
+        function moveCriterionToTab(critId, destTabId) {
+            const loc = findCriterionLocation(critId);
+            const dest = (ui.tabs || []).find(t => t.id === destTabId);
+            if (!loc || !dest || loc.tab.id === destTabId) return false;
+            if (dest.type && dest.type !== 'notation') {
+                toast('Choisissez un onglet de notation.');
+                return false;
+            }
+            loc.tab.criteria.splice(loc.index, 1);
+            dest.criteria = dest.criteria || [];
+            dest.criteria.push(loc.crit);
+            ensureNotesLayouts(dest.criteria);
+            activeTabId = dest.id;
+            ui.showTabsBar = (ui.tabs || []).length > 1;
+            return true;
+        }
+
+        function tabSelectHtml(crit, ownerTab, tabs) {
+            return `<select data-crit-tab="${crit.id}" title="Déplacer vers un autre onglet">
+                ${tabs.map(t => `<option value="${escapeHtml(t.id)}" ${t.id === ownerTab.id ? 'selected' : ''}>${escapeHtml(t.name || 'Onglet')}</option>`).join('')}
+            </select>`;
+        }
+
+        function buttonValues(crit) {
+            if (crit.scale === 'binary') return ['0', '1'];
+            if (crit.scale === 'step5') return ['5', '10', '15', '20'];
+            const max = Number(crit.rangeMax) || 20;
+            if (max <= 6) return Array.from({ length: max + 1 }, (_, i) => String(i));
+            return ['5', '10', '15', String(max)];
+        }
+
+        function renderWidget(crit, candIndex) {
+            const max = crit.scale === 'rangeCustom' ? (Number(crit.rangeMax) || 10) : (crit.scale === 'binary' ? 1 : 20);
+            if (crit.widget === 'slider') {
+                const id = uid('sl');
+                return `<div class="duel-score-input-wrap">
+                    <div class="duel-slider-row">
+                        <span class="duel-slider-endcap">0</span>
+                        <input type="range" min="0" max="${max}" value="0" class="duel-range-input" id="${id}">
+                        <span class="duel-slider-endcap">${max}</span>
+                        <input type="number" min="0" max="${max}" value="" placeholder="0" class="duel-num-input">
+                    </div>
+                </div>`;
+            }
+            const vals = buttonValues(crit);
+            const elBtn = crit.allowEL ? `<button type="button" class="score-btn eliminated mock-score">Éliminé</button>` : '';
+            return `<div class="score-grid">${vals.map(v => `<button type="button" class="score-btn mock-score">${escapeHtml(v)}</button>`).join('')}${elBtn}</div>`;
+        }
+
+        function renderCandidateCard(index, tab) {
+            const title = index === 1 ? (ui.cardTitle1 || 'Candidat 1') : (ui.cardTitle2 || 'Candidat 2');
+            const criteria = ensureNotesLayouts(tab.criteria || []);
+            const guides = Array.from({ length: 36 }, () => '<span></span>').join('');
+            const cells = criteria.map(crit => {
+                const L = clampNotesLayout(crit.layout);
+                return `<div class="notes-layout-item" data-crit-id="${crit.id}" style="grid-column:${L.col} / span ${L.w};grid-row:${L.row} / span ${L.h};">
+                    <div class="notes-layout-handle" title="Glisser pour déplacer">
+                        <span><span class="notes-layout-grip">⠿</span> ${escapeHtml(crit.name)}${crit.coefficient && Number(crit.coefficient) !== 1 ? ' ×' + crit.coefficient : ''}</span>
+                        ${sizeSelectHtml(crit)}
+                    </div>
+                    <div class="control-group">
+                        <label>${escapeHtml(crit.name)}</label>
+                        ${renderWidget(crit, index)}
+                        <p class="selection-info">Note : -</p>
+                    </div>
+                </div>`;
+            }).join('');
+            return `<div class="jury-notation-card">
+                <label class="card-title">${escapeHtml(title)}</label>
+                <select>
+                    <option value="">-- Choisir --</option>
+                    ${FAKE_CANDIDATES.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('')}
+                </select>
+                <div class="notes-layout-board rows-6">
+                    <div class="notes-layout-guides">${guides}</div>
+                    <div class="notes-layout-grid">${cells}</div>
+                </div>
+            </div>`;
+        }
+
+        function renderTabContent(tab) {
+            if (!tab) return '<p class="jury-notation-intro">Aucun onglet.</p>';
+            if (tab.type === 'duels') {
+                return `<p class="jury-notation-intro">Aperçu — gagnants de duel (aucune donnée réelle).</p>
+                    <p style="text-align:center;color:var(--text-secondary);">Les duels du tour s’afficheraient ici.</p>`;
+            }
+            if (tab.type === 'choix') {
+                const source = tab.personSource || 'top';
+                const n = (source === 'remaining' || source === 'all')
+                    ? 9
+                    : Math.max(1, Math.min(30, parseInt(tab.personCount, 10) || 3));
+                const columns = choixColumnCounts(n);
+                const buttons = [];
+                for (let i = 0; i < n; i++) buttons.push(i);
+                let idx = 0;
+                const colsHtml = columns.map((count) => {
+                    const cells = [];
+                    for (let k = 0; k < count; k++) {
+                        const i = idx++;
+                        cells.push(`<button type="button" class="choix-person-btn mock-choix" data-choix="${i}" aria-label="Personne ${i + 1}"></button>`);
+                    }
+                    return `<div class="choix-buttons-col">${cells.join('')}</div>`;
+                }).join('');
+                return `<p class="jury-notation-intro">${escapeHtml(tab.intro || 'Choisissez le meilleur candidat pour ce passage.')}</p>
+                    <div class="choix-buttons-grid">${colsHtml}</div>
+                    <button type="button" class="jury-notation-validate" id="mock-validate" style="margin-top:20px;">${escapeHtml(ui.validateLabel || 'Valider')}</button>`;
+            }
+            if (tab.type === 'classement') {
+                return `<p class="jury-notation-intro">Aperçu — classement personnel.</p>
+                    <table style="width:100%;border-collapse:collapse;">
+                        <thead><tr style="background:var(--neutral-color);color:white;"><th style="padding:12px;">Position</th><th style="padding:12px;text-align:left;">Candidat</th></tr></thead>
+                        <tbody>
+                            ${[1,2,3,4,5].map(i => `<tr><td style="padding:10px;text-align:center;">${i}</td><td style="padding:10px;"><select style="width:100%;padding:6px;"><option>-- Choisir --</option>${FAKE_CANDIDATES.map(c => `<option>${escapeHtml(c.name)}</option>`).join('')}</select></td></tr>`).join('')}
+                        </tbody>
+                    </table>`;
+            }
+            const count = Number(ui.candidateCount) === 2 ? 2 : 1;
+            const intro = tab.intro || ui.intro || '';
+            const cards = Array.from({ length: count }, (_, i) => renderCandidateCard(i + 1, tab)).join('');
+            return `<p class="jury-notation-intro">${escapeHtml(intro)}</p>
+                <div class="jury-notation-cols" style="${count === 1 ? 'grid-template-columns:1fr;' : ''}">${cards}</div>`;
+        }
+
+        function renderPreview() {
+            setToolbarLocked(isRepechageLocked());
+            if (isRepechageLocked()) {
+                const scoring = $('#scoring-page');
+                scoring.innerHTML = `
+                    <p id="scoring-round-display" style="text-align:center;color:var(--text-secondary);margin-bottom:var(--spacing);">Tour en cours : ${escapeHtml(round?.name || 'Repêchage')}</p>
+                    <h2 style="text-align:center;margin-bottom:var(--spacing);">Jury: <span id="current-jury-display">Aperçu</span></h2>
+                    <p class="jury-notation-intro">Repêchage — sélectionner les candidats qualifiés (1) et éliminés (0).</p>
+                    <div class="repechage-preview-cols">
+                        <div class="repechage-preview-col ok">
+                            <h3>Qualifiés (1)</h3>
+                            <p class="selection-info">${escapeHtml(FAKE_CANDIDATES[0].name)}</p>
+                            <p class="selection-info">${escapeHtml(FAKE_CANDIDATES[1].name)}</p>
+                        </div>
+                        <div class="repechage-preview-col ko">
+                            <h3>Éliminés (0)</h3>
+                            <p class="selection-info">${escapeHtml(FAKE_CANDIDATES[2].name)}</p>
+                        </div>
+                    </div>
+                    <button type="button" class="jury-notation-validate" id="mock-validate" style="margin-top:16px;">Valider le repêchage</button>
+                `;
+                $('#mock-validate')?.addEventListener('click', () => toast('Maquette : le repêchage n’enregistre aucune note ici.'));
+                return;
+            }
+            const tabs = ui.tabs || [];
+            if (!activeTabId || !tabs.some(t => t.id === activeTabId)) activeTabId = tabs[0]?.id;
+            const showBar = ui.showTabsBar && tabs.length > 0;
+            const scoring = $('#scoring-page');
+            const tabNow = activeTab();
+            const notationFooter = (!tabNow || (tabNow.type && tabNow.type !== 'notation'))
+                ? ''
+                : `<div class="jury-notation-validate-wrap is-active">
+                    <button type="button" class="jury-notation-validate" id="mock-validate">${escapeHtml(ui.validateLabel || 'Valider')}</button>
+                </div>`;
+            scoring.innerHTML = `
+                <div class="burger-menu">
+                    <div class="burger-icon" id="mock-burger"><span></span><span></span><span></span></div>
+                    <div class="burger-menu-content" id="menu-content-scoring">
+                        <div class="theme-toggle">
+                            <span>Mode sombre</span>
+                            <div class="toggle-switch" id="theme-toggle-scoring"><div class="toggle-slider"></div></div>
+                        </div>
+                    </div>
+                </div>
+                <p id="scoring-round-display" style="text-align:center;color:var(--text-secondary);margin-bottom:var(--spacing);">Tour en cours : ${escapeHtml(round?.name || 'Aperçu')}</p>
+                <h2 style="text-align:center;margin-bottom:var(--spacing);">Jury: <span id="current-jury-display">Aperçu</span></h2>
+                <div class="jury-tabs-bar" style="${showBar ? '' : 'display:none;'}">
+                    ${tabs.map(t => `<button type="button" class="jury-tab-btn ${t.id === activeTabId ? 'active' : ''}" data-tab="${t.id}">${escapeHtml(t.name || 'Onglet')}</button>`).join('')}
+                </div>
+                <div class="jury-ui-body">
+                    <div class="jury-tab-content active">${renderTabContent(activeTab())}</div>
+                </div>
+                ${notationFooter}
+            `;
+            scoring.querySelectorAll('.jury-tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    activeTabId = btn.getAttribute('data-tab');
+                    renderAll();
+                });
+            });
+            scoring.querySelectorAll('.mock-choix').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    scoring.querySelectorAll('.mock-choix').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                });
+            });
+            scoring.querySelectorAll('[data-crit-size]').forEach(sel => {
+                sel.addEventListener('change', (e) => {
+                    e.stopPropagation();
+                    const tabNow = activeTab();
+                    const c = (tabNow.criteria || []).find(x => x.id === sel.getAttribute('data-crit-size'));
+                    if (!c) return;
+                    applySizeToCrit(c, sel.value);
+                    renderAll();
+                });
+                sel.addEventListener('pointerdown', (e) => e.stopPropagation());
+            });
+            scoring.querySelectorAll('.notes-layout-item').forEach(item => {
+                const handle = item.querySelector('.notes-layout-handle');
+                if (!handle) return;
+                handle.addEventListener('pointerdown', (e) => {
+                    if (e.button !== 0) return;
+                    if (e.target.closest('select')) return;
+                    e.preventDefault();
+                    const board = item.closest('.notes-layout-board');
+                    const tabNow = activeTab();
+                    const crit = (tabNow.criteria || []).find(x => x.id === item.getAttribute('data-crit-id'));
+                    if (!crit) return;
+                    const startLayout = clampNotesLayout(crit.layout);
+                    const startX = e.clientX;
+                    const startY = e.clientY;
+                    item.classList.add('dragging');
+                    handle.setPointerCapture(e.pointerId);
+                    const onMove = (ev) => {
+                        const rect = board.getBoundingClientRect();
+                        const cellW = rect.width / 6;
+                        const cellH = rect.height / 6;
+                        const dx = Math.round((ev.clientX - startX) / cellW);
+                        const dy = Math.round((ev.clientY - startY) / cellH);
+                        crit.layout = clampNotesLayout({
+                            col: startLayout.col + dx,
+                            row: startLayout.row + dy,
+                            w: startLayout.w,
+                            h: startLayout.h
+                        });
+                        item.style.gridColumn = `${crit.layout.col} / span ${crit.layout.w}`;
+                        item.style.gridRow = `${crit.layout.row} / span ${crit.layout.h}`;
+                    };
+                    const onUp = () => {
+                        item.classList.remove('dragging');
+                        handle.removeEventListener('pointermove', onMove);
+                        handle.removeEventListener('pointerup', onUp);
+                        try { handle.releasePointerCapture(e.pointerId); } catch (err) {}
+                        scheduleLocalSave();
+                    };
+                    handle.addEventListener('pointermove', onMove);
+                    handle.addEventListener('pointerup', onUp);
+                });
+            });
+            function applyMockElLocks() {
+                const tabNow = activeTab();
+                const criteria = (tabNow && tabNow.criteria) || [];
+                scoring.querySelectorAll('.jury-notation-card').forEach(card => {
+                    let lockRest = false;
+                    criteria.forEach(crit => {
+                        const item = card.querySelector(`.notes-layout-item[data-crit-id="${crit.id}"]`);
+                        if (!item) return;
+                        item.classList.toggle('is-el-locked', lockRest);
+                        const info = item.querySelector('.selection-info');
+                        if (lockRest) {
+                            item.querySelectorAll('.control-group .score-btn').forEach(b => b.classList.remove('selected'));
+                            if (info) info.textContent = 'Note : Éliminé';
+                        }
+                        const elOn = !!(crit.allowEL && crit.elLocksNext && item.querySelector('.score-btn.eliminated.selected'));
+                        if (elOn) lockRest = true;
+                    });
+                });
+            }
+            scoring.querySelectorAll('.mock-score').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const grid = btn.parentElement;
+                    grid.querySelectorAll('.score-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    const info = grid.closest('.control-group')?.querySelector('.selection-info');
+                    if (info) info.textContent = 'Note : ' + btn.textContent + ' (aperçu)';
+                    applyMockElLocks();
+                });
+            });
+            scoring.querySelectorAll('.duel-score-input-wrap').forEach(wrap => {
+                const slider = wrap.querySelector('input[type="range"]');
+                const num = wrap.querySelector('input[type="number"]');
+                const sync = (v) => {
+                    const n = Math.max(Number(slider.min), Math.min(Number(slider.max), parseInt(v, 10) || 0));
+                    slider.value = n;
+                    num.value = n;
+                    const info = wrap.closest('.control-group')?.querySelector('.selection-info');
+                    if (info) info.textContent = 'Note : ' + n + ' (aperçu)';
+                };
+                slider.addEventListener('input', () => sync(slider.value));
+                num.addEventListener('input', () => sync(num.value));
+            });
+            const validate = $('#mock-validate');
+            if (validate) validate.addEventListener('click', () => toast('Maquette : aucune note n’est enregistrée.'));
+            const burger = $('#mock-burger');
+            if (burger) burger.addEventListener('click', () => $('#menu-content-scoring')?.classList.toggle('active'));
+            const theme = $('#theme-toggle-scoring');
+            if (theme) theme.addEventListener('click', () => {
+                const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+                document.documentElement.setAttribute('data-theme', next);
+                theme.classList.toggle('active', next === 'dark');
+            });
+        }
+
+        function renderEditor() {
+            const editor = $('#editor');
+            if (isRepechageLocked()) {
+                editor.innerHTML = `
+                    <div class="status-line" id="status-line">Tour : ${escapeHtml(round?.name || roundId)} (Repêchage)</div>
+                    <div class="maquette-lock-box">
+                        Le repêchage n’utilise pas la notation classique. L’écran jury est fixe : deux colonnes Qualifiés (vote 1) et Éliminés (vote 0). Vous ne pouvez pas ajouter d’onglets, de critères, de curseurs ou d’un second candidat. Le nombre de places se règle dans l’onglet Tours (« Candidats suivants »).
+                    </div>
+                `;
+                return;
+            }
+            const tab = activeTab();
+            const showLayout = editorSection === 'layout';
+            const showTabs = editorSection === 'tabs';
+            const showCriteria = editorSection === 'criteria';
+            editor.innerHTML = `
+                <div class="status-line" id="status-line">Tour : ${escapeHtml(round?.name || roundId)} (${escapeHtml(round?.type || '')})</div>
+                <div class="maquette-editor-nav">
+                    <label for="ed-section">Section à modifier</label>
+                    <select id="ed-section">
+                        <option value="layout" ${showLayout ? 'selected' : ''}>Mise en page</option>
+                        <option value="tabs" ${showTabs ? 'selected' : ''}>Onglets</option>
+                        <option value="criteria" ${showCriteria ? 'selected' : ''}>Critères de notation</option>
+                    </select>
+                </div>
+                <div class="maquette-editor-body">
+                ${showLayout ? `
+                <h2>Mise en page</h2>
+                <label class="chip"><input type="checkbox" id="ed-tabsbar" ${ui.showTabsBar ? 'checked' : ''}> Afficher la barre d’onglets</label>
+                <div class="maquette-field" style="margin-top:10px;">
+                    <label>Nombre de candidats</label>
+                    <div class="maquette-row">
+                        <label class="chip"><input type="radio" name="cand" value="1" ${Number(ui.candidateCount) !== 2 ? 'checked' : ''}> 1 candidat</label>
+                        <label class="chip"><input type="radio" name="cand" value="2" ${Number(ui.candidateCount) === 2 ? 'checked' : ''}> 2 candidats</label>
+                    </div>
+                </div>
+                <div class="maquette-field"><label>Texte d’introduction</label><input type="text" id="ed-intro" value="${escapeHtml(tab?.intro || ui.intro || '')}"></div>
+                <div class="maquette-field"><label>Libellé du bouton Valider</label><input type="text" id="ed-validate" value="${escapeHtml(ui.validateLabel || '')}"></div>
+                <div class="maquette-field"><label>Titre carte 1</label><input type="text" id="ed-title1" value="${escapeHtml(ui.cardTitle1 || 'Candidat')}"></div>
+                <div class="maquette-field"><label>Titre carte 2</label><input type="text" id="ed-title2" value="${escapeHtml(ui.cardTitle2 || 'Candidat 2')}"></div>
+                <p style="color:#c4b5fd;font-size:0.82rem;line-height:1.45;margin:12px 0 0;">Sur l’aperçu, glissez la barre « ⠿ » d’une note pour la placer sur la grille. Changez sa taille : case 3×3, case 2×3, bande 1×3, carré 2×2, rectangle 2×3… Les pointillés suivent le cadrage (tiers et moitié).</p>
+                ` : ''}
+
+                ${showTabs ? `
+                <h3>Onglets</h3>
+                ${(ui.tabs || []).map(t => `
+                    <div class="tab-edit ${t.id === activeTabId ? 'active-tab-edit' : ''}">
+                        <div class="maquette-row">
+                            <input type="text" data-tab-name="${t.id}" value="${escapeHtml(t.name || '')}" style="flex:1;">
+                            <select data-tab-type="${t.id}">
+                                <option value="notation" ${t.type === 'notation' ? 'selected' : ''}>Notation</option>
+                                <option value="choix" ${t.type === 'choix' ? 'selected' : ''}>Choix par personne</option>
+                                <option value="duels" ${t.type === 'duels' ? 'selected' : ''}>Duels</option>
+                                <option value="classement" ${t.type === 'classement' ? 'selected' : ''}>Classement</option>
+                            </select>
+                            <button type="button" class="mini-btn" data-goto="${t.id}">Voir</button>
+                            <button type="button" class="mini-btn danger" data-del-tab="${t.id}">✕</button>
+                        </div>
+                        ${t.type === 'choix' ? `
+                        <div class="maquette-row" style="margin-top:8px;">
+                            <select data-person-source="${t.id}" title="Qui afficher sur les boutons">
+                                <option value="top" ${(t.personSource || 'top') === 'top' ? 'selected' : ''}>Les N premiers</option>
+                                <option value="random" ${t.personSource === 'random' ? 'selected' : ''}>N personnes au hasard</option>
+                                <option value="remaining" ${t.personSource === 'remaining' ? 'selected' : ''}>Tous ceux qui restent</option>
+                                <option value="all" ${t.personSource === 'all' ? 'selected' : ''}>Tous les candidats du tour</option>
+                            </select>
+                            ${((t.personSource || 'top') === 'top' || t.personSource === 'random') ? `
+                            <label style="font-size:0.8rem;color:#cbd5e1;white-space:nowrap;">Boutons</label>
+                            <input type="number" min="1" max="30" style="width:72px;" data-person-count="${t.id}" value="${escapeHtml(t.personCount || 3)}" title="Nombre de personnes / boutons">
+                            ` : '<span style="font-size:0.8rem;color:#94a3b8;">Nombre = tous les concernés</span>'}
+                        </div>` : ''}
+                    </div>
+                `).join('')}
+                <button type="button" class="mini-btn add" id="ed-add-tab">+ Ajouter un onglet</button>
+                ` : ''}
+
+                ${showCriteria ? (
+                    tab && tab.type === 'choix' ? `
+                    <h3>Choix par personne — « ${escapeHtml(tab.name)} »</h3>
+                    <p style="color:#94a3b8;font-size:0.85rem;margin:0 0 10px;">Comme la grande finale : un bouton par personne, le jury en choisit une puis valide. Chaque validation ajoute 1 point.</p>
+                    <div class="maquette-field"><label>Texte d’introduction</label><input type="text" id="ed-choix-intro" value="${escapeHtml(tab.intro || '')}"></div>
+                    <div class="maquette-field">
+                        <label>Personnes affichées</label>
+                        <select id="ed-person-source">
+                            <option value="top" ${(tab.personSource || 'top') === 'top' ? 'selected' : ''}>Les N premiers</option>
+                            <option value="random" ${tab.personSource === 'random' ? 'selected' : ''}>N personnes au hasard</option>
+                            <option value="remaining" ${tab.personSource === 'remaining' ? 'selected' : ''}>Tous ceux qui restent</option>
+                            <option value="all" ${tab.personSource === 'all' ? 'selected' : ''}>Tous les candidats du tour</option>
+                        </select>
+                    </div>
+                    ${((tab.personSource || 'top') === 'top' || tab.personSource === 'random') ? `
+                    <div class="maquette-field">
+                        <label>Nombre de personnes (boutons)</label>
+                        <input type="number" min="1" max="30" id="ed-person-count" value="${escapeHtml(tab.personCount || 3)}">
+                    </div>` : ''}
+                ` : (() => {
+                    const nTabs = notationTabs();
+                    if (!nTabs.length) return '<p style="color:#94a3b8;font-size:0.85rem;">Ajoutez un onglet de notation pour gérer les critères.</p>';
+                    const groups = nTabs.map(owner => {
+                        const cards = (owner.criteria || []).map(c => `
+                        <div class="crit-edit">
+                            <input type="text" data-crit-name="${c.id}" value="${escapeHtml(c.name || '')}">
+                            <div class="maquette-row" style="margin-top:6px;">
+                                <select data-crit-widget="${c.id}">
+                                    <option value="buttons" ${c.widget === 'buttons' ? 'selected' : ''}>Boutons</option>
+                                    <option value="slider" ${c.widget === 'slider' ? 'selected' : ''}>Curseur</option>
+                                </select>
+                                <select data-crit-scale="${c.id}">
+                                    <option value="step5" ${c.scale === 'step5' ? 'selected' : ''}>5 en 5</option>
+                                    <option value="binary" ${c.scale === 'binary' ? 'selected' : ''}>0 ou 1</option>
+                                    <option value="range20" ${c.scale === 'range20' ? 'selected' : ''}>0 à 20</option>
+                                    <option value="rangeCustom" ${c.scale === 'rangeCustom' ? 'selected' : ''}>0 à X</option>
+                                </select>
+                                ${c.scale === 'rangeCustom' ? `<input type="text" inputmode="numeric" maxlength="4" style="width:70px;" data-crit-max="${c.id}" value="${escapeHtml(c.rangeMax || '')}" placeholder="X">` : ''}
+                                <label class="chip"><input type="checkbox" data-crit-el="${c.id}" ${c.allowEL ? 'checked' : ''}> EL</label>
+                                <button type="button" class="mini-btn danger" data-del-crit="${c.id}">✕</button>
+                            </div>
+                            ${c.allowEL ? `<label class="chip" style="margin-top:6px;"><input type="checkbox" data-crit-el-lock="${c.id}" ${c.elLocksNext ? 'checked' : ''}> EL désactive les notes suivantes</label>` : ''}
+                            <div class="maquette-field" style="margin:8px 0 0;">
+                                <label>Onglet</label>
+                                ${tabSelectHtml(c, owner, nTabs)}
+                            </div>
+                            <div class="maquette-field" style="margin:8px 0 0;">
+                                <label>Taille sur la grille</label>
+                                ${sizeSelectHtml(c)}
+                            </div>
+                        </div>
+                    `).join('');
+                        return `<div class="crit-group">
+                            <h4>${escapeHtml(owner.name || 'Onglet')}</h4>
+                            ${cards || '<p class="crit-group-empty">Aucune note dans cet onglet.</p>'}
+                        </div>`;
+                    }).join('');
+                    return `
+                    <h3>Critères de notation</h3>
+                    ${groups}
+                    <button type="button" class="mini-btn add" id="ed-add-crit">+ Ajouter un critère</button>
+                    `;
+                })()
+                ) : ''}
+                </div>
+            `;
+
+            $('#ed-section')?.addEventListener('change', (e) => {
+                editorSection = e.target.value;
+                renderEditor();
+            });
+
+            $('#ed-tabsbar')?.addEventListener('change', (e) => { ui.showTabsBar = e.target.checked; renderAll(); });
+            editor.querySelectorAll('input[name="cand"]').forEach(r => r.addEventListener('change', () => {
+                ui.candidateCount = Number(r.value);
+                renderAll();
+            }));
+            $('#ed-intro')?.addEventListener('input', (e) => {
+                if (tab) tab.intro = e.target.value;
+                ui.intro = e.target.value;
+                renderPreview();
+            });
+            $('#ed-validate')?.addEventListener('input', (e) => { ui.validateLabel = e.target.value; renderPreview(); });
+            $('#ed-title1')?.addEventListener('input', (e) => { ui.cardTitle1 = e.target.value; renderPreview(); });
+            $('#ed-title2')?.addEventListener('input', (e) => { ui.cardTitle2 = e.target.value; renderPreview(); });
+            editor.querySelectorAll('[data-tab-name]').forEach(inp => inp.addEventListener('input', (e) => {
+                const t = ui.tabs.find(x => x.id === inp.getAttribute('data-tab-name'));
+                if (t) t.name = e.target.value;
+                renderPreview();
+            }));
+            editor.querySelectorAll('[data-tab-type]').forEach(sel => sel.addEventListener('change', (e) => {
+                const t = ui.tabs.find(x => x.id === sel.getAttribute('data-tab-type'));
+                if (t) {
+                    t.type = e.target.value;
+                    if (t.type === 'notation' && !t.criteria) t.criteria = [];
+                    if (t.type === 'choix') {
+                        t.personCount = t.personCount || 3;
+                        t.personSource = t.personSource || 'top';
+                        t.intro = t.intro || 'Choisissez le meilleur candidat pour ce passage.';
+                    }
+                }
+                renderAll();
+            }));
+            editor.querySelectorAll('[data-person-source]').forEach(sel => sel.addEventListener('change', (e) => {
+                const t = ui.tabs.find(x => x.id === sel.getAttribute('data-person-source'));
+                if (t) t.personSource = e.target.value;
+                renderAll();
+            }));
+            editor.querySelectorAll('[data-person-count]').forEach(inp => inp.addEventListener('change', (e) => {
+                const t = ui.tabs.find(x => x.id === inp.getAttribute('data-person-count'));
+                if (!t) return;
+                let n = parseInt(e.target.value, 10);
+                if (isNaN(n) || n < 1) n = 1;
+                if (n > 30) n = 30;
+                t.personCount = n;
+                renderAll();
+            }));
+            $('#ed-person-source')?.addEventListener('change', (e) => {
+                if (tab) tab.personSource = e.target.value;
+                renderAll();
+            });
+            $('#ed-person-count')?.addEventListener('change', (e) => {
+                if (!tab) return;
+                let n = parseInt(e.target.value, 10);
+                if (isNaN(n) || n < 1) n = 1;
+                if (n > 30) n = 30;
+                tab.personCount = n;
+                renderAll();
+            });
+            $('#ed-choix-intro')?.addEventListener('input', (e) => {
+                if (tab) tab.intro = e.target.value;
+                renderPreview();
+            });
+            editor.querySelectorAll('[data-goto]').forEach(btn => btn.addEventListener('click', () => {
+                activeTabId = btn.getAttribute('data-goto');
+                ui.showTabsBar = true;
+                renderAll();
+            }));
+            editor.querySelectorAll('[data-del-tab]').forEach(btn => btn.addEventListener('click', () => {
+                if (ui.tabs.length <= 1) { toast('Gardez au moins un onglet.'); return; }
+                ui.tabs = ui.tabs.filter(t => t.id !== btn.getAttribute('data-del-tab'));
+                activeTabId = ui.tabs[0].id;
+                renderAll();
+            }));
+            $('#ed-add-tab')?.addEventListener('click', () => {
+                const id = uid('tab');
+                ui.tabs.push({ id, name: 'Nouvel onglet', type: 'notation', intro: '', criteria: [] });
+                activeTabId = id;
+                ui.showTabsBar = true;
+                editorSection = 'tabs';
+                renderAll();
+            });
+            editor.querySelectorAll('[data-crit-name]').forEach(inp => inp.addEventListener('input', (e) => {
+                const c = criterionById(inp.getAttribute('data-crit-name'));
+                if (c) c.name = e.target.value;
+                renderPreview();
+                scheduleNotesSync();
+            }));
+            editor.querySelectorAll('[data-crit-widget]').forEach(sel => sel.addEventListener('change', (e) => {
+                const c = criterionById(sel.getAttribute('data-crit-widget'));
+                if (c) c.widget = e.target.value;
+                renderAll();
+                scheduleNotesSync();
+            }));
+            editor.querySelectorAll('[data-crit-scale]').forEach(sel => sel.addEventListener('change', (e) => {
+                const c = criterionById(sel.getAttribute('data-crit-scale'));
+                if (c) {
+                    c.scale = e.target.value;
+                    c.widget = widgetForScale(c.scale);
+                    if (c.scale === 'range20') c.rangeMax = 20;
+                    if (c.scale === 'rangeCustom' && !c.rangeMax) c.rangeMax = 10;
+                }
+                renderAll();
+                scheduleNotesSync();
+            }));
+            editor.querySelectorAll('[data-crit-max]').forEach(inp => inp.addEventListener('change', (e) => {
+                const c = criterionById(inp.getAttribute('data-crit-max'));
+                if (c) c.rangeMax = String(e.target.value).replace(/\D/g, '').slice(0, 4) || 10;
+                renderAll();
+                scheduleNotesSync();
+            }));
+            editor.querySelectorAll('[data-crit-el]').forEach(inp => inp.addEventListener('change', (e) => {
+                const c = criterionById(inp.getAttribute('data-crit-el'));
+                if (c) {
+                    c.allowEL = e.target.checked;
+                    if (!c.allowEL) c.elLocksNext = false;
+                    (ui.tabs || []).forEach(t => {
+                        (t.criteria || []).forEach(other => {
+                            if (other === c) return;
+                            if ((c.field && other.field === c.field) || (c.id && other.id === c.id)) {
+                                other.allowEL = c.allowEL;
+                                if (!other.allowEL) other.elLocksNext = false;
+                            }
+                        });
+                    });
+                }
+                renderAll();
+                scheduleNotesSync();
+            }));
+            editor.querySelectorAll('[data-crit-el-lock]').forEach(inp => inp.addEventListener('change', (e) => {
+                const c = criterionById(inp.getAttribute('data-crit-el-lock'));
+                if (c) c.elLocksNext = e.target.checked;
+                renderAll();
+                scheduleNotesSync();
+            }));
+            editor.querySelectorAll('[data-crit-tab]').forEach(sel => sel.addEventListener('change', (e) => {
+                const moved = moveCriterionToTab(sel.getAttribute('data-crit-tab'), e.target.value);
+                if (!moved) {
+                    const loc = findCriterionLocation(sel.getAttribute('data-crit-tab'));
+                    if (loc) sel.value = loc.tab.id;
+                    return;
+                }
+                renderAll();
+                scheduleNotesSync();
+            }));
+            editor.querySelectorAll('[data-crit-size]').forEach(sel => sel.addEventListener('change', () => {
+                const c = criterionById(sel.getAttribute('data-crit-size'));
+                if (!c) return;
+                applySizeToCrit(c, sel.value);
+                renderAll();
+            }));
+            editor.querySelectorAll('[data-del-crit]').forEach(btn => btn.addEventListener('click', () => {
+                deleteCriterionFromMaquette(btn.getAttribute('data-del-crit')).catch(err => toast('Erreur : ' + err.message));
+            }));
+            $('#ed-add-crit')?.addEventListener('click', () => {
+                addCriterionFromMaquette().catch(err => toast('Erreur : ' + (err.message || err)));
+            });
+        }
+
+        function renderAll() {
+            renderPreview();
+            renderEditor();
+            scheduleLocalSave();
+        }
+
+        function scheduleLocalSave() {
+            clearTimeout(persistTimer);
+            persistTimer = setTimeout(() => {
+                try {
+                    if (ui) ui.forType = round?.type || 'Notation individuelle';
+                    localStorage.setItem('juryUi_' + roundId, JSON.stringify(ui));
+                } catch (e) {}
+            }, 250);
+        }
+
+        function stampUiForSave(layout, currentRound) {
+            const noteTypes = Array.isArray(currentRound?.noteTypes) ? currentRound.noteTypes : [];
+            (layout.tabs || []).forEach(tab => {
+                if (tab.type === 'notation' || !tab.type) ensureNotesLayouts(tab.criteria || []);
+                (tab.criteria || []).forEach(crit => {
+                    const nt = findNoteTypeForCrit(crit, noteTypes);
+                    crit.field = crit.field || (nt && nt.field);
+                    if (!nt) return;
+                    nt.name = crit.name || nt.name;
+                    if (crit.scale) nt.scale = crit.scale;
+                    if (crit.rangeMax != null && crit.rangeMax !== '') {
+                        const n = parseInt(String(crit.rangeMax).replace(/\D/g, ''), 10);
+                        nt.rangeMax = isNaN(n) ? crit.rangeMax : n;
+                    }
+                    nt.allowEL = !!crit.allowEL;
+                    if (crit.coefficient != null && crit.coefficient !== '') nt.coefficient = crit.coefficient;
+                });
+            });
+            layout.forType = currentRound?.type || 'Notation individuelle';
+            layout.revision = Date.now();
+            return layout;
+        }
+
+        async function saveToFirebase() {
+            if (isRepechageLocked()) {
+                toast('Les paramètres du repêchage sont bloqués.');
+                return;
+            }
+            const snap = await getDoc(doc(db, 'config', 'rounds'));
+            if (!snap.exists()) { toast('Impossible de trouver les tours.'); return; }
+            const data = snap.data();
+            stampUiForSave(ui, round);
+            const rounds = Array.isArray(data.rounds) ? data.rounds.map(r => {
+                if (r.id !== roundId) return r;
+                let noteTypes = applyUiElToNoteTypes(ui, r.noteTypes);
+                const used = new Set(noteTypes.map(n => n.field));
+                (ui.tabs || []).forEach(t => {
+                    (t.criteria || []).forEach(crit => {
+                        if (!crit.field || used.has(crit.field)) return;
+                        used.add(crit.field);
+                        noteTypes.push({
+                            id: crit.id,
+                            name: crit.name || 'Nouvelle note',
+                            field: crit.field,
+                            coefficient: crit.coefficient || 1,
+                            scale: crit.scale || 'range20',
+                            rangeMax: crit.rangeMax,
+                            allowEL: !!crit.allowEL
+                        });
+                    });
+                });
+                return { ...r, juryUi: ui, noteTypes };
+            }) : [];
+            if (!rounds.some(r => r.id === roundId)) {
+                toast('Tour introuvable.');
+                return;
+            }
+            await setDoc(doc(db, 'config', 'rounds'), { ...data, rounds });
+            await setDoc(doc(db, 'config', 'juryLayoutPing'), {
+                roundId,
+                revision: ui.revision,
+                at: Date.now()
+            });
+            round = rounds.find(r => r.id === roundId);
+            lastAppliedNtSig = noteTypesSig(round?.noteTypes);
+            $('#status-line').textContent = 'Mise en page enregistrée pour « ' + (round.name || roundId) + ' » (' + (round.type || '') + ')';
+            toast('Interface jury mise à jour. Les pages jury ouvertes se réactualisent.');
+        }
+
+        function uiMatchesRoundType(stored, currentRound) {
+            const type = currentRound?.type || 'Notation individuelle';
+            return !!(stored && Array.isArray(stored.tabs) && stored.tabs.length && stored.forType === type);
+        }
+
+        function storedUiForRound(currentRound) {
+            if (currentRound && (currentRound.type === 'Repêchage' || currentRound.type_epreuve === 'repechage')) return null;
+            if (uiMatchesRoundType(currentRound?.juryUi, currentRound)) return currentRound.juryUi;
+            try {
+                const local = JSON.parse(localStorage.getItem('juryUi_' + roundId) || 'null');
+                if (uiMatchesRoundType(local, currentRound)) return local;
+            } catch (e) {}
+            return null;
+        }
+
+        function applyRoundConfig(currentRound, forceDefault) {
+            round = currentRound;
+            const next = (!forceDefault && storedUiForRound(currentRound)) || defaultUi(currentRound);
+            next.forType = currentRound?.type || 'Notation individuelle';
+            ui = next;
+            applyNoteTypesToMaquetteUi(ui, currentRound?.noteTypes);
+            lastAppliedNtSig = noteTypesSig(currentRound?.noteTypes);
+            if (!activeTabId || !(ui.tabs || []).some(t => t.id === activeTabId)) activeTabId = ui.tabs[0]?.id;
+            renderAll();
+        }
+
+        function applyRemoteNoteTypes(current) {
+            round = current;
+            const sig = noteTypesSig(current.noteTypes);
+            if (sig === lastAppliedNtSig) return;
+            lastAppliedNtSig = sig;
+            if (ui && applyNoteTypesToMaquetteUi(ui, current.noteTypes)) renderAll();
+        }
+
+        function listen() {
+            onSnapshot(doc(db, 'config', 'rounds'), (snap) => {
+                const data = snap.exists() ? snap.data() : { rounds: [] };
+                const current = (data.rounds || []).find(r => r.id === roundId) || { id: roundId, name: 'Tour', type: 'Notation individuelle' };
+                const prevType = round?.type;
+                const typeChanged = prevType != null && prevType !== current.type;
+                if (!ui || typeChanged || ui.forType !== current.type) {
+                    applyRoundConfig(current, typeChanged);
+                    if (typeChanged) {
+                        try { localStorage.removeItem('juryUi_' + roundId); } catch (e) {}
+                        toast('Type de tour changé : interface « ' + (current.type || '') + ' »');
+                    }
+                } else if (writingSync) {
+                    pendingRemoteRound = current;
+                    round = current;
+                } else {
+                    applyRemoteNoteTypes(current);
+                    const status = $('#status-line');
+                    if (status) status.textContent = 'Tour : ' + (round.name || roundId) + ' (' + (round.type || '') + ')';
+                }
+            }, (err) => {
+                toast('Chargement impossible : ' + err.message);
+                round = { id: roundId, name: 'Aperçu', type: 'Notation individuelle' };
+                applyRoundConfig(round, true);
+            });
+        }
+
+        $('#btn-save').addEventListener('click', () => saveToFirebase().catch(err => toast('Erreur : ' + err.message)));
+        $('#btn-reset').addEventListener('click', () => {
+            try { localStorage.removeItem('juryUi_' + roundId); } catch (e) {}
+            applyRoundConfig(round, true);
+            toast('Maquette réinitialisée (non enregistrée tant que vous ne cliquez pas sur Enregistrer).');
+        });
+        $('#btn-back').addEventListener('click', () => {
+            location.href = 'admin.html';
+        });
+
+        listen();
+    </script>
+</body>
+</html>
