@@ -103,11 +103,14 @@ body:has(#identification-page.active) {
     display: block;
 }
 body:not(.maquette-body):has(#scoring-page.active) {
-    height: 100vh;
-    height: 100dvh;
-    overflow: hidden;
+    height: auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     padding: 6px;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
 }
 body:not(.maquette-body) #scoring-page.page.active {
@@ -115,16 +118,16 @@ body:not(.maquette-body) #scoring-page.page.active {
     flex-direction: column;
     width: 100%;
     height: auto;
-    max-height: calc(100vh - 12px);
-    max-height: calc(100dvh - 12px);
+    max-height: none;
     min-height: 0;
-    overflow: hidden;
+    overflow: visible;
     padding: 6px 10px 8px;
-    margin: auto;
+    margin: 0 auto;
 }
 body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-6) {
-    height: calc(100vh - 12px);
-    height: calc(100dvh - 12px);
+    height: auto;
+    min-height: calc(100vh - 12px);
+    min-height: calc(100dvh - 12px);
 }
 #scoring-page > .burger-menu {
     margin: 0;
@@ -561,6 +564,7 @@ h2 {
 @media (max-width: 767px) {
     .jury-notation-cols {
         grid-template-columns: 1fr;
+        gap: 6px;
     }
 }
 
@@ -741,7 +745,7 @@ h2 {
     border: none;
     border-radius: 4px;
     background: transparent;
-    overflow: hidden;
+    overflow: visible;
     flex: 0 0 auto;
 }
 .maquette-body .notes-layout-board {
@@ -751,7 +755,7 @@ h2 {
 .jury-ui-body {
     flex: 0 1 auto;
     min-height: 0;
-    overflow: hidden;
+    overflow: visible;
     display: flex;
     flex-direction: column;
 }
@@ -760,7 +764,7 @@ h2 {
     min-height: 0;
     display: flex !important;
     flex-direction: column;
-    overflow: hidden;
+    overflow: visible;
 }
 .jury-ui-body .jury-notation-intro {
     margin: 0 0 4px;
@@ -809,34 +813,34 @@ h2 {
     padding: 2px;
 }
 .jury-ui-body .notes-layout-board.rows-2 .notes-layout-grid {
-    grid-template-rows: repeat(2, minmax(88px, 120px));
-    min-height: 176px;
+    grid-template-rows: repeat(2, minmax(72px, auto));
+    min-height: 0;
 }
 .jury-ui-body .notes-layout-board.rows-4 .notes-layout-grid {
-    grid-template-rows: repeat(4, minmax(70px, 96px));
-    min-height: 280px;
+    grid-template-rows: repeat(4, minmax(64px, auto));
+    min-height: 0;
 }
 .jury-ui-body .notes-layout-board.rows-6 .notes-layout-grid {
-    flex: 1 1 auto;
-    height: 100%;
-    min-height: 320px;
-    grid-template-rows: repeat(6, minmax(0, 1fr));
+    flex: 0 1 auto;
+    height: auto;
+    min-height: 0;
+    grid-template-rows: repeat(6, minmax(56px, auto));
 }
 body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-6) .jury-ui-body,
 body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-6) .jury-ui-body > .jury-tab-content.active,
 body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-6) .jury-ui-body .jury-notation-cols,
 body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-6) .jury-ui-body .jury-notation-card,
 body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-6) .jury-ui-body .notes-layout-board {
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     min-height: 0;
-    height: 100%;
+    height: auto;
 }
 body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-2),
 body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-4) {
     height: auto !important;
     flex: 0 0 auto !important;
-    align-self: center;
-    margin: auto;
+    align-self: stretch;
+    margin: 0 auto;
 }
 body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-2) .jury-ui-body,
 body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-4) .jury-ui-body,
@@ -921,7 +925,7 @@ body:not(.maquette-body) .notes-layout-board.rows-2 .notes-layout-guides {
 .notes-layout-item {
     min-width: 0;
     min-height: 0;
-    overflow: hidden;
+    overflow: visible;
     background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: 6px;
@@ -929,8 +933,9 @@ body:not(.maquette-body) .notes-layout-board.rows-2 .notes-layout-guides {
     box-shadow: var(--shadow-sm);
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: stretch;
+    gap: 4px;
 }
 .notes-layout-item .score-grid {
     margin: 0 !important;
@@ -955,8 +960,8 @@ body:not(.maquette-body) .notes-layout-board.rows-2 .notes-layout-guides {
 .notes-layout-item .duel-score-input-wrap {
     margin: 0 !important;
     gap: 2px;
-    flex: 1 1 auto;
-    justify-content: center;
+    flex: 0 1 auto;
+    justify-content: flex-start;
 }
 .notes-layout-item.dragging {
     z-index: 4;
@@ -999,12 +1004,12 @@ body:not(.maquette-body) .notes-layout-board.rows-2 .notes-layout-guides {
 }
 .notes-layout-item .control-group {
     margin-top: 0 !important;
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     min-height: 0;
     display: flex;
     flex-direction: column;
-    justify-content: space-evenly;
-    gap: 8px;
+    justify-content: flex-start;
+    gap: 4px;
 }
 .notes-layout-item .control-group > label {
     display: none;
@@ -1380,29 +1385,30 @@ hr {
     }
 }
 
-/* Mode paysage : tout visible sans défilement sur tous les appareils */
+/* Mode paysage : densifié, avec scroll si le contenu dépasse */
 @media (orientation: landscape) {
     body {
         min-height: 100vh;
-        height: 100vh;
-        height: 100dvh;
-        overflow: hidden;
+        min-height: 100dvh;
+        height: auto;
+        overflow-x: hidden;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
         padding: 6px;
-        align-items: center;
+        align-items: flex-start;
         justify-content: center;
     }
     body:has(#identification-page.active) {
         align-items: center !important;
     }
     body:not(.maquette-body):has(#scoring-page.active) {
-        align-items: center;
+        align-items: flex-start;
         justify-content: center;
     }
     .page.active,
     .page-container.active {
-        max-height: calc(100vh - 12px);
-        max-height: calc(100dvh - 12px);
-        overflow: hidden;
+        max-height: none;
+        overflow: visible;
         display: flex;
         flex-direction: column;
         padding: 8px;
@@ -1412,21 +1418,22 @@ hr {
     #scoring-page {
         flex: 0 1 auto;
         min-height: 0;
-        overflow: hidden;
+        overflow: visible;
         display: flex;
         flex-direction: column;
         height: auto;
     }
     body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-6) {
-        flex: 1 1 auto;
-        height: calc(100dvh - 12px);
+        flex: 0 1 auto;
+        height: auto;
+        min-height: calc(100dvh - 12px);
     }
     body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-2),
     body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-4) {
         flex: 0 0 auto !important;
         height: auto !important;
-        align-self: center;
-        margin: auto;
+        align-self: stretch;
+        margin: 0 auto;
     }
     #scoring-page > p,
     #scoring-page > h2 {
@@ -1443,12 +1450,12 @@ hr {
     .jury-tab-content.active {
         flex: 0 1 auto;
         min-height: 0;
-        overflow: hidden;
+        overflow: visible;
     }
     .jury-ui-body {
         flex: 0 1 auto;
         min-height: 0;
-        overflow: hidden;
+        overflow: visible;
     }
     body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-6) .jury-tab-content.active,
     body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active .notes-layout-board.rows-6) .jury-ui-body {
@@ -1526,6 +1533,110 @@ hr {
     }
     .score-btn.eliminated {
         font-size: 0.85rem !important;
+    }
+}
+
+/* Téléphone portrait : densifier verticalement pour limiter le scroll */
+@media (max-width: 767px) and (orientation: portrait) {
+    body:not(.maquette-body):has(#scoring-page.active) {
+        padding: 4px;
+        align-items: flex-start;
+    }
+    body:not(.maquette-body) #scoring-page.page.active {
+        padding: 4px 8px 6px;
+    }
+    #scoring-page #scoring-round-display {
+        margin: 0 0 1px !important;
+        font-size: 0.72rem;
+    }
+    #scoring-page > h2 {
+        margin: 0 0 2px !important;
+        font-size: 1.05rem;
+    }
+    .jury-tabs-bar {
+        margin-bottom: 2px;
+    }
+    .jury-tab-btn {
+        padding: 8px 12px;
+        font-size: 0.88rem;
+    }
+    .jury-ui-body .jury-notation-intro {
+        margin: 0 0 2px;
+        font-size: 0.75rem;
+        line-height: 1.2;
+    }
+    .jury-ui-body .jury-notation-card {
+        padding: 3px 6px 4px;
+    }
+    .jury-ui-body .jury-notation-card .card-title,
+    .jury-ui-body .jury-notation-card label.card-title {
+        font-size: 0.75rem;
+        margin-bottom: 1px;
+    }
+    .jury-ui-body .jury-notation-card select {
+        padding: 2px 6px;
+        font-size: 0.85rem;
+    }
+    .jury-ui-body .notes-layout-board {
+        margin-top: 2px;
+    }
+    .jury-ui-body .notes-layout-grid {
+        gap: 3px;
+        padding: 1px;
+    }
+    .jury-ui-body .notes-layout-board.rows-2 .notes-layout-grid {
+        grid-template-rows: repeat(2, minmax(64px, auto));
+    }
+    .jury-ui-body .notes-layout-board.rows-4 .notes-layout-grid {
+        grid-template-rows: repeat(4, minmax(56px, auto));
+    }
+    .notes-layout-item {
+        padding: 3px 6px;
+        gap: 2px;
+        border-radius: 4px;
+    }
+    .notes-layout-item-title {
+        font-size: 0.78rem;
+        line-height: 1.15;
+    }
+    .notes-layout-item .control-group {
+        gap: 2px;
+    }
+    .notes-layout-item .duel-score-input-wrap {
+        gap: 1px;
+    }
+    .notes-layout-item .selection-info {
+        padding: 3px 6px !important;
+        font-size: 0.72rem !important;
+        margin: 0 !important;
+    }
+    .duel-range-input {
+        height: 8px;
+    }
+    .duel-range-input::-webkit-slider-thumb {
+        width: 14px;
+        height: 22px;
+    }
+    .duel-range-input::-moz-range-thumb {
+        width: 14px;
+        height: 22px;
+    }
+    .duel-num-input {
+        padding: 3px 4px;
+        font-size: 0.95rem;
+        width: 2.8em;
+        min-width: 2.8em;
+    }
+    .duel-slider-endcap {
+        font-size: 0.7rem;
+        min-width: 1.2em;
+    }
+    .jury-notation-validate-wrap {
+        margin-top: 4px;
+    }
+    .jury-notation-validate {
+        padding: 8px 10px;
+        font-size: 0.95rem;
     }
 }
 
