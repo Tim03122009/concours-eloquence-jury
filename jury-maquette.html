@@ -400,6 +400,20 @@
             return (scale === 'step5' || scale === 'binary') ? 'buttons' : 'slider';
         }
 
+        function attachConfigByType(round) {
+            if (!round) return round;
+            const key = round.type || 'Notation individuelle';
+            const map = (round.configByType && typeof round.configByType === 'object')
+                ? { ...round.configByType }
+                : {};
+            map[key] = {
+                noteTypes: Array.isArray(round.noteTypes) ? JSON.parse(JSON.stringify(round.noteTypes)) : [],
+                juryUi: round.juryUi ? JSON.parse(JSON.stringify(round.juryUi)) : null
+            };
+            round.configByType = map;
+            return round;
+        }
+
         function findNoteTypeForCrit(crit, noteTypes) {
             return (noteTypes || []).find(n => (crit.id && n.id === crit.id) || (crit.field && n.field === crit.field));
         }
@@ -599,7 +613,8 @@
                         return true;
                     });
                     ui.revision = Date.now();
-                    return { ...r, noteTypes: nextTypes, juryUi: JSON.parse(JSON.stringify(ui)) };
+                    const next = { ...r, noteTypes: nextTypes, juryUi: JSON.parse(JSON.stringify(ui)) };
+                    return attachConfigByType(next);
                 });
                 await setDoc(doc(db, 'config', 'rounds'), { ...data, rounds });
                 await setDoc(doc(db, 'config', 'juryLayoutPing'), { roundId, revision: ui.revision, at: Date.now() });
@@ -635,7 +650,10 @@
                 stampUiForSave(ui, { ...(current || round), noteTypes: merged });
                 ui.revision = Date.now();
                 lastAppliedNtSig = noteTypesSig(merged);
-                const rounds = (data.rounds || []).map(r => r.id === roundId ? { ...r, noteTypes: merged, juryUi: JSON.parse(JSON.stringify(ui)) } : r);
+                const rounds = (data.rounds || []).map(r => {
+                    if (r.id !== roundId) return r;
+                    return attachConfigByType({ ...r, noteTypes: merged, juryUi: JSON.parse(JSON.stringify(ui)) });
+                });
                 await setDoc(doc(db, 'config', 'rounds'), { ...data, rounds });
                 await setDoc(doc(db, 'config', 'juryLayoutPing'), { roundId, revision: ui.revision, at: Date.now() });
                 round = rounds.find(r => r.id === roundId) || round;
@@ -1608,7 +1626,7 @@
                         });
                     });
                 });
-                return { ...r, juryUi: ui, noteTypes };
+                return attachConfigByType({ ...r, juryUi: ui, noteTypes });
             }) : [];
             if (!rounds.some(r => r.id === roundId)) {
                 toast('Tour introuvable.');
@@ -1667,9 +1685,11 @@
                 const prevType = round?.type;
                 const typeChanged = prevType != null && prevType !== current.type;
                 if (!ui || typeChanged || ui.forType !== current.type) {
-                    applyRoundConfig(current, typeChanged);
                     if (typeChanged) {
                         try { localStorage.removeItem('juryUi_' + roundId); } catch (e) {}
+                    }
+                    applyRoundConfig(current, false);
+                    if (typeChanged) {
                         toast('Type de tour changé : interface « ' + (current.type || '') + ' »');
                     }
                 } else if (writingSync) {

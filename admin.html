@@ -3464,13 +3464,60 @@
             if (type === 'Petite finale') return 'notation';
             return 'notation';
         }
+
+        function cloneRoundJson(value) {
+            return value == null ? value : JSON.parse(JSON.stringify(value));
+        }
+
+        function roundTypeKey(roundOrType) {
+            if (typeof roundOrType === 'string') return roundOrType || 'Notation individuelle';
+            return (roundOrType && roundOrType.type) || 'Notation individuelle';
+        }
+
+        function attachConfigByType(round) {
+            if (!round) return round;
+            const key = roundTypeKey(round);
+            const map = (round.configByType && typeof round.configByType === 'object')
+                ? { ...round.configByType }
+                : {};
+            map[key] = {
+                noteTypes: Array.isArray(round.noteTypes) ? cloneRoundJson(round.noteTypes) : [],
+                juryUi: round.juryUi ? cloneRoundJson(round.juryUi) : null
+            };
+            round.configByType = map;
+            return round;
+        }
+
+        function applyStoredConfigForType(round, typeKey) {
+            const stored = round && round.configByType && round.configByType[typeKey];
+            const hasStored = !!(stored && ((Array.isArray(stored.noteTypes) && stored.noteTypes.length) || stored.juryUi));
+            if (hasStored) {
+                round.noteTypes = (Array.isArray(stored.noteTypes) && stored.noteTypes.length)
+                    ? cloneRoundJson(stored.noteTypes)
+                    : defaultNoteTypesForRound(round);
+                if (stored.juryUi) {
+                    round.juryUi = cloneRoundJson(stored.juryUi);
+                    round.juryUi.forType = typeKey;
+                } else {
+                    delete round.juryUi;
+                }
+                return true;
+            }
+            round.noteTypes = defaultNoteTypesForRound(round);
+            delete round.juryUi;
+            return false;
+        }
         
         async function saveRounds() {
             // S'assurer que chaque tour a type_epreuve (duels, classement, notation, repêchage)
-            const roundsToSave = ROUNDS.map(r => ({
-                ...r,
-                type_epreuve: r.type_epreuve != null ? r.type_epreuve : getTypeEpreuveFromType(r.type)
-            }));
+            const roundsToSave = ROUNDS.map(r => {
+                const next = {
+                    ...r,
+                    type_epreuve: r.type_epreuve != null ? r.type_epreuve : getTypeEpreuveFromType(r.type)
+                };
+                attachConfigByType(next);
+                return next;
+            });
             await setDoc(doc(db, "config", "rounds"), { 
                 rounds: roundsToSave,
                 activeRoundId: activeRoundId
@@ -3482,16 +3529,28 @@
         // Fonction pour mettre à jour un champ d'un tour
         window.updateRoundField = async (roundId, field, value) => {
             const round = ROUNDS.find(r => r.id === roundId);
-            if (round) {
-                round[field] = value;
-                if (field === 'type') {
-                    round.type_epreuve = getTypeEpreuveFromType(value);
-                    round.noteTypes = defaultNoteTypesForRound(round);
-                    delete round.juryUi;
-                }
-                console.log(`🔄 Mise à jour du tour ${roundId}: ${field} = ${value}`);
+            if (!round) return;
+            if (field === 'type' && value !== round.type) {
+                attachConfigByType(round);
+                round.type = value;
+                round.type_epreuve = getTypeEpreuveFromType(value);
+                applyStoredConfigForType(round, value);
+                console.log(`🔄 Mise à jour du tour ${roundId}: type = ${value}`);
                 await saveRounds();
+                if (typeof renderNoteTypesEditor === 'function') renderNoteTypesEditor();
+                if (typeof renderNotesTable === 'function') await renderNotesTable();
+                try {
+                    await setDoc(doc(db, 'config', 'juryLayoutPing'), {
+                        roundId,
+                        revision: (round.juryUi && round.juryUi.revision) || Date.now(),
+                        at: Date.now()
+                    });
+                } catch (e) { console.warn('juryLayoutPing', e); }
+                return;
             }
+            round[field] = value;
+            console.log(`🔄 Mise à jour du tour ${roundId}: ${field} = ${value}`);
+            await saveRounds();
         };
         
         function renderRoundsTable() {
@@ -4128,6 +4187,7 @@
                 const next = { ...r, noteTypes: normalized };
                 next.type_epreuve = next.type_epreuve != null ? next.type_epreuve : getTypeEpreuveFromType(next.type);
                 syncRoundJuryUiWithNoteTypes(next, next.noteTypes);
+                attachConfigByType(next);
                 return next;
             });
             await setDoc(doc(db, 'config', 'rounds'), {
