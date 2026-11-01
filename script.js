@@ -1561,7 +1561,6 @@ function refreshCurrentJuryPanel() {
         roundDisplay.textContent = activeRoundName ? `Tour en cours : ${activeRoundName}` : '';
     }
     const tabNotation = document.getElementById('jury-tab-notation');
-    const tabDuels = document.getElementById('jury-tab-duels');
     const tabMonClassement = document.getElementById('jury-tab-mon-classement');
     const juryDuelsList = document.getElementById('jury-duels-list');
     const qualifiedList = document.getElementById('qualified-list');
@@ -1576,8 +1575,13 @@ function refreshCurrentJuryPanel() {
             updateCandidateSelect(selectedCandidateId);
         }
     }
-    const duelsPanelVisible = (tabDuels && tabDuels.classList.contains('active')) || (juryDuelsList && !tabNotation);
-    if (duelsPanelVisible && typeof renderJuryDuelsPanel === 'function') {
+    const activeTabBtn = document.querySelector('.jury-tab-btn.active');
+    const activeTabIsDuels = !!(activeTabBtn && (
+        activeTabBtn.getAttribute('data-tab-type') === 'duels' ||
+        activeTabBtn.getAttribute('data-jury-tab') === 'duels'
+    ));
+    const duelsPanelActive = !!(juryDuelsList && juryDuelsList.closest('.jury-tab-content')?.classList.contains('active'));
+    if ((activeTabIsDuels || duelsPanelActive) && typeof renderJuryDuelsPanel === 'function') {
         renderJuryDuelsPanel();
     }
     if (tabMonClassement && tabMonClassement.classList.contains('active')) {
@@ -3876,7 +3880,68 @@ function setupJuryTabs() {
     });
 }
 
-/** Onglet Duels : liste des gagnants ; président peut sélectionner le gagnant, autres en lecture seule */
+function escapeDuelName(name) {
+    return String(name == null ? '' : name).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function getJuriesOnDuelRound(roundId) {
+    return (JURIES || []).filter(j => Array.isArray(j.rounds) && j.rounds.includes(roundId));
+}
+
+/** Calcule le résultat majoritaire d'un duel à partir des votes des jurys du tour. */
+function computeDuelMajority(duel, votesByJury, juriesOnRound) {
+    const counts = {};
+    counts[duel.candidate1Id] = 0;
+    counts[duel.candidate2Id] = 0;
+    let voteCount = 0;
+    (juriesOnRound || []).forEach(j => {
+        const pick = votesByJury && votesByJury[j.id] ? votesByJury[j.id][duel.duelId] : null;
+        if (pick === duel.candidate1Id || pick === duel.candidate2Id) {
+            counts[pick] += 1;
+            voteCount += 1;
+        }
+    });
+    const c1 = counts[duel.candidate1Id] || 0;
+    const c2 = counts[duel.candidate2Id] || 0;
+    if (voteCount === 0 || c1 === c2) {
+        return { tied: true, winnerId: null, counts: { [duel.candidate1Id]: c1, [duel.candidate2Id]: c2 }, voteCount };
+    }
+    return {
+        tied: false,
+        winnerId: c1 > c2 ? duel.candidate1Id : duel.candidate2Id,
+        counts: { [duel.candidate1Id]: c1, [duel.candidate2Id]: c2 },
+        voteCount
+    };
+}
+
+function juryHasCompleteDuelVotes(votesMap, duels) {
+    const completeDuels = (duels || []).filter(d => d.candidate1Id && d.candidate2Id && d.duelId);
+    if (completeDuels.length === 0) return false;
+    return completeDuels.every(d => {
+        const pick = votesMap && votesMap[d.duelId];
+        return pick === d.candidate1Id || pick === d.candidate2Id;
+    });
+}
+
+function allJuriesHaveCompleteDuelVotes(votesByJury, duels, juriesOnRound) {
+    if (!juriesOnRound || juriesOnRound.length === 0) return false;
+    return juriesOnRound.every(j => juryHasCompleteDuelVotes(votesByJury[j.id] || {}, duels));
+}
+
+function styleDuelChoiceButton(selected, otherSelected, tiedYellow) {
+    if (tiedYellow) {
+        return 'padding: 8px 14px; border-radius: 6px; border: 2px solid #e6b800; cursor: pointer; font-weight: 600; background: #ffeb3b; color: #222;';
+    }
+    if (selected) {
+        return 'padding: 8px 14px; border-radius: 6px; border: 2px solid var(--border-color); cursor: pointer; font-weight: 600; background: var(--success-color); color: white;';
+    }
+    if (otherSelected) {
+        return 'padding: 8px 14px; border-radius: 6px; border: 2px solid var(--border-color); cursor: pointer; font-weight: 600; background: var(--danger-color); color: white;';
+    }
+    return 'padding: 8px 14px; border-radius: 6px; border: 2px solid var(--border-color); cursor: pointer; font-weight: 600; background: var(--input-bg); color: var(--text-color);';
+}
+
+/** Onglet Duels : gagnants (président seul, ou vote majoritaire si option admin activée). */
 async function renderJuryDuelsPanel() {
     const messageEl = document.getElementById('jury-duels-message');
     const listEl = document.getElementById('jury-duels-list');
@@ -3888,53 +3953,208 @@ async function renderJuryDuelsPanel() {
     }
     try {
         const snap = await getDoc(doc(db, "duel_results", roundId));
-        const duels = (snap.exists() && snap.data().duels) ? [...snap.data().duels] : [];
+        const data = snap.exists() ? (snap.data() || {}) : {};
+        const duels = Array.isArray(data.duels) ? [...data.duels] : [];
+        const majorityEnabled = data.majorityVoteEnabled === true;
+        if (majorityEnabled) {
+            try { await loadJuriesConfig(); } catch (e) { console.error(e); }
+        } else if (!JURIES || JURIES.length === 0) {
+            try { await loadJuriesConfig(); } catch (e) { console.error(e); }
+        }
+        const majorityValidated = data.majorityValidated === true;
+        const votesByJury = (data.votes && typeof data.votes === 'object') ? data.votes : {};
+        const tieBreakers = (data.tieBreakers && typeof data.tieBreakers === 'object') ? data.tieBreakers : {};
+        const juriesOnRound = getJuriesOnDuelRound(roundId);
+        const myVotes = votesByJury[currentJuryName] || {};
+        const everyoneVoted = majorityEnabled && allJuriesHaveCompleteDuelVotes(votesByJury, duels, juriesOnRound);
+        const presidentReview = majorityEnabled && isCurrentUserPresident && everyoneVoted && !majorityValidated;
+
         messageEl.style.display = duels.length === 0 ? 'block' : 'none';
         messageEl.textContent = duels.length === 0 ? 'Aucun duel pour ce tour.' : '';
         listEl.style.display = duels.length > 0 ? 'block' : 'none';
         listEl.innerHTML = '';
+
+        if (duels.length > 0 && majorityEnabled && !majorityValidated) {
+            const info = document.createElement('p');
+            info.style.cssText = 'text-align:center;color:var(--text-secondary);margin:0 0 14px;';
+            const doneCount = juriesOnRound.filter(j => juryHasCompleteDuelVotes(votesByJury[j.id] || {}, duels)).length;
+            if (presidentReview) {
+                info.textContent = 'Tous les jurys ont voté. Vérifiez la majorité puis validez. En cas d’égalité (jaune), départagez avant de valider.';
+            } else if (everyoneVoted && !isCurrentUserPresident) {
+                info.textContent = 'Tous les jurys ont voté. En attente de la validation du président.';
+            } else if (isCurrentUserPresident) {
+                info.textContent = 'Votez comme les autres jurys. La majorité s’affichera quand tout le monde aura choisi (' + doneCount + '/' + juriesOnRound.length + ').';
+            } else {
+                info.textContent = 'Choisissez un gagnant pour chaque duel (' + doneCount + '/' + juriesOnRound.length + ' jurys ont terminé).';
+            }
+            listEl.appendChild(info);
+        }
+
+        let unresolvedTies = 0;
         duels.forEach((duel, i) => {
             const c1 = CANDIDATES.find(c => c.id === duel.candidate1Id);
             const c2 = CANDIDATES.find(c => c.id === duel.candidate2Id);
             const name1 = (c1 ? c1.name : duel.candidate1Id) || duel.candidate1Id;
             const name2 = (c2 ? c2.name : duel.candidate2Id) || duel.candidate2Id;
-            const is1Winner = duel.winnerId === duel.candidate1Id;
-            const is2Winner = duel.winnerId === duel.candidate2Id;
-            const color1 = duel.winnerId ? (is1Winner ? 'var(--success-color)' : 'var(--danger-color)') : 'var(--text-color)';
-            const color2 = duel.winnerId ? (is2Winner ? 'var(--success-color)' : 'var(--danger-color)') : 'var(--text-color)';
             const card = document.createElement('div');
             card.style.cssText = 'display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 14px; margin-bottom: 10px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--input-bg);';
-            const winnerSpan = document.createElement('span');
-            winnerSpan.style.color = 'var(--text-color);';
-            if (duel.winnerId) {
-                const winnerName = duel.winnerId === duel.candidate1Id ? name1 : name2;
-                winnerSpan.innerHTML = 'Gagnant : <span style="color: var(--success-color); font-weight: 600;">' + winnerName.replace(/</g, '&lt;') + '</span>';
-        } else {
-                winnerSpan.textContent = 'Gagnant : —';
+            const titleSpan = document.createElement('span');
+            titleSpan.style.cssText = 'font-weight: 600; color: var(--text-color);';
+            titleSpan.textContent = 'Duel ' + (i + 1);
+            card.appendChild(titleSpan);
+
+            if (!majorityEnabled) {
+                const is1Winner = duel.winnerId === duel.candidate1Id;
+                const is2Winner = duel.winnerId === duel.candidate2Id;
+                const color1 = duel.winnerId ? (is1Winner ? 'var(--success-color)' : 'var(--danger-color)') : 'var(--text-color)';
+                const color2 = duel.winnerId ? (is2Winner ? 'var(--success-color)' : 'var(--danger-color)') : 'var(--text-color)';
+                const vsSpan = document.createElement('span');
+                vsSpan.innerHTML = '<span style="color: ' + color1 + '; font-weight: 600;">' + escapeDuelName(name1) + '</span> <strong>vs</strong> <span style="color: ' + color2 + '; font-weight: 600;">' + escapeDuelName(name2) + '</span>';
+                const winnerSpan = document.createElement('span');
+                winnerSpan.style.color = 'var(--text-color)';
+                if (duel.winnerId) {
+                    const winnerName = duel.winnerId === duel.candidate1Id ? name1 : name2;
+                    winnerSpan.innerHTML = 'Gagnant : <span style="color: var(--success-color); font-weight: 600;">' + escapeDuelName(winnerName) + '</span>';
+                } else {
+                    winnerSpan.textContent = 'Gagnant : —';
+                }
+                card.appendChild(vsSpan);
+                card.appendChild(winnerSpan);
+                if (isCurrentUserPresident) {
+                    const wrap = document.createElement('span');
+                    wrap.style.display = 'flex'; wrap.style.gap = '10px'; wrap.style.alignItems = 'center';
+                    const btn1 = document.createElement('button');
+                    btn1.type = 'button';
+                    btn1.textContent = name1;
+                    btn1.style.cssText = styleDuelChoiceButton(is1Winner, !!duel.winnerId && !is1Winner, false);
+                    const btn2 = document.createElement('button');
+                    btn2.type = 'button';
+                    btn2.textContent = name2;
+                    btn2.style.cssText = styleDuelChoiceButton(is2Winner, !!duel.winnerId && !is2Winner, false);
+                    btn1.onclick = () => jurySetDuelWinner(roundId, duels, i, duel.candidate1Id);
+                    btn2.onclick = () => jurySetDuelWinner(roundId, duels, i, duel.candidate2Id);
+                    wrap.appendChild(btn1); wrap.appendChild(btn2);
+                    card.appendChild(wrap);
+                }
+                listEl.appendChild(card);
+                return;
             }
+
+            // Mode vote majoritaire — résultat officiel après validation président
+            if (majorityValidated) {
+                const is1Winner = duel.winnerId === duel.candidate1Id;
+                const is2Winner = duel.winnerId === duel.candidate2Id;
+                const color1 = duel.winnerId ? (is1Winner ? 'var(--success-color)' : 'var(--danger-color)') : 'var(--text-color)';
+                const color2 = duel.winnerId ? (is2Winner ? 'var(--success-color)' : 'var(--danger-color)') : 'var(--text-color)';
+                const vsSpan = document.createElement('span');
+                vsSpan.innerHTML = '<span style="color: ' + color1 + '; font-weight: 600;">' + escapeDuelName(name1) + '</span> <strong>vs</strong> <span style="color: ' + color2 + '; font-weight: 600;">' + escapeDuelName(name2) + '</span>';
+                const winnerSpan = document.createElement('span');
+                if (duel.winnerId) {
+                    const winnerName = duel.winnerId === duel.candidate1Id ? name1 : name2;
+                    winnerSpan.innerHTML = 'Gagnant : <span style="color: var(--success-color); font-weight: 600;">' + escapeDuelName(winnerName) + '</span>';
+                } else {
+                    winnerSpan.textContent = 'Gagnant : —';
+                }
+                card.appendChild(vsSpan);
+                card.appendChild(winnerSpan);
+                listEl.appendChild(card);
+                return;
+            }
+
+            if (presidentReview) {
+                const majority = computeDuelMajority(duel, votesByJury, juriesOnRound);
+                const tieBreak = tieBreakers[duel.duelId] || null;
+                const effectiveWinner = majority.tied ? tieBreak : majority.winnerId;
+                const isTied = majority.tied && !tieBreak;
+                if (isTied) unresolvedTies += 1;
+                const is1 = effectiveWinner === duel.candidate1Id;
+                const is2 = effectiveWinner === duel.candidate2Id;
+                const color1 = isTied ? '#c9a000' : (effectiveWinner ? (is1 ? 'var(--success-color)' : 'var(--danger-color)') : 'var(--text-color)');
+                const color2 = isTied ? '#c9a000' : (effectiveWinner ? (is2 ? 'var(--success-color)' : 'var(--danger-color)') : 'var(--text-color)');
+                const vsSpan = document.createElement('span');
+                vsSpan.innerHTML = '<span style="color: ' + color1 + '; font-weight: 600;">' + escapeDuelName(name1) + '</span> <strong>vs</strong> <span style="color: ' + color2 + '; font-weight: 600;">' + escapeDuelName(name2) + '</span>';
+                const statusSpan = document.createElement('span');
+                statusSpan.style.color = 'var(--text-color)';
+                const c1n = majority.counts[duel.candidate1Id] || 0;
+                const c2n = majority.counts[duel.candidate2Id] || 0;
+                if (isTied) {
+                    statusSpan.innerHTML = 'Égalité (' + c1n + '-' + c2n + ') — départagez';
+                } else if (majority.tied && tieBreak) {
+                    const wn = tieBreak === duel.candidate1Id ? name1 : name2;
+                    statusSpan.innerHTML = 'Égalité départagée : <span style="color:var(--success-color);font-weight:600;">' + escapeDuelName(wn) + '</span>';
+                } else {
+                    const wn = majority.winnerId === duel.candidate1Id ? name1 : name2;
+                    statusSpan.innerHTML = 'Majorité (' + c1n + '-' + c2n + ') : <span style="color:var(--success-color);font-weight:600;">' + escapeDuelName(wn) + '</span>';
+                }
+                card.appendChild(vsSpan);
+                card.appendChild(statusSpan);
+                if (majority.tied) {
+                    const wrap = document.createElement('span');
+                    wrap.style.display = 'flex'; wrap.style.gap = '10px'; wrap.style.alignItems = 'center';
+                    const btn1 = document.createElement('button');
+                    btn1.type = 'button';
+                    btn1.textContent = name1;
+                    btn1.style.cssText = styleDuelChoiceButton(is1, is2, isTied || (!is1 && !is2));
+                    const btn2 = document.createElement('button');
+                    btn2.type = 'button';
+                    btn2.textContent = name2;
+                    btn2.style.cssText = styleDuelChoiceButton(is2, is1, isTied || (!is1 && !is2));
+                    btn1.onclick = () => jurySetDuelTieBreaker(roundId, duel.duelId, duel.candidate1Id);
+                    btn2.onclick = () => jurySetDuelTieBreaker(roundId, duel.duelId, duel.candidate2Id);
+                    wrap.appendChild(btn1); wrap.appendChild(btn2);
+                    card.appendChild(wrap);
+                }
+                listEl.appendChild(card);
+                return;
+            }
+
+            // Phase de vote (tous les jurys, président inclus) — lecture seule une fois que tout le monde a voté
+            const myPick = myVotes[duel.duelId] || null;
+            const is1 = myPick === duel.candidate1Id;
+            const is2 = myPick === duel.candidate2Id;
+            const color1 = myPick ? (is1 ? 'var(--success-color)' : 'var(--danger-color)') : 'var(--text-color)';
+            const color2 = myPick ? (is2 ? 'var(--success-color)' : 'var(--danger-color)') : 'var(--text-color)';
             const vsSpan = document.createElement('span');
-            vsSpan.innerHTML = '<span style="color: ' + color1 + '; font-weight: 600;">' + name1.replace(/</g, '&lt;') + '</span> <strong>vs</strong> <span style="color: ' + color2 + '; font-weight: 600;">' + name2.replace(/</g, '&lt;') + '</span>';
-            card.innerHTML = '<span style="font-weight: 600; color: var(--text-color);">Duel ' + (i + 1) + '</span>';
+            vsSpan.innerHTML = '<span style="color: ' + color1 + '; font-weight: 600;">' + escapeDuelName(name1) + '</span> <strong>vs</strong> <span style="color: ' + color2 + '; font-weight: 600;">' + escapeDuelName(name2) + '</span>';
+            const winnerSpan = document.createElement('span');
+            winnerSpan.style.color = 'var(--text-color)';
+            winnerSpan.textContent = myPick ? ('Votre choix : ' + (is1 ? name1 : name2)) : 'Votre choix : —';
             card.appendChild(vsSpan);
             card.appendChild(winnerSpan);
-            if (isCurrentUserPresident) {
+            if (!everyoneVoted) {
                 const wrap = document.createElement('span');
                 wrap.style.display = 'flex'; wrap.style.gap = '10px'; wrap.style.alignItems = 'center';
                 const btn1 = document.createElement('button');
                 btn1.type = 'button';
                 btn1.textContent = name1;
-                btn1.style.cssText = 'padding: 8px 14px; border-radius: 6px; border: 2px solid var(--border-color); cursor: pointer; font-weight: 600; background: ' + (is1Winner ? 'var(--success-color)' : (duel.winnerId ? 'var(--danger-color)' : 'var(--input-bg)')) + '; color: ' + (is1Winner || (duel.winnerId && !is1Winner) ? 'white' : 'var(--text-color)') + ';';
+                btn1.style.cssText = styleDuelChoiceButton(is1, !!myPick && !is1, false);
                 const btn2 = document.createElement('button');
                 btn2.type = 'button';
                 btn2.textContent = name2;
-                btn2.style.cssText = 'padding: 8px 14px; border-radius: 6px; border: 2px solid var(--border-color); cursor: pointer; font-weight: 600; background: ' + (is2Winner ? 'var(--success-color)' : (duel.winnerId ? 'var(--danger-color)' : 'var(--input-bg)')) + '; color: ' + (is2Winner || (duel.winnerId && !is2Winner) ? 'white' : 'var(--text-color)') + ';';
-                btn1.onclick = () => jurySetDuelWinner(roundId, duels, i, duel.candidate1Id);
-                btn2.onclick = () => jurySetDuelWinner(roundId, duels, i, duel.candidate2Id);
+                btn2.style.cssText = styleDuelChoiceButton(is2, !!myPick && !is2, false);
+                btn1.onclick = () => juryVoteDuelWinner(roundId, duel.duelId, duel.candidate1Id);
+                btn2.onclick = () => juryVoteDuelWinner(roundId, duel.duelId, duel.candidate2Id);
                 wrap.appendChild(btn1); wrap.appendChild(btn2);
                 card.appendChild(wrap);
             }
             listEl.appendChild(card);
         });
+
+        if (presidentReview) {
+            const footer = document.createElement('div');
+            footer.style.cssText = 'margin-top: 16px; text-align: center;';
+            const canValidate = unresolvedTies === 0;
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'jury-notation-validate';
+            btn.textContent = canValidate ? 'Valider les résultats des duels' : 'Égalité(s) à départager avant validation';
+            btn.disabled = !canValidate;
+            btn.style.opacity = canValidate ? '1' : '0.5';
+            btn.style.cursor = canValidate ? 'pointer' : 'not-allowed';
+            btn.onclick = () => juryValidateMajorityDuels(roundId);
+            footer.appendChild(btn);
+            listEl.appendChild(footer);
+        }
     } catch (err) {
         console.error(err);
         messageEl.style.display = 'block';
@@ -3943,18 +4163,120 @@ async function renderJuryDuelsPanel() {
     }
 }
 
-/** Enregistrer le gagnant d'un duel (président uniquement, appelé depuis l'onglet jury). */
+/** Enregistrer le gagnant d'un duel (président uniquement, mode classique). */
 async function jurySetDuelWinner(roundId, duelsList, duelIndex, winnerId) {
     if (!isCurrentUserPresident || duelIndex < 0 || duelIndex >= duelsList.length) return;
     const d = duelsList[duelIndex];
     if (winnerId !== d.candidate1Id && winnerId !== d.candidate2Id) return;
     d.winnerId = winnerId;
     try {
-        await setDoc(doc(db, "duel_results", roundId), { duels: duelsList, updatedAt: new Date() });
+        await setDoc(doc(db, "duel_results", roundId), { duels: duelsList, updatedAt: new Date() }, { merge: true });
         renderJuryDuelsPanel();
     } catch (err) {
         console.error(err);
         if (typeof customAlert === 'function') customAlert('Erreur lors de l\'enregistrement du gagnant.');
+    }
+}
+
+/** Vote d'un juré pour un duel (mode majorité). Pas de bouton Valider : le choix est enregistré immédiatement. */
+async function juryVoteDuelWinner(roundId, duelId, winnerId) {
+    if (!currentJuryName || !duelId || !winnerId) return;
+    try {
+        const ref = doc(db, "duel_results", roundId);
+        const snap = await getDoc(ref);
+        if (!snap.exists() || snap.data().majorityVoteEnabled !== true) return;
+        if (snap.data().majorityValidated === true) {
+            if (typeof customAlert === 'function') customAlert('Les résultats ont déjà été validés.');
+            return;
+        }
+        const duels = snap.data().duels || [];
+        const duel = duels.find(d => d.duelId === duelId);
+        if (!duel || (winnerId !== duel.candidate1Id && winnerId !== duel.candidate2Id)) return;
+        await updateDoc(ref, {
+            [`votes.${currentJuryName}.${duelId}`]: winnerId,
+            updatedAt: new Date()
+        });
+        renderJuryDuelsPanel();
+    } catch (err) {
+        console.error(err);
+        if (typeof customAlert === 'function') customAlert('Erreur lors de l\'enregistrement du vote.');
+    }
+}
+
+/** Président : départage une égalité avant validation finale. */
+async function jurySetDuelTieBreaker(roundId, duelId, winnerId) {
+    if (!isCurrentUserPresident || !duelId || !winnerId) return;
+    try {
+        const ref = doc(db, "duel_results", roundId);
+        const snap = await getDoc(ref);
+        if (!snap.exists() || snap.data().majorityVoteEnabled !== true) return;
+        if (snap.data().majorityValidated === true) return;
+        const duel = (snap.data().duels || []).find(d => d.duelId === duelId);
+        if (!duel || (winnerId !== duel.candidate1Id && winnerId !== duel.candidate2Id)) return;
+        await updateDoc(ref, {
+            [`tieBreakers.${duelId}`]: winnerId,
+            updatedAt: new Date()
+        });
+        renderJuryDuelsPanel();
+    } catch (err) {
+        console.error(err);
+        if (typeof customAlert === 'function') customAlert('Erreur lors du départage.');
+    }
+}
+
+/** Président : valide les gagnants issus de la majorité (+ départages). */
+async function juryValidateMajorityDuels(roundId) {
+    if (!isCurrentUserPresident) return;
+    try {
+        if (!JURIES || JURIES.length === 0) await loadJuriesConfig();
+        const ref = doc(db, "duel_results", roundId);
+        const snap = await getDoc(ref);
+        if (!snap.exists() || snap.data().majorityVoteEnabled !== true) return;
+        if (snap.data().majorityValidated === true) {
+            if (typeof customAlert === 'function') customAlert('Les résultats sont déjà validés.');
+            return;
+        }
+        const data = snap.data();
+        const duels = Array.isArray(data.duels) ? data.duels.map(d => ({ ...d })) : [];
+        const votesByJury = data.votes || {};
+        const tieBreakers = data.tieBreakers || {};
+        const juriesOnRound = getJuriesOnDuelRound(roundId);
+        if (!allJuriesHaveCompleteDuelVotes(votesByJury, duels, juriesOnRound)) {
+            if (typeof customAlert === 'function') customAlert('Tous les jurys n\'ont pas encore voté.');
+            return;
+        }
+        for (const duel of duels) {
+            if (!duel.candidate1Id || !duel.candidate2Id) continue;
+            const majority = computeDuelMajority(duel, votesByJury, juriesOnRound);
+            if (majority.tied) {
+                const tb = tieBreakers[duel.duelId];
+                if (tb !== duel.candidate1Id && tb !== duel.candidate2Id) {
+                    if (typeof customAlert === 'function') customAlert('Il reste des égalités à départager.');
+                    return;
+                }
+                duel.winnerId = tb;
+            } else {
+                duel.winnerId = majority.winnerId;
+            }
+        }
+        const ok = typeof customConfirm === 'function'
+            ? await customConfirm('Valider les résultats des duels selon la majorité (et vos départages) ?')
+            : confirm('Valider les résultats des duels ?');
+        if (!ok) return;
+        await setDoc(ref, {
+            roundId,
+            duels,
+            votes: votesByJury,
+            tieBreakers,
+            majorityVoteEnabled: true,
+            majorityValidated: true,
+            updatedAt: new Date()
+        }, { merge: true });
+        renderJuryDuelsPanel();
+        if (typeof customAlert === 'function') customAlert('Résultats des duels validés.');
+    } catch (err) {
+        console.error(err);
+        if (typeof customAlert === 'function') customAlert('Erreur lors de la validation des duels.');
     }
 }
 

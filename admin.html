@@ -707,6 +707,29 @@
             background: var(--border-color);
         }
 
+        /* Indicateur remplissage jury (rouge = incomplet, vert = tout rempli/validé) */
+        .jury-fill-indicator {
+            position: absolute;
+            top: var(--spacing);
+            left: var(--spacing);
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            z-index: 9999;
+            box-shadow: 0 0 0 2px var(--card-bg), 0 1px 4px rgba(0, 0, 0, 0.25);
+            transition: background-color 0.25s ease, box-shadow 0.25s ease;
+            cursor: help;
+        }
+        .jury-fill-indicator.is-red {
+            background: #e53935;
+        }
+        .jury-fill-indicator.is-green {
+            background: #43a047;
+        }
+        .jury-fill-indicator.is-neutral {
+            background: #9e9e9e;
+        }
+
         /* Burger Menu & Theme Toggle */
         .burger-menu {
             position: absolute;
@@ -898,6 +921,7 @@
 </head>
 <body>
     <div class="container">
+        <div id="jury-fill-indicator" class="jury-fill-indicator is-neutral" title="Indicateur de saisie des jurys" aria-label="Indicateur de saisie des jurys"></div>
         <div class="burger-menu">
             <div class="burger-icon" onclick="toggleMenu()">
                 <span></span>
@@ -1173,6 +1197,16 @@
                     </select>
                 </div>
                 <button id="duels-add-btn" onclick="addDuel()" class="action-button" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white;">Ajouter un duel</button>
+            </div>
+            <div id="duels-majority-option-wrap" style="display: none; margin-bottom: 16px; padding: 14px 16px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--input-bg);">
+                <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; color: var(--text-color);">
+                    <input type="checkbox" id="duels-majority-vote-enabled" onchange="toggleDuelsMajorityVote(this.checked)" style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0;">
+                    <span>
+                        <strong>Vote à la majorité des jurys</strong><br>
+                        <span style="color: var(--text-secondary); font-size: 0.95em;">Chaque juré (président inclus) choisit un gagnant pour chaque duel. Quand tous ont voté, le président voit la majorité et valide le résultat. En cas d’égalité, les deux candidats apparaissent en jaune et le président départage après concertation.</span>
+                    </span>
+                </label>
+                <p id="duels-majority-status" style="display: none; margin: 10px 0 0 28px; color: var(--text-secondary); font-size: 0.95em;"></p>
             </div>
             <div id="duels-list-container" style="margin-top: 20px;">
                 <p id="duels-empty-msg" style="color: var(--text-secondary);">Sélectionnez un tour de type Duels puis cliquez sur "Ajouter un duel".</p>
@@ -1991,6 +2025,7 @@
                 // Ignorer si un changement manuel est en cours (handleScoreChange gère le rendu)
                 if (isManualChange) {
                     console.log('⏭️ Skipping listener refresh during manual change');
+                    if (typeof scheduleJuryFillIndicatorRefresh === 'function') scheduleJuryFillIndicatorRefresh();
                     return;
                 }
                 
@@ -2085,6 +2120,7 @@
                 }, 100);
                 
                 pendingRefresh = true;
+                if (typeof scheduleJuryFillIndicatorRefresh === 'function') scheduleJuryFillIndicatorRefresh();
                 if (listenerAffectedCandidateIds.size > 0) {
                     (async () => {
                         for (const candidateId of listenerAffectedCandidateIds) {
@@ -2160,6 +2196,7 @@
                 if (!isNotesActive && !isCandidatsActive) {
                     console.log('📋 Notes/Candidats tab not active, refresh pending');
                 }
+                if (typeof scheduleJuryFillIndicatorRefresh === 'function') scheduleJuryFillIndicatorRefresh();
             }, (error) => {
                 console.error('❌ Error listening to candidates:', error);
             });
@@ -2199,6 +2236,8 @@
                 }
                 if (typeof populatePodiumRoundDropdown === 'function') populatePodiumRoundDropdown();
                 if (typeof populateDuelsRoundDropdown === 'function') populateDuelsRoundDropdown();
+                if (typeof setupJuryFillIndicatorListeners === 'function') setupJuryFillIndicatorListeners();
+                if (typeof scheduleJuryFillIndicatorRefresh === 'function') scheduleJuryFillIndicatorRefresh();
             }, (error) => {
                 console.error('❌ Error listening to rounds:', error);
             });
@@ -3889,15 +3928,266 @@
             renderNotesTable();
         };
         
+        // --- Indicateur remplissage jurys (pastille rouge/verte) ---
+        let juryFillIndicatorTimer = null;
+        let juryFillDuelListener = null;
+        let juryFillRankingsListener = null;
+        let juryFillAccountsListener = null;
+        let juryFillLastRoundId = null;
+
+        function getEffectiveJuryTabsForIndicator(round) {
+            if (!round) return [];
+            if (round.type === 'Repêchage' || round.type_epreuve === 'repechage') {
+                return [{ id: 'tab_repechage', type: 'repechage', name: 'Repêchage' }];
+            }
+            if (round.type === 'Grande finale' || round.type_epreuve === 'grande_finale') {
+                const ui = round.juryUi;
+                if (ui && Array.isArray(ui.tabs) && ui.tabs.length && (!ui.forType || ui.forType === round.type)) {
+                    return ui.tabs;
+                }
+                return [{ id: 'tab_finale', type: 'choix', name: 'Finale', personCount: 3, personSource: 'top' }];
+            }
+            const ui = round.juryUi;
+            if (ui && Array.isArray(ui.tabs) && ui.tabs.length && (!ui.forType || ui.forType === (round.type || 'Notation individuelle'))) {
+                return ui.tabs;
+            }
+            if (round.type === 'Duels' || round.type_epreuve === 'duels') {
+                return [
+                    { id: 'tab_notation', type: 'notation' },
+                    { id: 'tab_duels', type: 'duels' },
+                    { id: 'tab_classement', type: 'classement' }
+                ];
+            }
+            if (round.type === 'Petite finale' || round.type_epreuve === 'petite_finale') {
+                return [
+                    { id: 'tab_notation', type: 'notation' },
+                    { id: 'tab_classement', type: 'classement' }
+                ];
+            }
+            return [{ id: 'tab_notation', type: 'notation' }];
+        }
+
+        function isJuryScoreFieldFilled(v) {
+            return v != null && v !== '' && v !== '-';
+        }
+
+        function areJuryScoresCompleteForIndicator(scores, noteTypes) {
+            if (!noteTypes || !noteTypes.length) {
+                return !!(scores && isJuryScoreFieldFilled(scores.score1) && isJuryScoreFieldFilled(scores.score2));
+            }
+            let lockRest = false;
+            for (const nt of noteTypes) {
+                if (lockRest) continue;
+                const v = scores ? scores[nt.field] : null;
+                if (!isJuryScoreFieldFilled(v)) return false;
+                if (nt.allowEL && String(v) === 'EL') lockRest = true;
+            }
+            return true;
+        }
+
+        function setJuryFillIndicatorState(complete, detail) {
+            const el = document.getElementById('jury-fill-indicator');
+            if (!el) return;
+            el.classList.remove('is-red', 'is-green', 'is-neutral');
+            if (complete == null) {
+                el.classList.add('is-neutral');
+                el.title = detail || 'Indicateur de saisie des jurys';
+                return;
+            }
+            el.classList.add(complete ? 'is-green' : 'is-red');
+            el.title = complete
+                ? ('Vert : les jurys ont tout rempli' + (detail ? ' — ' + detail : ''))
+                : ('Rouge : saisie jury incomplète' + (detail ? ' — ' + detail : ''));
+        }
+
+        async function computeJuryFillCompleteness() {
+            const roundId = activeRoundId;
+            if (!roundId) {
+                return { complete: null, detail: 'Aucun tour actif' };
+            }
+            const round = (ROUNDS || []).find(r => r.id === roundId);
+            if (!round) {
+                return { complete: null, detail: 'Tour actif introuvable' };
+            }
+            if (!Array.isArray(JURIES) || JURIES.length === 0) {
+                try { await loadJuries(); } catch (e) { /* ignore */ }
+            }
+            const juriesOnRound = (JURIES || []).filter(j => Array.isArray(j.rounds) && j.rounds.includes(roundId));
+            if (juriesOnRound.length === 0) {
+                return { complete: true, detail: 'Aucun jury assigné à ce tour' };
+            }
+            const tabs = getEffectiveJuryTabsForIndicator(round);
+            const needsNotation = tabs.some(t => !t.type || t.type === 'notation');
+            const needsDuels = tabs.some(t => t.type === 'duels');
+            const needsClassement = tabs.some(t => t.type === 'classement');
+            const needsRepechage = tabs.some(t => t.type === 'repechage');
+            const choixTabs = tabs.filter(t => t.type === 'choix');
+
+            const candidates = (CANDIDATES || []).filter(c => c.tour === roundId);
+            const activeCandidates = candidates.filter(c => c.status === 'Actif' || c.status === 'Reset');
+            const missing = [];
+
+            // Scores validés (présents en base) pour les onglets de notation
+            if (needsNotation && !needsRepechage) {
+                if (activeCandidates.length === 0) {
+                    // rien à noter
+                } else {
+                    const noteTypes = (typeof getNoteTypesForRound === 'function') ? getNoteTypesForRound(round) : [];
+                    const scoresSnap = await getDocs(query(collection(db, "scores"), where("roundId", "==", roundId)));
+                    const byCandJury = {};
+                    scoresSnap.forEach(d => {
+                        const data = d.data();
+                        const jid = data.juryId || data.juryName;
+                        if (!data.candidateId || !jid) return;
+                        if (!byCandJury[data.candidateId]) byCandJury[data.candidateId] = {};
+                        byCandJury[data.candidateId][jid] = data;
+                    });
+                    let missingPairs = 0;
+                    for (const c of activeCandidates) {
+                        for (const j of juriesOnRound) {
+                            const scores = byCandJury[c.id] && byCandJury[c.id][j.id];
+                            if (!areJuryScoresCompleteForIndicator(scores, noteTypes)) missingPairs += 1;
+                        }
+                    }
+                    if (missingPairs > 0) {
+                        missing.push(missingPairs + ' notation(s) manquante(s)');
+                    }
+                }
+            }
+
+            // Repêchage : validation président = tous les candidats du tour Qualifié ou Éliminé
+            if (needsRepechage) {
+                const pending = candidates.filter(c => c.status !== 'Qualifie' && c.status !== 'Elimine');
+                if (pending.length > 0) {
+                    missing.push('repêchage non finalisé (' + pending.length + ' candidat(s))');
+                }
+            }
+
+            // Duels : si vote majoritaire → majorityValidated ; sinon tous les winnerId renseignés
+            if (needsDuels) {
+                const duelSnap = await getDoc(doc(db, "duel_results", roundId));
+                const duelData = duelSnap.exists() ? (duelSnap.data() || {}) : {};
+                const duels = Array.isArray(duelData.duels) ? duelData.duels.filter(d => d && d.candidate1Id && d.candidate2Id) : [];
+                if (duels.length > 0) {
+                    if (duelData.majorityVoteEnabled === true) {
+                        if (duelData.majorityValidated !== true) {
+                            missing.push('gagnants de duel non validés (majorité)');
+                        }
+                    } else {
+                        const withoutWinner = duels.filter(d => !d.winnerId).length;
+                        if (withoutWinner > 0) {
+                            missing.push(withoutWinner + ' gagnant(s) de duel manquant(s)');
+                        }
+                    }
+                }
+            }
+
+            // Mon classement : positions 1–5 (ou moins s’il y a peu de candidats)
+            if (needsClassement) {
+                const slots = ['1', '2', '3', '4', '5'].slice(0, Math.max(1, Math.min(5, candidates.length || 5)));
+                if (candidates.length > 0) {
+                    let incompleteRankings = 0;
+                    for (const j of juriesOnRound) {
+                        const rankSnap = await getDoc(doc(db, "jury_rankings", j.id + '_' + roundId));
+                        const positions = rankSnap.exists() ? (rankSnap.data().positions || {}) : {};
+                        const ok = slots.every(p => positions[p] != null && positions[p] !== '');
+                        if (!ok) incompleteRankings += 1;
+                    }
+                    if (incompleteRankings > 0) {
+                        missing.push(incompleteRankings + ' classement(s) personnel(s) incomplet(s)');
+                    }
+                }
+            }
+
+            // Onglets choix / grande finale : votes validés synchronisés (au moins personCount par jury)
+            if (choixTabs.length > 0) {
+                const scoresSnap = await getDocs(query(collection(db, "scores"), where("roundId", "==", roundId)));
+                const votesByJury = {};
+                juriesOnRound.forEach(j => { votesByJury[j.id] = 0; });
+                scoresSnap.forEach(d => {
+                    const data = d.data();
+                    const jid = data.juryId;
+                    if (!jid || votesByJury[jid] == null) return;
+                    const v = Number(data.score1);
+                    if (!Number.isNaN(v) && v > 0) votesByJury[jid] += v;
+                });
+                const expected = Math.max(1, ...choixTabs.map(t => {
+                    if (t.personSource === 'remaining' || t.personSource === 'all') {
+                        return Math.max(1, activeCandidates.length || candidates.length || 1);
+                    }
+                    return Math.max(1, Math.min(30, parseInt(t.personCount, 10) || 3));
+                }));
+                const counts = juriesOnRound.map(j => votesByJury[j.id] || 0);
+                const minC = Math.min(...counts);
+                const maxC = Math.max(...counts);
+                if (minC < expected) {
+                    missing.push('choix/finale : ' + minC + '/' + expected + ' validation(s) (min. jurys)');
+                } else if (minC !== maxC) {
+                    missing.push('choix/finale : jurys non synchronisés');
+                }
+            }
+
+            if (missing.length === 0) {
+                return { complete: true, detail: 'tour actif prêt côté jurys' };
+            }
+            return { complete: false, detail: missing.join(' · ') };
+        }
+
+        async function refreshJuryFillIndicator() {
+            try {
+                const result = await computeJuryFillCompleteness();
+                setJuryFillIndicatorState(result.complete, result.detail);
+            } catch (e) {
+                console.error('jury-fill-indicator', e);
+                setJuryFillIndicatorState(false, 'Erreur de calcul de l’indicateur');
+            }
+        }
+
+        function scheduleJuryFillIndicatorRefresh() {
+            if (juryFillIndicatorTimer) clearTimeout(juryFillIndicatorTimer);
+            juryFillIndicatorTimer = setTimeout(() => {
+                juryFillIndicatorTimer = null;
+                refreshJuryFillIndicator();
+            }, 200);
+        }
+
+        function setupJuryFillIndicatorListeners() {
+            const roundId = activeRoundId || null;
+            if (juryFillDuelListener && juryFillLastRoundId !== roundId) {
+                juryFillDuelListener();
+                juryFillDuelListener = null;
+            }
+            if (roundId && !juryFillDuelListener) {
+                juryFillLastRoundId = roundId;
+                juryFillDuelListener = onSnapshot(doc(db, "duel_results", roundId), () => {
+                    scheduleJuryFillIndicatorRefresh();
+                }, () => {});
+            }
+            if (!juryFillRankingsListener) {
+                juryFillRankingsListener = onSnapshot(collection(db, "jury_rankings"), () => {
+                    scheduleJuryFillIndicatorRefresh();
+                }, () => {});
+            }
+            if (!juryFillAccountsListener) {
+                juryFillAccountsListener = onSnapshot(collection(db, "accounts"), async () => {
+                    try { await loadJuries(); } catch (e) { /* ignore */ }
+                    scheduleJuryFillIndicatorRefresh();
+                }, () => {});
+            }
+        }
+
         // Charger tours et candidats au démarrage pour que tous les onglets et le classement soient cohérents (listener met à jour le classement même si on n'est pas sur l'onglet Notes)
         (async function initAdminData() {
             await loadRounds();
             await loadList();
+            try { await loadJuries(); } catch (e) { /* ignore */ }
             console.log('🚀 Données admin chargées (ROUNDS, CANDIDATES). Initialisation des listeners...');
             setupScoresListener();
             setupCandidatesListener();
             setupRoundsListener();
             setupMalusListener();
+            setupJuryFillIndicatorListeners();
+            scheduleJuryFillIndicatorRefresh();
             console.log('%c[CLASSEMENT] Pour déboguer le bonus: filtrez la console par "CLASSEMENT". Puis: Activation classements → activer +5 pour un candidat → Notes → revenir Activation. Copiez toutes les lignes [CLASSEMENT].', 'color: #0a0; font-weight: bold;');
         })();
 
@@ -4323,6 +4613,10 @@
         let podiumFinalListRound = null;
         let duelDisplayRound = null; // Tour affiché dans l'onglet Duels
         let duelsList = []; // Liste des duels : [ { duelId, candidate1Id, candidate2Id, winnerId } ]
+        let duelsMajorityVoteEnabled = false;
+        let duelsMajorityValidated = false;
+        let duelsVotes = {}; // { [juryId]: { [duelId]: winnerId } }
+        let duelsTieBreakers = {}; // { [duelId]: winnerId }
         let activationClassementRoundId = null; // Tour (Classement) pour l'onglet Activation classements
         let activationClassementId = null; // ID du document classement
         
@@ -5335,22 +5629,103 @@
             loadDuelsData();
         };
         
+        function applyDuelsDocMeta(data) {
+            const d = data || {};
+            duelsMajorityVoteEnabled = d.majorityVoteEnabled === true;
+            duelsMajorityValidated = d.majorityValidated === true;
+            duelsVotes = (d.votes && typeof d.votes === 'object') ? { ...d.votes } : {};
+            duelsTieBreakers = (d.tieBreakers && typeof d.tieBreakers === 'object') ? { ...d.tieBreakers } : {};
+            const optWrap = document.getElementById('duels-majority-option-wrap');
+            const optCb = document.getElementById('duels-majority-vote-enabled');
+            if (optWrap) optWrap.style.display = 'block';
+            if (optCb) optCb.checked = duelsMajorityVoteEnabled;
+            updateDuelsMajorityStatus();
+        }
+
+        function updateDuelsMajorityStatus() {
+            const statusEl = document.getElementById('duels-majority-status');
+            if (!statusEl) return;
+            if (!duelsMajorityVoteEnabled) {
+                statusEl.style.display = 'none';
+                statusEl.textContent = '';
+                return;
+            }
+            const roundId = duelDisplayRound || activeRoundId;
+            const juriesOnRound = (typeof JURIES !== 'undefined' ? JURIES : []).filter(j => Array.isArray(j.rounds) && j.rounds.includes(roundId));
+            const duelIds = (duelsList || []).filter(d => d.candidate1Id && d.candidate2Id).map(d => d.duelId);
+            let complete = 0;
+            juriesOnRound.forEach(j => {
+                const votes = duelsVotes[j.id] || {};
+                if (duelIds.length > 0 && duelIds.every(id => votes[id])) complete += 1;
+            });
+            statusEl.style.display = 'block';
+            if (duelsMajorityValidated) {
+                statusEl.textContent = 'Résultat validé par le président (' + complete + '/' + juriesOnRound.length + ' jurys avaient voté).';
+            } else {
+                statusEl.textContent = 'Votes complets : ' + complete + ' / ' + juriesOnRound.length + ' jurys' + (duelIds.length ? ' (' + duelIds.length + ' duel' + (duelIds.length > 1 ? 's' : '') + ')' : '') + '.';
+            }
+        }
+
+        window.toggleDuelsMajorityVote = async function(enabled) {
+            const roundId = duelDisplayRound || activeRoundId;
+            if (!roundId || !isDuelsRound(ROUNDS.find(r => r.id === roundId))) {
+                const optCb = document.getElementById('duels-majority-vote-enabled');
+                if (optCb) optCb.checked = false;
+                await customAlert('Sélectionnez un tour de type Duels.');
+                return;
+            }
+            duelsMajorityVoteEnabled = !!enabled;
+            if (!duelsMajorityVoteEnabled) {
+                duelsMajorityValidated = false;
+            }
+            try {
+                const payload = {
+                    roundId,
+                    duels: duelsList,
+                    majorityVoteEnabled: duelsMajorityVoteEnabled,
+                    updatedAt: new Date()
+                };
+                if (!duelsMajorityVoteEnabled) {
+                    payload.majorityValidated = false;
+                }
+                await setDoc(doc(db, "duel_results", roundId), payload, { merge: true });
+                updateDuelsMajorityStatus();
+            } catch (e) {
+                console.error(e);
+                duelsMajorityVoteEnabled = !enabled;
+                const optCb = document.getElementById('duels-majority-vote-enabled');
+                if (optCb) optCb.checked = duelsMajorityVoteEnabled;
+                await customAlert('Erreur lors de l\'enregistrement de l\'option : ' + (e.message || e));
+            }
+        };
+
         async function loadDuelsData() {
             const roundId = duelDisplayRound || activeRoundId;
             const emptyMsg = document.getElementById('duels-empty-msg');
             const listEl = document.getElementById('duels-list');
             const addBtn = document.getElementById('duels-add-btn');
+            const optWrap = document.getElementById('duels-majority-option-wrap');
             if (!roundId || !isDuelsRound(ROUNDS.find(r => r.id === roundId))) {
                 duelsList = [];
+                duelsMajorityVoteEnabled = false;
+                duelsMajorityValidated = false;
+                duelsVotes = {};
+                duelsTieBreakers = {};
                 if (emptyMsg) emptyMsg.textContent = 'Sélectionnez un tour de type Duels.';
                 if (emptyMsg) emptyMsg.style.display = 'block';
                 if (listEl) listEl.style.display = 'none';
                 if (addBtn) addBtn.disabled = true;
+                if (optWrap) optWrap.style.display = 'none';
                 return;
+            }
+            if (typeof loadJuries === 'function') {
+                try { await loadJuries(); } catch (e) { /* ignore */ }
             }
             if (duelsListener) { duelsListener(); duelsListener = null; }
             const snap = await getDoc(doc(db, "duel_results", roundId));
-            duelsList = (snap.exists() && snap.data().duels) ? [...snap.data().duels] : [];
+            const data = snap.exists() ? snap.data() : {};
+            duelsList = (data.duels) ? [...data.duels] : [];
+            applyDuelsDocMeta(data);
             if (addBtn) addBtn.disabled = false;
             if (duelsList.length === 0) {
                 if (emptyMsg) emptyMsg.textContent = 'Aucun duel. Cliquez sur "Ajouter un duel" pour en créer un.';
@@ -5362,17 +5737,18 @@
                 renderDuelsList();
             }
             duelsListener = onSnapshot(doc(db, "duel_results", roundId), (snap) => {
-                if (snap.exists() && snap.data().duels) {
-                    duelsList = [...snap.data().duels];
-                    const emptyMsg2 = document.getElementById('duels-empty-msg');
-                    const listEl2 = document.getElementById('duels-list');
-                    if (duelsList.length === 0) {
-                        if (emptyMsg2) { emptyMsg2.textContent = 'Aucun duel. Cliquez sur "Ajouter un duel" pour en créer un.'; emptyMsg2.style.display = 'block'; }
-                        if (listEl2) listEl2.style.display = 'none';
-                    } else {
-                        if (emptyMsg2) emptyMsg2.style.display = 'none';
-                        if (listEl2) { listEl2.style.display = 'block'; renderDuelsList(); }
-                    }
+                if (!snap.exists()) return;
+                const data2 = snap.data() || {};
+                duelsList = Array.isArray(data2.duels) ? [...data2.duels] : [];
+                applyDuelsDocMeta(data2);
+                const emptyMsg2 = document.getElementById('duels-empty-msg');
+                const listEl2 = document.getElementById('duels-list');
+                if (duelsList.length === 0) {
+                    if (emptyMsg2) { emptyMsg2.textContent = 'Aucun duel. Cliquez sur "Ajouter un duel" pour en créer un.'; emptyMsg2.style.display = 'block'; }
+                    if (listEl2) listEl2.style.display = 'none';
+                } else {
+                    if (emptyMsg2) emptyMsg2.style.display = 'none';
+                    if (listEl2) { listEl2.style.display = 'block'; renderDuelsList(); }
                 }
             });
         }
@@ -5397,6 +5773,8 @@
 
         window.removeDuel = function(duelIndex) {
             if (duelIndex < 0 || duelIndex >= duelsList.length) return;
+            const removed = duelsList[duelIndex];
+            if (removed && removed.duelId) clearVotesForDuel(removed.duelId);
             duelsList.splice(duelIndex, 1);
             if (duelsList.length === 0) {
                 document.getElementById('duels-empty-msg').textContent = 'Aucun duel. Cliquez sur "Ajouter un duel" pour en créer un.';
@@ -5443,12 +5821,34 @@
                 await setDoc(doc(db, "duel_results", roundId), {
                     roundId,
                     duels: duelsList,
+                    majorityVoteEnabled: duelsMajorityVoteEnabled === true,
+                    majorityValidated: duelsMajorityValidated === true,
+                    votes: duelsVotes || {},
+                    tieBreakers: duelsTieBreakers || {},
                     updatedAt: new Date()
                 });
                 await syncDuelBonusEnabledWithDuelWinners(roundId);
+                updateDuelsMajorityStatus();
             } catch (e) {
                 console.error(e);
             }
+        }
+
+        function clearVotesForDuel(duelId) {
+            if (!duelId) return;
+            Object.keys(duelsVotes || {}).forEach(juryId => {
+                if (duelsVotes[juryId] && duelsVotes[juryId][duelId] != null) {
+                    const next = { ...duelsVotes[juryId] };
+                    delete next[duelId];
+                    duelsVotes[juryId] = next;
+                }
+            });
+            if (duelsTieBreakers && duelsTieBreakers[duelId] != null) {
+                const nextTb = { ...duelsTieBreakers };
+                delete nextTb[duelId];
+                duelsTieBreakers = nextTb;
+            }
+            duelsMajorityValidated = false;
         }
 
         window.updateDuelCandidates = function(duelIndex, which, value) {
@@ -5464,6 +5864,7 @@
                 if (d.candidate1Id === d.candidate2Id) d.candidate1Id = '';
                 d.winnerId = null;
             }
+            clearVotesForDuel(d.duelId);
             renderDuelsList();
             saveDuelsSilently();
         };
@@ -5511,23 +5912,25 @@
                 center.style.gap = '10px';
                 center.style.alignItems = 'center';
                 if (duel.candidate1Id && duel.candidate2Id) {
-                    center.innerHTML = '<label style="color: var(--text-color);">Gagnant :</label>';
-                    const name1 = (c1 ? c1.name : duel.candidate1Id).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                    const name2 = (c2 ? c2.name : duel.candidate2Id).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                    const is1Winner = duel.winnerId === duel.candidate1Id;
-                    const is2Winner = duel.winnerId === duel.candidate2Id;
-                    const btn1 = document.createElement('button');
-                    btn1.type = 'button';
-                    btn1.textContent = c1 ? c1.name : duel.candidate1Id;
-                    btn1.style.cssText = `padding: 8px 16px; border-radius: 6px; border: 2px solid var(--border-color); background: ${is1Winner ? 'var(--success-color)' : (duel.winnerId ? 'var(--danger-color)' : 'var(--input-bg)')}; color: ${is1Winner || (duel.winnerId && !is1Winner) ? 'white' : 'var(--text-color)'}; cursor: pointer; font-weight: 600;`;
-                    btn1.onclick = () => setDuelWinner(i, duel.candidate1Id);
-                    const btn2 = document.createElement('button');
-                    btn2.type = 'button';
-                    btn2.textContent = c2 ? c2.name : duel.candidate2Id;
-                    btn2.style.cssText = `padding: 8px 16px; border-radius: 6px; border: 2px solid var(--border-color); background: ${is2Winner ? 'var(--success-color)' : (duel.winnerId ? 'var(--danger-color)' : 'var(--input-bg)')}; color: ${is2Winner || (duel.winnerId && !is2Winner) ? 'white' : 'var(--text-color)'}; cursor: pointer; font-weight: 600;`;
-                    btn2.onclick = () => setDuelWinner(i, duel.candidate2Id);
-                    center.appendChild(btn1);
-                    center.appendChild(btn2);
+                    if (duelsMajorityVoteEnabled && !duelsMajorityValidated) {
+                        center.innerHTML = '<span style="color: var(--text-secondary);">Gagnant : vote majoritaire en cours (les jurys choisissent ; le président valide)</span>';
+                    } else {
+                        center.innerHTML = '<label style="color: var(--text-color);">Gagnant :</label>';
+                        const is1Winner = duel.winnerId === duel.candidate1Id;
+                        const is2Winner = duel.winnerId === duel.candidate2Id;
+                        const btn1 = document.createElement('button');
+                        btn1.type = 'button';
+                        btn1.textContent = c1 ? c1.name : duel.candidate1Id;
+                        btn1.style.cssText = `padding: 8px 16px; border-radius: 6px; border: 2px solid var(--border-color); background: ${is1Winner ? 'var(--success-color)' : (duel.winnerId ? 'var(--danger-color)' : 'var(--input-bg)')}; color: ${is1Winner || (duel.winnerId && !is1Winner) ? 'white' : 'var(--text-color)'}; cursor: pointer; font-weight: 600;`;
+                        btn1.onclick = () => setDuelWinner(i, duel.candidate1Id);
+                        const btn2 = document.createElement('button');
+                        btn2.type = 'button';
+                        btn2.textContent = c2 ? c2.name : duel.candidate2Id;
+                        btn2.style.cssText = `padding: 8px 16px; border-radius: 6px; border: 2px solid var(--border-color); background: ${is2Winner ? 'var(--success-color)' : (duel.winnerId ? 'var(--danger-color)' : 'var(--input-bg)')}; color: ${is2Winner || (duel.winnerId && !is2Winner) ? 'white' : 'var(--text-color)'}; cursor: pointer; font-weight: 600;`;
+                        btn2.onclick = () => setDuelWinner(i, duel.candidate2Id);
+                        center.appendChild(btn1);
+                        center.appendChild(btn2);
+                    }
                 } else {
                     center.textContent = 'Choisissez les deux candidats';
                     center.style.color = 'var(--text-secondary)';
@@ -5564,6 +5967,10 @@
                 await setDoc(doc(db, "duel_results", roundId), {
                     roundId,
                     duels: duelsList,
+                    majorityVoteEnabled: duelsMajorityVoteEnabled === true,
+                    majorityValidated: duelsMajorityValidated === true,
+                    votes: duelsVotes || {},
+                    tieBreakers: duelsTieBreakers || {},
                     updatedAt: new Date()
                 });
                 const withWinner = duelsList.filter(d => d.winnerId).length;
@@ -8887,8 +9294,19 @@
                     const data = d.data();
                     const currentDuels = data.duels || [];
                     const duels = currentDuels.map(duel => ({ ...duel, winnerId: null }));
-                    if (currentDuels.some((x, i) => x && x.winnerId != null)) {
-                        await setDoc(d.ref, { ...data, duels, updatedAt: new Date() });
+                    const needsReset = currentDuels.some(x => x && x.winnerId != null)
+                        || data.majorityValidated === true
+                        || (data.votes && Object.keys(data.votes).length > 0)
+                        || (data.tieBreakers && Object.keys(data.tieBreakers).length > 0);
+                    if (needsReset) {
+                        await setDoc(d.ref, {
+                            ...data,
+                            duels,
+                            votes: {},
+                            tieBreakers: {},
+                            majorityValidated: false,
+                            updatedAt: new Date()
+                        });
                         if (typeof syncDuelBonusEnabledWithDuelWinners === 'function') await syncDuelBonusEnabledWithDuelWinners(d.id, []);
                     }
                 }
@@ -8966,14 +9384,24 @@
                 for (const d of duelSnap.docs) {
                     const data = d.data();
                     const currentDuels = data.duels || [];
+                    const hasWinners = currentDuels.some(x => x && x.winnerId != null);
+                    const hasVotes = data.votes && Object.keys(data.votes).length > 0;
+                    const hasTieBreakers = data.tieBreakers && Object.keys(data.tieBreakers).length > 0;
+                    const wasValidated = data.majorityValidated === true;
+                    if (!hasWinners && !hasVotes && !hasTieBreakers && !wasValidated) continue;
                     const duels = currentDuels.map(duel => ({ ...duel, winnerId: null }));
-                    if (duels.some((x, i) => currentDuels[i] && currentDuels[i].winnerId != null)) {
-                        await setDoc(d.ref, { ...data, duels, updatedAt: new Date() });
-                        await syncDuelBonusEnabledWithDuelWinners(d.id, []);
-                        updated++;
-                    }
+                    await setDoc(d.ref, {
+                        ...data,
+                        duels,
+                        votes: {},
+                        tieBreakers: {},
+                        majorityValidated: false,
+                        updatedAt: new Date()
+                    });
+                    await syncDuelBonusEnabledWithDuelWinners(d.id, []);
+                    updated++;
                 }
-                await customAlert(updated > 0 ? '✓ Gagnants des duels supprimés.\n\n' + updated + ' tour(s) de duels réinitialisé(s).' : 'Aucun gagnant de duel à supprimer.');
+                await customAlert(updated > 0 ? '✓ Gagnants des duels (et votes majoritaires) réinitialisés.\n\n' + updated + ' tour(s) de duels réinitialisé(s).' : 'Aucun gagnant de duel à supprimer.');
                 loadDuelsData();
             } catch (e) {
                 console.error('Erreur:', e);
