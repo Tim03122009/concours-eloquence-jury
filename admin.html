@@ -1109,7 +1109,7 @@
                     <h3>Types de notes de ce tour</h3>
                     <button type="button" id="open-jury-maquette-btn" onclick="openJuryMaquette()" class="action-button" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 8px 14px; margin: 0;">Aperçu interface jury</button>
                 </div>
-                <p id="note-types-help">Chaque ligne est une note saisie par les jurys. Le score pondéré = somme (valeur × coefficient). Barème : de 5 en 5, 0 ou 1, 0 à 20, ou 0 à X (X jusqu’à 4 chiffres). Si X = 20, le barème redevient automatiquement « 0 à 20 ». L’aperçu ouvre une fausse page jury (même mise en page, aucune note enregistrée) pour régler onglets, 1 ou 2 candidats, boutons ou curseurs.</p>
+                <p id="note-types-help">Chaque ligne est une note saisie par les jurys. Le score pondéré = somme (valeur × coefficient). Barème : de 5 en 5 (boutons, option « 0 » et « EL »), 0 ou 1, 0 à 20, ou 0 à X (X jusqu’à 4 chiffres). Si X = 20, le barème redevient automatiquement « 0 à 20 ». L’aperçu ouvre une fausse page jury (même mise en page, aucune note enregistrée) pour régler onglets, 1 ou 2 candidats, boutons ou curseurs.</p>
                 <p id="note-types-lock-banner" class="note-types-lock-banner" style="display: none;">Repêchage : paramètres bloqués. L’interface jury reste Qualifiés (1) / Éliminés (0). Seul le nombre de candidats suivants peut être réglé dans l’onglet Tours.</p>
                 <div class="table-container" style="max-height: none; overflow: auto;">
                     <table class="note-types-table" id="note-types-table">
@@ -1119,6 +1119,7 @@
                                 <th>Nom</th>
                                 <th style="width: 90px;">Coefficient</th>
                                 <th style="width: 280px;">Barème</th>
+                                <th style="width: 56px; text-align: center;" title="Bouton 0 (barème de 5 en 5)">0</th>
                                 <th style="width: 80px; text-align: center;">EL</th>
                             </tr>
                         </thead>
@@ -1126,6 +1127,15 @@
                     </table>
                 </div>
                 <button type="button" id="add-note-type-btn" onclick="addNoteTypeToDisplayedRound()" class="action-button" style="margin-top: 10px; background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white;">+ Ajouter une note</button>
+                <div id="eliminate-president-el-option-wrap" style="margin-top: 14px; padding: 12px 14px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--input-bg);">
+                    <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; color: var(--text-color);">
+                        <input type="checkbox" id="eliminate-president-all-el" onchange="toggleEliminateIfPresidentAllEL(this.checked)" style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0;">
+                        <span>
+                            <strong>Éliminer si le président met tout en EL</strong><br>
+                            <span style="color: var(--text-secondary); font-size: 0.95em;">Quand toutes les notes du tour sont remplies, un candidat dont le président a toutes ses notes en EL passe en statut Éliminé — même si le tour est configuré en « ALL » pour le tour suivant.</span>
+                        </span>
+                    </label>
+                </div>
             </div>
             
             <div class="table-container">
@@ -1428,6 +1438,7 @@
                 t.name,
                 t.scale,
                 t.rangeMax == null || t.rangeMax === '' ? '' : String(t.rangeMax),
+                t.allowZero ? 1 : 0,
                 t.allowEL ? 1 : 0,
                 t.coefficient == null || t.coefficient === '' ? '' : String(t.coefficient)
             ].join(':')).join('|');
@@ -4197,7 +4208,7 @@
         let notesSortAscending = true;
         let notesDisplayRound = null; // Tour affiché dans le tableau Notes
         const NOTE_SCALE_OPTIONS = [
-            { id: 'step5', label: 'De 5 en 5 (5, 10, 15, 20)' },
+            { id: 'step5', label: 'De 5 en 5 (boutons)' },
             { id: 'binary', label: '0 ou 1' },
             { id: 'range20', label: '0 à 20' },
             { id: 'rangeCustom', label: '0 à X' }
@@ -4245,6 +4256,12 @@
         function normalizeNoteType(nt, index) {
             let scale = nt && nt.scale ? nt.scale : 'step5';
             let rangeMax = nt && nt.rangeMax != null ? clampRangeMax(nt.rangeMax) : null;
+            let allowZero = !!nt?.allowZero;
+            // Ancien barème « 5 en 5 avec 0 » → step5 + option 0
+            if (scale === 'step5from0') {
+                scale = 'step5';
+                allowZero = true;
+            }
             if (scale === 'range15') { scale = 'rangeCustom'; rangeMax = 15; }
             if (scale === 'range30') { scale = 'rangeCustom'; rangeMax = 30; }
             if (scale === 'range' || scale === 'rangeX') scale = 'rangeCustom';
@@ -4256,6 +4273,7 @@
                     rangeMax = 20;
                 }
             }
+            if (scale !== 'step5') allowZero = false;
             return {
                 id: (nt && nt.id) ? nt.id : ('nt_' + (index + 1)),
                 name: (nt && nt.name) ? nt.name : ('Note ' + (index + 1)),
@@ -4263,6 +4281,7 @@
                 coefficient: (nt && (nt.coefficient === 0 || nt.coefficient)) ? Number(nt.coefficient) : 1,
                 scale,
                 rangeMax: rangeMax,
+                allowZero,
                 allowEL: !!nt?.allowEL
             };
         }
@@ -4290,9 +4309,10 @@
                 id: nt.id,
                 name: nt.name,
                 field: nt.field,
-                widget: (nt.scale === 'step5' || nt.scale === 'binary') ? 'buttons' : 'slider',
+                widget: (nt.scale === 'step5' || nt.scale === 'step5from0' || nt.scale === 'binary') ? 'buttons' : 'slider',
                 scale: nt.scale,
                 rangeMax: nt.rangeMax,
+                allowZero: !!nt.allowZero || nt.scale === 'step5from0',
                 allowEL: !!nt.allowEL,
                 coefficient: nt.coefficient
             }));
@@ -4384,18 +4404,73 @@
             if (n > 0) await batch.commit();
         }
 
-        function getOptionsForNoteType(nt) {
-            const opts = ['-'];
+        /** Options du menu déroulant notes. Côté admin, 0 (step5) et EL sont toujours proposés ; côté jury, allowZero / allowEL filtrent. */
+        function getOptionsForNoteType(nt, opts = {}) {
+            const forAdmin = opts.forAdmin !== false; // défaut admin = true dans ce fichier
+            const out = ['-'];
             if (nt.scale === 'binary') {
-                opts.push('0', '1');
-            } else if (nt.scale === 'range20' || nt.scale === 'rangeCustom') {
-                const max = Math.min(getNoteTypeRangeMax(nt) || 20, NOTE_RANGE_SELECT_LIMIT);
-                for (let i = 0; i <= max; i++) opts.push(String(i));
-            } else {
-                opts.push('5', '10', '15', '20');
+                out.push('0', '1');
+                return out;
             }
-            if (nt.allowEL) opts.push('EL');
-            return opts;
+            if (nt.scale === 'range20' || nt.scale === 'rangeCustom') {
+                const max = Math.min(getNoteTypeRangeMax(nt) || 20, NOTE_RANGE_SELECT_LIMIT);
+                for (let i = 0; i <= max; i++) out.push(String(i));
+            } else {
+                // step5 / step5from0
+                if (forAdmin || nt.allowZero || nt.scale === 'step5from0') out.push('0');
+                out.push('5', '10', '15', '20');
+            }
+            if (forAdmin || nt.allowEL) out.push('EL');
+            return out;
+        }
+
+        /** elLocksNext est stocké sur les critères juryUi (aperçu), pas sur noteTypes. */
+        function noteFieldElLocksNext(round, field) {
+            const tabs = (round && round.juryUi && Array.isArray(round.juryUi.tabs)) ? round.juryUi.tabs : [];
+            for (const tab of tabs) {
+                for (const c of (tab.criteria || [])) {
+                    if ((c.field || '') === field) return !!c.elLocksNext;
+                }
+            }
+            return false;
+        }
+
+        function followingNoteFieldsAfter(round, field) {
+            const types = round ? getNoteTypesForRound(round) : [];
+            const idx = types.findIndex(nt => nt.field === field);
+            if (idx < 0) return [];
+            return types.slice(idx + 1).map(nt => nt.field).filter(Boolean);
+        }
+
+        /** Une note précédente avec EL + « EL désactive les notes suivantes » verrouille ce champ. */
+        function isAdminNoteFieldLockedByEl(round, scores, field) {
+            const types = round ? getNoteTypesForRound(round) : [];
+            let lockRest = false;
+            for (const nt of types) {
+                if (nt.field === field) return lockRest;
+                if (lockRest) continue;
+                if (noteFieldElLocksNext(round, nt.field) && scores && String(scores[nt.field]) === 'EL') {
+                    lockRest = true;
+                }
+            }
+            return false;
+        }
+
+        /** Applique la cascade EL → notes suivantes (valeurs à fusionner dans le doc scores). */
+        function buildElCascadeUpdates(round, field, value, currentData) {
+            const updates = { [field]: value };
+            if (!round || !field) return updates;
+            if (!noteFieldElLocksNext(round, field)) return updates;
+            const following = followingNoteFieldsAfter(round, field);
+            if (value === 'EL') {
+                following.forEach(f => { updates[f] = 'EL'; });
+            } else {
+                following.forEach(f => {
+                    const cur = currentData && currentData[f];
+                    if (cur === 'EL') updates[f] = '-';
+                });
+            }
+            return updates;
         }
 
         function computeScoreFromNoteTypes(scores, noteTypes) {
@@ -4436,10 +4511,17 @@
             const help = document.getElementById('note-types-help');
             const banner = document.getElementById('note-types-lock-banner');
             const addBtn = document.getElementById('add-note-type-btn');
+            const elimOptWrap = document.getElementById('eliminate-president-el-option-wrap');
+            const elimOptCb = document.getElementById('eliminate-president-all-el');
             if (editor) editor.classList.toggle('locked', locked);
             if (help) help.style.display = locked ? 'none' : '';
             if (banner) banner.style.display = locked ? '' : 'none';
             if (addBtn) addBtn.style.display = locked ? 'none' : '';
+            if (elimOptWrap) elimOptWrap.style.display = locked ? 'none' : '';
+            if (elimOptCb) {
+                elimOptCb.checked = !!(round && round.eliminateIfPresidentAllEL);
+                elimOptCb.disabled = locked;
+            }
             const types = locked ? defaultNoteTypesForRound(round).map((nt, i) => normalizeNoteType(nt, i)) : getNoteTypesForRound(round);
             tbody.innerHTML = types.map((nt, index) => {
                 const scaleOpts = NOTE_SCALE_OPTIONS.map(opt =>
@@ -4453,9 +4535,93 @@
                     <td><input type="text" value="${escapeHtmlAttr(nt.name)}" onchange="updateNoteTypeOnDisplayedRound(${index}, 'name', this.value)"></td>
                     <td><input type="number" step="0.1" value="${escapeHtmlAttr(nt.coefficient)}" onchange="updateNoteTypeOnDisplayedRound(${index}, 'coefficient', this.value)"></td>
                     <td><div class="note-types-scale-cell"><select onchange="updateNoteTypeOnDisplayedRound(${index}, 'scale', this.value)">${scaleOpts}</select>${rangeInput}</div></td>
+                    <td style="text-align: center;"><input type="checkbox" ${nt.allowZero ? 'checked' : ''} ${nt.scale === 'step5' ? '' : 'disabled'} title="${nt.scale === 'step5' ? 'Proposer le bouton 0 au jury' : 'Uniquement pour le barème de 5 en 5'}" onchange="updateNoteTypeOnDisplayedRound(${index}, 'allowZero', this.checked)"></td>
                     <td style="text-align: center;"><input type="checkbox" ${nt.allowEL ? 'checked' : ''} onchange="updateNoteTypeOnDisplayedRound(${index}, 'allowEL', this.checked)"></td>
                 </tr>`;
             }).join('');
+        }
+
+        window.toggleEliminateIfPresidentAllEL = async function(enabled) {
+            const displayRound = notesDisplayRound || activeRoundId || 'round1';
+            const round = ROUNDS.find(r => r.id === displayRound);
+            const cb = document.getElementById('eliminate-president-all-el');
+            if (!round || isRepechageRound(round)) {
+                if (cb) cb.checked = false;
+                return;
+            }
+            round.eliminateIfPresidentAllEL = !!enabled;
+            try {
+                await saveRounds();
+            } catch (e) {
+                console.error(e);
+                round.eliminateIfPresidentAllEL = !enabled;
+                if (cb) cb.checked = !!round.eliminateIfPresidentAllEL;
+                await customAlert('Erreur lors de l\'enregistrement de l\'option : ' + (e.message || e));
+            }
+        };
+
+        /** true si toutes les notes du président pour ce candidat sont EL. */
+        function presidentAllNotesAreEL(scores, noteTypes) {
+            if (!scores) return false;
+            if (noteTypes && noteTypes.length) {
+                return noteTypes.every(nt => scores[nt.field] === 'EL');
+            }
+            return scores.score1 === 'EL' && scores.score2 === 'EL';
+        }
+
+        function getPresidentJuryOnRound(juriesOnRound) {
+            return (juriesOnRound || []).find(j => j.isPresident === true) || null;
+        }
+
+        /**
+         * Applique Qualifié / Éliminé. Si eliminateIfPresidentAllEL : les candidats
+         * dont le président a tout mis en EL sont éliminés même si nextRoundCandidates = ALL.
+         */
+        function applyQualificationStatuses(candidateScores, activeRound, scoresByCandidate, juriesOnRound, candidatesList) {
+            const noteTypes = roundHasCustomNoteTypes(activeRound) ? getNoteTypesForRound(activeRound) : null;
+            const president = activeRound.eliminateIfPresidentAllEL ? getPresidentJuryOnRound(juriesOnRound) : null;
+            const enriched = (candidateScores || []).map(s => {
+                let forceElim = false;
+                if (president) {
+                    const ps = scoresByCandidate[s.id] && scoresByCandidate[s.id][president.id];
+                    forceElim = presidentAllNotesAreEL(ps, noteTypes);
+                }
+                return { ...s, forceElimByPresidentEL: forceElim };
+            });
+            const forced = enriched.filter(s => s.forceElimByPresidentEL);
+            const ranking = enriched.filter(s => !s.forceElimByPresidentEL).sort((a, b) => b.totalScore - a.totalScore);
+            let qualifyCount;
+            if (activeRound.nextRoundCandidates === 'ALL') {
+                qualifyCount = ranking.length;
+            } else {
+                qualifyCount = parseInt(activeRound.nextRoundCandidates, 10);
+                if (isNaN(qualifyCount)) qualifyCount = ranking.length;
+                qualifyCount = Math.min(qualifyCount, ranking.length);
+            }
+            let qualifiedCount = 0;
+            let eliminatedCount = 0;
+            forced.forEach(scoreData => {
+                const c = candidatesList.find(cand => cand.id === scoreData.id);
+                if (c) {
+                    c.status = 'Elimine';
+                    eliminatedCount++;
+                    console.log(`  ✗ ${c.name}: président tout EL → Éliminé`);
+                }
+            });
+            ranking.forEach((scoreData, index) => {
+                const c = candidatesList.find(cand => cand.id === scoreData.id);
+                if (!c) return;
+                if (index < qualifyCount) {
+                    c.status = 'Qualifie';
+                    qualifiedCount++;
+                    console.log(`  ✓ ${c.name}: ${scoreData.totalScore} pts → Qualifié (rang ${index + 1})`);
+                } else {
+                    c.status = 'Elimine';
+                    eliminatedCount++;
+                    console.log(`  ✗ ${c.name}: ${scoreData.totalScore} pts → Éliminé (rang ${index + 1})`);
+                }
+            });
+            return { qualifiedCount, eliminatedCount, forceEliminatedCount: forced.length };
         }
 
         async function persistNoteTypesForDisplayedRound(noteTypes) {
@@ -4514,8 +4680,12 @@
                 types[index].coefficient = isNaN(n) ? 1 : n;
             } else if (field === 'allowEL') {
                 types[index].allowEL = value === true || value === 'true';
+            } else if (field === 'allowZero') {
+                types[index].allowZero = value === true || value === 'true';
+                if (types[index].scale !== 'step5') types[index].allowZero = false;
             } else if (field === 'scale') {
                 types[index].scale = value;
+                if (value !== 'step5') types[index].allowZero = false;
                 if (value === 'range20') {
                     types[index].rangeMax = 20;
                 } else if (value === 'rangeCustom') {
@@ -4579,6 +4749,7 @@
                 field,
                 coefficient: 1,
                 scale: 'range20',
+                allowZero: false,
                 allowEL: false
             });
             await persistNoteTypesForDisplayedRound(types);
@@ -5216,7 +5387,7 @@
                             cell.style.width = '90px';
                             cell.style.textAlign = 'center';
                             const currentVal = scores ? (scores[nt.field] != null ? scores[nt.field] : '-') : '-';
-                            cell.innerHTML = createScoreDropdown(scores ? scores.id : null, nt.field, currentVal, candidate.id, jury.id, readonly);
+                            cell.innerHTML = createScoreDropdown(scores ? scores.id : null, nt.field, currentVal, candidate.id, jury.id, readonly, scores || null);
                         });
                     } else if (isRepechage) {
                         // Pour repêchage : une seule colonne par jury (0 ou 1)
@@ -5243,9 +5414,9 @@
                             cell.style.minWidth = '52px';
                             cell.style.width = '52px';
                             if (scores) {
-                                cell.innerHTML = createScoreDropdown(scores.id, field, scores[field] != null ? scores[field] : '-', candidate.id, jury.id, readonly);
+                                cell.innerHTML = createScoreDropdown(scores.id, field, scores[field] != null ? scores[field] : '-', candidate.id, jury.id, readonly, scores);
                             } else {
-                                cell.innerHTML = createScoreDropdown(null, field, '-', candidate.id, jury.id, readonly);
+                                cell.innerHTML = createScoreDropdown(null, field, '-', candidate.id, jury.id, readonly, null);
                             }
                         }
                     } else if (isGrandeFinale) {
@@ -5256,9 +5427,9 @@
                         cell.style.width = '90px';
                         const readonly = isRoundValidated || (candidate.status === 'Elimine' || candidate.status === 'Qualifie');
                         if (scores) {
-                            cell.innerHTML = createScoreDropdown(scores.id, 'score1', scores.score1, candidate.id, jury.id, readonly);
+                            cell.innerHTML = createScoreDropdown(scores.id, 'score1', scores.score1, candidate.id, jury.id, readonly, scores);
                         } else {
-                            cell.innerHTML = createScoreDropdown(null, 'score1', '-', candidate.id, jury.id, readonly);
+                            cell.innerHTML = createScoreDropdown(null, 'score1', '-', candidate.id, jury.id, readonly, null);
                         }
                     } else {
                         // Pour autres tours : deux colonnes (Fond | Forme)
@@ -5274,11 +5445,11 @@
                         const readonly = isRoundValidated || (candidate.status === 'Elimine' || candidate.status === 'Qualifie');
                         
                         if (scores) {
-                            cell1.innerHTML = createScoreDropdown(scores.id, 'score1', scores.score1, candidate.id, jury.id, readonly);
-                            cell2.innerHTML = createScoreDropdown(scores.id, 'score2', scores.score2, candidate.id, jury.id, readonly);
+                            cell1.innerHTML = createScoreDropdown(scores.id, 'score1', scores.score1, candidate.id, jury.id, readonly, scores);
+                            cell2.innerHTML = createScoreDropdown(scores.id, 'score2', scores.score2, candidate.id, jury.id, readonly, scores);
                         } else {
-                            cell1.innerHTML = createScoreDropdown(null, 'score1', '-', candidate.id, jury.id, readonly);
-                            cell2.innerHTML = createScoreDropdown(null, 'score2', '-', candidate.id, jury.id, readonly);
+                            cell1.innerHTML = createScoreDropdown(null, 'score1', '-', candidate.id, jury.id, readonly, null);
+                            cell2.innerHTML = createScoreDropdown(null, 'score2', '-', candidate.id, jury.id, readonly, null);
                         }
                     }
                 });
@@ -6680,43 +6851,19 @@
             
             console.log(`✅ Tous les candidats ont leurs notes complètes. Calcul du classement...`);
             
-            // Trier par score décroissant
-            candidateScores.sort((a, b) => b.totalScore - a.totalScore);
-            
-            // Déterminer le nombre de candidats à qualifier
-            let qualifyCount;
-            if (activeRound.nextRoundCandidates === 'ALL') {
-                qualifyCount = candidateScores.length; // Tous qualifiés
-            } else {
-                qualifyCount = parseInt(activeRound.nextRoundCandidates) || candidateScores.length;
-            }
-            
-            console.log(`📊 ${candidateScores.length} candidats, ${qualifyCount} seront qualifiés (nextRoundCandidates=${activeRound.nextRoundCandidates})`);
-            
-            // Qualifier les N premiers, éliminer les autres
-            let qualifiedCount = 0;
-            let eliminatedCount = 0;
-            
-            candidateScores.forEach((scoreData, index) => {
-                const c = CANDIDATES.find(cand => cand.id === scoreData.id);
-                if (c) {
-                    if (index < qualifyCount) {
-                        c.status = 'Qualifie';
-                        qualifiedCount++;
-                        console.log(`  ✓ ${c.name}: ${scoreData.totalScore} pts → Qualifié (rang ${index + 1})`);
-                    } else {
-                        c.status = 'Elimine';
-                        eliminatedCount++;
-                        console.log(`  ✗ ${c.name}: ${scoreData.totalScore} pts → Éliminé (rang ${index + 1})`);
-                    }
-                }
-            });
+            const { qualifiedCount, eliminatedCount, forceEliminatedCount } = applyQualificationStatuses(
+                candidateScores,
+                activeRound,
+                scoresByCandidate,
+                juriesOnRound,
+                CANDIDATES
+            );
             
             await saveCandidates();
-            console.log(`✅ Qualification terminée: ${qualifiedCount} qualifié(s), ${eliminatedCount} éliminé(s)`);
+            console.log(`✅ Qualification terminée: ${qualifiedCount} qualifié(s), ${eliminatedCount} éliminé(s)` + (forceEliminatedCount ? ` dont ${forceEliminatedCount} par président EL` : ''));
         }
 
-        function createScoreDropdown(scoreId, field, currentValue, candidateId, juryId, readonly = false) {
+        function createScoreDropdown(scoreId, field, currentValue, candidateId, juryId, readonly = false, scoresRow = null) {
             const displayRound = notesDisplayRound || activeRoundId || 'round1';
             const round = ROUNDS.find(r => r.id === displayRound);
             const noteType = round ? getNoteTypesForRound(round).find(nt => nt.field === field) : null;
@@ -6729,21 +6876,29 @@
             const rangeMax = noteType ? getNoteTypeRangeMax(noteType) : null;
             const useNumberInput = !!(noteType && noteType.scale === 'rangeCustom' && rangeMax > NOTE_RANGE_SELECT_LIMIT);
             const selectId = `score-${candidateId}-${juryId}-${field}`;
-            const disabledAttr = readonly ? 'disabled' : '';
-            const currentStr = currentValue === undefined || currentValue === null ? '-' : String(currentValue);
+            const lockedByEl = !!(round && scoresRow && isAdminNoteFieldLockedByEl(round, scoresRow, field));
+            const disabledAttr = (readonly || lockedByEl) ? 'disabled' : '';
+            const rawStr = currentValue === undefined || currentValue === null ? '-' : String(currentValue);
+            // Verrouillé par « EL désactive les notes suivantes » → afficher EL même si pas encore écrit
+            const currentStr = lockedByEl ? 'EL' : rawStr;
 
-            if (useNumberInput) {
-                const displayVal = (currentStr === '-' || currentStr === '' || currentStr === 'EL') ? '' : currentStr;
-                return `<input type="number" id="${selectId}" min="0" max="${rangeMax}" step="1" value="${escapeHtmlAttr(displayVal)}" ${disabledAttr} style="width: 72px; text-align: center;" onchange="handleScoreChange('${scoreId}', '${field}', (this.value===''?'-':String(Math.min(${rangeMax}, Math.max(0, parseInt(this.value,10)||0)))), '${candidateId}', '${juryId}')">`;
+            if (useNumberInput && currentStr !== 'EL') {
+                const displayVal = (currentStr === '-' || currentStr === '') ? '' : currentStr;
+                return `<span style="display:inline-flex;align-items:center;gap:4px;">
+                    <input type="number" id="${selectId}" min="0" max="${rangeMax}" step="1" value="${escapeHtmlAttr(displayVal)}" ${disabledAttr} style="width: 72px; text-align: center;" onchange="handleScoreChange('${scoreId}', '${field}', (this.value===''?'-':String(Math.min(${rangeMax}, Math.max(0, parseInt(this.value,10)||0)))), '${candidateId}', '${juryId}')">
+                    <button type="button" ${disabledAttr} title="Éliminé" style="padding:2px 6px;font-size:0.75em;cursor:pointer;" onclick="handleScoreChange('${scoreId}', '${field}', 'EL', '${candidateId}', '${juryId}')">EL</button>
+                </span>`;
             }
 
-            const options = noteType
-                ? getOptionsForNoteType(noteType)
+            let options = noteType
+                ? getOptionsForNoteType(noteType, { forAdmin: true })
                 : (isDuels || isPetiteFinale || isGrandeFinale)
-                ? ['-'].concat(Array.from({ length: optionLength }, (_, i) => String(i)))
+                ? ['-'].concat(Array.from({ length: optionLength }, (_, i) => String(i)), ['EL'])
                 : ['-', '5', '10', '15', '20', 'EL'];
+            // Toujours pouvoir afficher/conserver EL même si la valeur actuelle est EL
+            if (currentStr === 'EL' && !options.includes('EL')) options = options.concat(['EL']);
 
-            let html = `<select id="${selectId}" onchange="handleScoreChange('${scoreId}', '${field}', this.value, '${candidateId}', '${juryId}')" ${disabledAttr} style="text-align: center;">`;
+            let html = `<select id="${selectId}" onchange="handleScoreChange('${scoreId}', '${field}', this.value, '${candidateId}', '${juryId}')" ${disabledAttr} style="text-align: center;"${lockedByEl ? ' title="Forcé à EL par une note précédente"' : ''}>`;
             options.forEach(opt => {
                 const selected = opt === currentStr ? 'selected' : '';
                 html += `<option value="${opt}" ${selected}>${opt}</option>`;
@@ -6915,32 +7070,19 @@
                     }
                 }
                 
-                const s1 = field === 'score1' ? value : '-';
-                const s2 = field === 'score2' ? value : '-';
-                const s3 = field === 'score3' ? value : '-';
-                const s4 = field === 'score4' ? value : '-';
-                const s5 = field === 'score5' ? value : '-';
-                const s6 = field === 'score6' ? value : '-';
-                const s7 = field === 'score7' ? value : '-';
-                const s8 = field === 'score8' ? value : '-';
-                const s9 = field === 'score9' ? value : '-';
-                const s10 = field === 'score10' ? value : '-';
+                const round = ROUNDS.find(r => r.id === roundId);
+                const base = {
+                    score1: '-', score2: '-', score3: '-', score4: '-', score5: '-',
+                    score6: '-', score7: '-', score8: '-', score9: '-', score10: '-'
+                };
+                Object.assign(base, buildElCascadeUpdates(round, field, value, base));
                 const data = {
                     candidateId: candidateId,
                     juryId: juryId,
                     juryName: juryName,
                     roundId: roundId,
-                    score1: s1,
-                    score2: s2,
-                    score3: s3,
-                    score4: s4,
-                    score5: s5,
-                    score6: s6,
-                    score7: s7,
-                    score8: s8,
-                    score9: s9,
-                    score10: s10,
-                    score_base: computeScoreBase(s1, s2, roundId, s3, s4, s5, s6, s7, s8, s9, s10),
+                    ...base,
+                    score_base: computeScoreBase(base.score1, base.score2, roundId, base.score3, base.score4, base.score5, base.score6, base.score7, base.score8, base.score9, base.score10),
                     timestamp: new Date()
                 };
                 
@@ -6976,7 +7118,9 @@
                 if (!scoreSnap.exists()) return;
                 
                 const data = scoreSnap.data();
-                data[field] = value;
+                const round = ROUNDS.find(r => r.id === (data.roundId || notesDisplayRound || activeRoundId));
+                const cascade = buildElCascadeUpdates(round, field, value, data);
+                Object.assign(data, cascade);
                 
                 delete data.totalWeightedScore;
                 data.score_base = computeScoreBase(data.score1, data.score2, data.roundId, data.score3 ?? '-', data.score4 ?? '-', data.score5 ?? '-', data.score6 ?? '-', data.score7 ?? '-', data.score8 ?? '-', data.score9 ?? '-', data.score10 ?? '-');
@@ -9098,20 +9242,30 @@
                 // Avertir si des notes sont incomplètes
                 const completeCount = candidateScores.filter(c => c.isComplete).length;
                 
-                // Déterminer le nombre de candidats à qualifier
+                const noteTypesPreview = customTypes;
+                const president = activeRound.eliminateIfPresidentAllEL ? getPresidentJuryOnRound(juriesOnRound) : null;
+                let forceElimPreview = 0;
+                if (president) {
+                    candidateScores.forEach(s => {
+                        const ps = scoresByCandidate[s.id] && scoresByCandidate[s.id][president.id];
+                        if (presidentAllNotesAreEL(ps, noteTypesPreview)) forceElimPreview += 1;
+                    });
+                }
                 let qualifyCount;
+                const eligibleForQualify = candidateScores.length - forceElimPreview;
                 if (activeRound.nextRoundCandidates === 'ALL') {
-                    qualifyCount = candidateScores.length;
+                    qualifyCount = eligibleForQualify;
                 } else {
-                    qualifyCount = parseInt(activeRound.nextRoundCandidates) || candidateScores.length;
+                    qualifyCount = Math.min(parseInt(activeRound.nextRoundCandidates, 10) || eligibleForQualify, eligibleForQualify);
                 }
                 
                 // Confirmation
                 const confirmMsg = `Qualifier les candidats du tour "${roundName}" ?\n\n` +
                     `📋 ${candidateScores.length} candidat(s) actif(s)\n` +
                     `✅ ${completeCount} candidat(s) avec notes complètes\n` +
-                    `⚠️ ${incompleteCount > 0 ? incompleteCount + ' candidat(s) avec notes incomplètes' : 'Tous les candidats ont des notes'}\n\n` +
-                    `🏆 ${qualifyCount} candidat(s) seront qualifié(s)\n` +
+                    `⚠️ ${incompleteCount > 0 ? incompleteCount + ' candidat(s) avec notes incomplètes' : 'Tous les candidats ont des notes'}\n` +
+                    (forceElimPreview > 0 ? `⛔ ${forceElimPreview} candidat(s) éliminé(s) (président tout EL)\n` : '') +
+                    `\n🏆 ${qualifyCount} candidat(s) seront qualifié(s)\n` +
                     `❌ ${Math.max(0, candidateScores.length - qualifyCount)} candidat(s) seront éliminé(s)\n\n` +
                     `Continuer ?`;
                 
@@ -9119,32 +9273,18 @@
                     return;
                 }
                 
-                // Trier par score décroissant
-                candidateScores.sort((a, b) => b.totalScore - a.totalScore);
-                
                 console.log(`📊 Classement des ${candidateScores.length} candidats:`);
-                candidateScores.forEach((c, idx) => {
+                candidateScores.slice().sort((a, b) => b.totalScore - a.totalScore).forEach((c, idx) => {
                     console.log(`  ${idx + 1}. ${c.name}: ${c.totalScore} pts ${c.isComplete ? '✓' : '⚠️'}`);
                 });
                 
-                // Qualifier les N premiers, éliminer les autres
-                let qualifiedCount = 0;
-                let eliminatedCount = 0;
-                
-                candidateScores.forEach((scoreData, index) => {
-                    const c = CANDIDATES.find(cand => cand.id === scoreData.id);
-                    if (c) {
-                        if (index < qualifyCount) {
-                            c.status = 'Qualifie';
-                            qualifiedCount++;
-                            console.log(`  ✓ ${c.name}: ${scoreData.totalScore} pts → Qualifié (rang ${index + 1})`);
-                        } else {
-                            c.status = 'Elimine';
-                            eliminatedCount++;
-                            console.log(`  ✗ ${c.name}: ${scoreData.totalScore} pts → Éliminé (rang ${index + 1})`);
-                        }
-                    }
-                });
+                const { qualifiedCount, eliminatedCount } = applyQualificationStatuses(
+                    candidateScores,
+                    activeRound,
+                    scoresByCandidate,
+                    juriesOnRound,
+                    CANDIDATES
+                );
                 
                 // Sauvegarder les candidats
                 await saveCandidates();

@@ -265,35 +265,58 @@ async function checkAndQualifyCandidateFromJury(candidateId) {
         
         console.log(`✅ Tous les ${candidatesInRound.length} candidats ont leurs notes complètes!`);
         
-        // Trier par score décroissant
-        candidateScores.sort((a, b) => b.totalScore - a.totalScore);
-        
-        // Déterminer le nombre à qualifier
+        const president = activeRound.eliminateIfPresidentAllEL
+            ? (juriesOnRound.find(j => j.isPresident === true) || null)
+            : null;
+        const noteTypesForEl = customNoteTypes;
+        const enriched = candidateScores.map(s => {
+            let forceElim = false;
+            if (president) {
+                const ps = scoresByCandidate[s.id] && scoresByCandidate[s.id][president.id];
+                if (ps) {
+                    if (noteTypesForEl && noteTypesForEl.length) {
+                        forceElim = noteTypesForEl.every(nt => ps[nt.field] === 'EL');
+                    } else {
+                        forceElim = ps.score1 === 'EL' && ps.score2 === 'EL';
+                    }
+                }
+            }
+            return { ...s, forceElimByPresidentEL: forceElim };
+        });
+        const forced = enriched.filter(s => s.forceElimByPresidentEL);
+        const ranking = enriched.filter(s => !s.forceElimByPresidentEL).sort((a, b) => b.totalScore - a.totalScore);
         let qualifyCount;
         if (activeRound.nextRoundCandidates === 'ALL') {
-            qualifyCount = candidateScores.length;
+            qualifyCount = ranking.length;
         } else {
-            qualifyCount = parseInt(activeRound.nextRoundCandidates) || candidateScores.length;
+            qualifyCount = parseInt(activeRound.nextRoundCandidates, 10);
+            if (isNaN(qualifyCount)) qualifyCount = ranking.length;
+            qualifyCount = Math.min(qualifyCount, ranking.length);
         }
         
-        console.log(`🏆 Qualification: ${qualifyCount}/${candidateScores.length} candidats`);
+        console.log(`🏆 Qualification: ${qualifyCount}/${ranking.length} candidats (+ ${forced.length} éliminé(s) président EL)`);
         
-        // Qualifier/Éliminer
         let qualifiedCount = 0;
         let eliminatedCount = 0;
-        
-        candidateScores.forEach((scoreData, index) => {
+        forced.forEach(scoreData => {
             const c = allCandidates.find(cand => cand.id === scoreData.id);
             if (c) {
-                if (index < qualifyCount) {
-                    c.status = 'Qualifie';
-                    qualifiedCount++;
-                    console.log(`  ✓ ${c.name}: ${scoreData.totalScore} pts → Qualifié (rang ${index + 1})`);
-                } else {
-                    c.status = 'Elimine';
-                    eliminatedCount++;
-                    console.log(`  ✗ ${c.name}: ${scoreData.totalScore} pts → Éliminé (rang ${index + 1})`);
-                }
+                c.status = 'Elimine';
+                eliminatedCount++;
+                console.log(`  ✗ ${c.name}: président tout EL → Éliminé`);
+            }
+        });
+        ranking.forEach((scoreData, index) => {
+            const c = allCandidates.find(cand => cand.id === scoreData.id);
+            if (!c) return;
+            if (index < qualifyCount) {
+                c.status = 'Qualifie';
+                qualifiedCount++;
+                console.log(`  ✓ ${c.name}: ${scoreData.totalScore} pts → Qualifié (rang ${index + 1})`);
+            } else {
+                c.status = 'Elimine';
+                eliminatedCount++;
+                console.log(`  ✗ ${c.name}: ${scoreData.totalScore} pts → Éliminé (rang ${index + 1})`);
             }
         });
         
@@ -520,6 +543,14 @@ document.getElementById('logout-button').onclick = logout;
 // --------------------------------------------------------------------------------
 // GRILLES DE BOUTONS (Limitées à 5/10/15/20/Elim)
 // --------------------------------------------------------------------------------
+function applyScoreGridFill(gridEl, colCount) {
+    if (!gridEl) return;
+    const n = Math.max(1, colCount || 1);
+    gridEl.classList.add('score-grid', 'score-grid-fill');
+    gridEl.style.setProperty('--score-cols', String(n));
+    gridEl.style.gridTemplateColumns = `repeat(${n}, minmax(0, 1fr))`;
+}
+
 function createGrids() {
     const gridFond = document.getElementById('grid-fond');
     const gridForme = document.getElementById('grid-forme');
@@ -543,6 +574,8 @@ function createGrids() {
     elim1.textContent = 'Éliminé';
     elim1.onclick = () => selectScore(1, 'EL', elim1);
     gridFond.appendChild(elim1);
+    applyScoreGridFill(gridFond, values.length + 1);
+    applyScoreGridFill(gridForme, values.length);
 }
 
 function createGridsNotationTwo() {
@@ -613,8 +646,6 @@ function createGridsNotationTwo() {
         } else {
             gridFond.classList.remove('duel-grid');
             gridForme.classList.remove('duel-grid');
-            gridFond.classList.add('score-grid');
-            gridForme.classList.add('score-grid');
             values.forEach(val => {
                 const bf = document.createElement('button');
                 bf.className = 'score-btn notation-cand' + candNum + ' notation-fond';
@@ -632,6 +663,8 @@ function createGridsNotationTwo() {
             elim.textContent = 'Éliminé';
             elim.onclick = () => selectScoreNotation(candNum, 1, 'EL', elim);
             gridFond.appendChild(elim);
+            applyScoreGridFill(gridFond, values.length + 1);
+            applyScoreGridFill(gridForme, values.length);
         }
     });
     if (isPetiteFinale) {
@@ -1359,16 +1392,25 @@ function getActiveRound() {
 }
 
 function noteTypesToJuryCriteria(noteTypes) {
-    return (noteTypes || []).map(nt => ({
-        id: nt.id,
-        name: nt.name,
-        field: nt.field,
-        widget: (nt.scale === 'step5' || nt.scale === 'binary') ? 'buttons' : 'slider',
-        scale: nt.scale || 'step5',
-        rangeMax: nt.rangeMax,
-        allowEL: !!nt.allowEL,
-        coefficient: nt.coefficient
-    }));
+    return (noteTypes || []).map(nt => {
+        let scale = nt.scale || 'step5';
+        let allowZero = !!nt.allowZero;
+        if (scale === 'step5from0') {
+            scale = 'step5';
+            allowZero = true;
+        }
+        return {
+            id: nt.id,
+            name: nt.name,
+            field: nt.field,
+            widget: (scale === 'step5' || scale === 'binary') ? 'buttons' : 'slider',
+            scale,
+            rangeMax: nt.rangeMax,
+            allowZero: scale === 'step5' ? allowZero : false,
+            allowEL: !!nt.allowEL,
+            coefficient: nt.coefficient
+        };
+    });
 }
 
 function clampNotesLayout(layout) {
@@ -1489,9 +1531,9 @@ function getActiveRoundJuryUi() {
 
 function juryUiRevisionOf(round) {
     const ui = round && round.juryUi;
-    const ntSig = ((round && round.noteTypes) || []).map(t => `${t.field}:${t.name}:${t.scale}:${t.coefficient}`).join('|');
+    const ntSig = ((round && round.noteTypes) || []).map(t => `${t.field}:${t.name}:${t.scale}:${t.coefficient}:z${t.allowZero ? 1 : 0}:e${t.allowEL ? 1 : 0}`).join('|');
     if (!ui) return ntSig;
-    const tabsSig = (ui.tabs || []).map(t => [t.id, t.type, t.personCount, t.personSource, t.name, (t.criteria || []).map(c => `${c.field}:${c.layout?.col},${c.layout?.row},${c.layout?.w}x${c.layout?.h}:${c.elLocksNext ? 'L' : ''}`).join('.')].join('~')).join('|');
+    const tabsSig = (ui.tabs || []).map(t => [t.id, t.type, t.personCount, t.personSource, t.name, (t.criteria || []).map(c => `${c.field}:${c.layout?.col},${c.layout?.row},${c.layout?.w}x${c.layout?.h}:${c.elLocksNext ? 'L' : ''}:z${c.allowZero ? 1 : 0}`).join('.')].join('~')).join('|');
     return String(ui.revision || '') + ':' + (ui.forType || '') + ':' + tabsSig + ':' + ntSig;
 }
 
@@ -2386,6 +2428,9 @@ function escapeJuryHtml(value) {
 
 function juryUiButtonValues(crit) {
     if (crit.scale === 'binary') return ['0', '1'];
+    if (crit.scale === 'step5from0' || (crit.scale === 'step5' && crit.allowZero)) {
+        return ['0', '5', '10', '15', '20'];
+    }
     if (crit.scale === 'step5') return ['5', '10', '15', '20'];
     const max = Number(crit.rangeMax) || 20;
     if (max <= 6) return Array.from({ length: max + 1 }, (_, i) => String(i));
@@ -2408,7 +2453,8 @@ function juryUiWidgetHtml(crit, tabId, candNum) {
     }
     const vals = juryUiButtonValues(crit);
     const elBtn = crit.allowEL ? `<button type="button" class="score-btn eliminated" data-juryui-val="EL" data-juryui-field="${escapeJuryHtml(field)}" data-juryui-cand="${candNum}" data-juryui-tab="${escapeJuryHtml(tabId)}">Éliminé</button>` : '';
-    return `<div class="score-grid">${vals.map(v => `<button type="button" class="score-btn" data-juryui-val="${escapeJuryHtml(v)}" data-juryui-field="${escapeJuryHtml(field)}" data-juryui-cand="${candNum}" data-juryui-tab="${escapeJuryHtml(tabId)}">${escapeJuryHtml(v)}</button>`).join('')}${elBtn}</div>`;
+    const colCount = Math.max(1, vals.length + (crit.allowEL ? 1 : 0));
+    return `<div class="score-grid score-grid-fill" style="--score-cols:${colCount};grid-template-columns:repeat(${colCount},minmax(0,1fr));">${vals.map(v => `<button type="button" class="score-btn" data-juryui-val="${escapeJuryHtml(v)}" data-juryui-field="${escapeJuryHtml(field)}" data-juryui-cand="${candNum}" data-juryui-tab="${escapeJuryHtml(tabId)}">${escapeJuryHtml(v)}</button>`).join('')}${elBtn}</div>`;
 }
 
 function remainingCandidatesForRound(roundId) {
@@ -2843,9 +2889,15 @@ function applyJuryUiElLocks(tab, candNum) {
         const display = document.querySelector(`[data-juryui-display="${tabId}-${candNum}-${field}"]`);
         if (isLocked) {
             draft[field] = 'EL';
-            document.querySelectorAll(`button.score-btn[data-juryui-tab="${tabId}"][data-juryui-cand="${candNum}"][data-juryui-field="${field}"]`).forEach(b => {
-                b.classList.toggle('selected', b.getAttribute('data-juryui-val') === 'EL');
+            const fieldBtns = document.querySelectorAll(`button.score-btn[data-juryui-tab="${tabId}"][data-juryui-cand="${candNum}"][data-juryui-field="${field}"]`);
+            let hasElBtn = false;
+            fieldBtns.forEach(b => {
+                const isEl = b.getAttribute('data-juryui-val') === 'EL';
+                if (isEl) hasElBtn = true;
+                b.classList.toggle('selected', isEl);
             });
+            // Note sans bouton EL (option décochée) : aucune sélection visuelle, libellé Éliminé
+            if (!hasElBtn) fieldBtns.forEach(b => b.classList.remove('selected'));
             if (slider) slider.value = 0;
             if (num) num.value = '';
             if (display) display.textContent = 'Note : Éliminé';

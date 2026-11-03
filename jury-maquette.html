@@ -397,7 +397,7 @@
         }
 
         function widgetForScale(scale) {
-            return (scale === 'step5' || scale === 'binary') ? 'buttons' : 'slider';
+            return (scale === 'step5' || scale === 'step5from0' || scale === 'binary') ? 'buttons' : 'slider';
         }
 
         function attachConfigByType(round) {
@@ -432,6 +432,7 @@
                 t.name,
                 t.scale,
                 t.rangeMax == null || t.rangeMax === '' ? '' : String(t.rangeMax),
+                t.allowZero ? 1 : 0,
                 t.allowEL ? 1 : 0,
                 t.coefficient == null || t.coefficient === '' ? '' : String(t.coefficient)
             ].join(':')).join('|');
@@ -451,21 +452,36 @@
         function patchCriterionFromNoteType(crit, nt, extras) {
             let changed = false;
             const widget = widgetForScale(nt.scale);
+            let scale = nt.scale || crit.scale;
+            let allowZero = !!nt.allowZero;
+            if (scale === 'step5from0') {
+                scale = 'step5';
+                allowZero = true;
+            }
+            if (scale !== 'step5') allowZero = false;
             const next = {
                 id: nt.id || crit.id,
                 name: nt.name || crit.name,
                 field: nt.field || crit.field,
-                scale: nt.scale || crit.scale,
+                scale,
                 rangeMax: nt.rangeMax,
+                allowZero,
                 allowEL: !!nt.allowEL,
                 coefficient: nt.coefficient,
-                widget
+                widget: widgetForScale(scale)
             };
             Object.keys(next).forEach(k => {
                 if (next[k] === undefined) return;
                 if (k === 'allowEL') {
                     if (!!crit.allowEL !== !!next.allowEL) {
                         crit.allowEL = !!next.allowEL;
+                        changed = true;
+                    }
+                    return;
+                }
+                if (k === 'allowZero') {
+                    if (!!crit.allowZero !== !!next.allowZero) {
+                        crit.allowZero = !!next.allowZero;
                         changed = true;
                     }
                     return;
@@ -539,6 +555,12 @@
                         nt.rangeMax = isNaN(n) ? crit.rangeMax : n;
                     }
                     nt.allowEL = !!crit.allowEL;
+                    if (crit.scale === 'step5from0') {
+                        nt.scale = 'step5';
+                        nt.allowZero = true;
+                    } else {
+                        nt.allowZero = crit.scale === 'step5' ? !!crit.allowZero : false;
+                    }
                     if (crit.coefficient != null && crit.coefficient !== '') nt.coefficient = crit.coefficient;
                 });
             });
@@ -715,6 +737,7 @@
                 widget: 'slider',
                 scale: 'range20',
                 rangeMax: 20,
+                allowZero: false,
                 allowEL: false,
                 coefficient: 1
             };
@@ -729,16 +752,26 @@
 
 
         function criteriaFromNoteTypes(noteTypes) {
-            return (noteTypes || []).map((nt, i) => ({
-                id: nt.id || ('crit_' + (i + 1)),
-                name: nt.name || ('Note ' + (i + 1)),
-                field: nt.field || ('score' + (i + 1)),
-                widget: widgetForScale(nt.scale),
-                scale: nt.scale || 'step5',
-                rangeMax: nt.rangeMax || (nt.scale === 'range20' ? 20 : 10),
-                allowEL: !!nt.allowEL,
-                coefficient: nt.coefficient
-            }));
+            return (noteTypes || []).map((nt, i) => {
+                let scale = nt.scale || 'step5';
+                let allowZero = !!nt.allowZero;
+                if (scale === 'step5from0') {
+                    scale = 'step5';
+                    allowZero = true;
+                }
+                if (scale !== 'step5') allowZero = false;
+                return {
+                    id: nt.id || ('crit_' + (i + 1)),
+                    name: nt.name || ('Note ' + (i + 1)),
+                    field: nt.field || ('score' + (i + 1)),
+                    widget: widgetForScale(scale),
+                    scale,
+                    rangeMax: nt.rangeMax || (scale === 'range20' ? 20 : 10),
+                    allowZero,
+                    allowEL: !!nt.allowEL,
+                    coefficient: nt.coefficient
+                };
+            });
         }
 
         function defaultUi(currentRound) {
@@ -983,6 +1016,9 @@
 
         function buttonValues(crit) {
             if (crit.scale === 'binary') return ['0', '1'];
+            if (crit.scale === 'step5from0' || (crit.scale === 'step5' && crit.allowZero)) {
+                return ['0', '5', '10', '15', '20'];
+            }
             if (crit.scale === 'step5') return ['5', '10', '15', '20'];
             const max = Number(crit.rangeMax) || 20;
             if (max <= 6) return Array.from({ length: max + 1 }, (_, i) => String(i));
@@ -1004,7 +1040,8 @@
             }
             const vals = buttonValues(crit);
             const elBtn = crit.allowEL ? `<button type="button" class="score-btn eliminated mock-score">Éliminé</button>` : '';
-            return `<div class="score-grid">${vals.map(v => `<button type="button" class="score-btn mock-score">${escapeHtml(v)}</button>`).join('')}${elBtn}</div>`;
+            const colCount = vals.length + (crit.allowEL ? 1 : 0);
+            return `<div class="score-grid score-grid-fill" style="grid-template-columns: repeat(${Math.max(1, colCount)}, 1fr);">${vals.map(v => `<button type="button" class="score-btn mock-score">${escapeHtml(v)}</button>`).join('')}${elBtn}</div>`;
         }
 
         function renderCandidateCard(index, tab) {
@@ -1212,7 +1249,7 @@
                         const info = item.querySelector('.selection-info');
                         if (lockRest) {
                             item.querySelectorAll('.control-group .score-btn').forEach(b => b.classList.remove('selected'));
-                            if (info) info.textContent = 'Note : Éliminé';
+                            if (info) info.textContent = crit.allowEL ? 'Note : Éliminé' : 'Note : désactivée';
                         }
                         const elOn = !!(crit.allowEL && crit.elLocksNext && item.querySelector('.score-btn.eliminated.selected'));
                         if (elOn) lockRest = true;
@@ -1362,12 +1399,13 @@
                                     <option value="slider" ${c.widget === 'slider' ? 'selected' : ''}>Curseur</option>
                                 </select>
                                 <select data-crit-scale="${c.id}">
-                                    <option value="step5" ${c.scale === 'step5' ? 'selected' : ''}>5 en 5</option>
+                                    <option value="step5" ${c.scale === 'step5' || c.scale === 'step5from0' ? 'selected' : ''}>5 en 5 (boutons)</option>
                                     <option value="binary" ${c.scale === 'binary' ? 'selected' : ''}>0 ou 1</option>
                                     <option value="range20" ${c.scale === 'range20' ? 'selected' : ''}>0 à 20</option>
                                     <option value="rangeCustom" ${c.scale === 'rangeCustom' ? 'selected' : ''}>0 à X</option>
                                 </select>
                                 ${c.scale === 'rangeCustom' ? `<input type="text" inputmode="numeric" maxlength="4" style="width:70px;" data-crit-max="${c.id}" value="${escapeHtml(c.rangeMax || '')}" placeholder="X">` : ''}
+                                ${(c.scale === 'step5' || c.scale === 'step5from0') ? `<label class="chip"><input type="checkbox" data-crit-zero="${c.id}" ${c.allowZero || c.scale === 'step5from0' ? 'checked' : ''}> 0</label>` : ''}
                                 <label class="chip"><input type="checkbox" data-crit-el="${c.id}" ${c.allowEL ? 'checked' : ''}> EL</label>
                                 <button type="button" class="mini-btn danger" data-del-crit="${c.id}">✕</button>
                             </div>
@@ -1499,6 +1537,7 @@
                 if (c) {
                     c.scale = e.target.value;
                     c.widget = widgetForScale(c.scale);
+                    if (c.scale !== 'step5' && c.scale !== 'step5from0') c.allowZero = false;
                     if (c.scale === 'range20') c.rangeMax = 20;
                     if (c.scale === 'rangeCustom' && !c.rangeMax) c.rangeMax = 10;
                 }
@@ -1508,6 +1547,24 @@
             editor.querySelectorAll('[data-crit-max]').forEach(inp => inp.addEventListener('change', (e) => {
                 const c = criterionById(inp.getAttribute('data-crit-max'));
                 if (c) c.rangeMax = String(e.target.value).replace(/\D/g, '').slice(0, 4) || 10;
+                renderAll();
+                scheduleNotesSync();
+            }));
+            editor.querySelectorAll('[data-crit-zero]').forEach(inp => inp.addEventListener('change', (e) => {
+                const c = criterionById(inp.getAttribute('data-crit-zero'));
+                if (c) {
+                    c.allowZero = e.target.checked;
+                    if (c.scale === 'step5from0') c.scale = 'step5';
+                    (ui.tabs || []).forEach(t => {
+                        (t.criteria || []).forEach(other => {
+                            if (other === c) return;
+                            if ((c.field && other.field === c.field) || (c.id && other.id === c.id)) {
+                                other.allowZero = c.allowZero;
+                                if (other.scale === 'step5from0') other.scale = 'step5';
+                            }
+                        });
+                    });
+                }
                 renderAll();
                 scheduleNotesSync();
             }));
@@ -1590,6 +1647,12 @@
                         nt.rangeMax = isNaN(n) ? crit.rangeMax : n;
                     }
                     nt.allowEL = !!crit.allowEL;
+                    if (crit.scale === 'step5from0') {
+                        nt.scale = 'step5';
+                        nt.allowZero = true;
+                    } else {
+                        nt.allowZero = crit.scale === 'step5' ? !!crit.allowZero : false;
+                    }
                     if (crit.coefficient != null && crit.coefficient !== '') nt.coefficient = crit.coefficient;
                 });
             });
@@ -1620,8 +1683,9 @@
                             name: crit.name || 'Nouvelle note',
                             field: crit.field,
                             coefficient: crit.coefficient || 1,
-                            scale: crit.scale || 'range20',
+                            scale: crit.scale === 'step5from0' ? 'step5' : (crit.scale || 'range20'),
                             rangeMax: crit.rangeMax,
+                            allowZero: crit.scale === 'step5' || crit.scale === 'step5from0' ? !!crit.allowZero || crit.scale === 'step5from0' : false,
                             allowEL: !!crit.allowEL
                         });
                     });

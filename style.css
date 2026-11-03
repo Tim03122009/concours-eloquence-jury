@@ -399,6 +399,14 @@ h2 {
     margin: var(--spacing-sm) 0;
 }
 
+/* Boutons répartis sur toute la largeur (avec ou sans EL) */
+.score-grid.score-grid-fill {
+    grid-template-columns: repeat(var(--score-cols, 4), 1fr);
+}
+.score-grid.score-grid-fill .score-btn.eliminated {
+    grid-column: span 1;
+}
+
 .score-btn {
     padding: clamp(10px, 2.5vw, 15px);
     font-size: clamp(1.1rem, 3vw, 1.4rem);
@@ -1350,7 +1358,7 @@ hr {
         border-radius: var(--radius-sm);
     }
     
-    .score-grid {
+    .score-grid:not(.score-grid-fill) {
         grid-template-columns: repeat(4, 1fr);
     }
     
@@ -1361,7 +1369,7 @@ hr {
 
 /* Tablet (768px - 1023px) */
 @media (min-width: 768px) and (max-width: 1023px) {
-    .score-grid {
+    .score-grid:not(.score-grid-fill) {
         grid-template-columns: repeat(5, 1fr);
     }
     
@@ -1372,7 +1380,7 @@ hr {
 
 /* Desktop (1024px+) */
 @media (min-width: 1024px) {
-    .score-grid {
+    .score-grid:not(.score-grid-fill) {
         grid-template-columns: repeat(5, 1fr);
     }
     
