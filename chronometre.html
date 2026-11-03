@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#000000">
+    <meta name="description" content="Chronomètre candidats — projection salle">
+    <title>Chronomètre — Concours d'éloquence</title>
+    <style>
+        :root {
+            --bg-stage: #111111;
+            --bg-phone: #000000;
+            --text: #ffffff;
+            --muted: #8e8e93;
+            --lap-line: #38383a;
+            --btn-idle: #1c1c1e;
+            --btn-lap: #2c2c2e;
+            --green: #30d158;
+            --green-bg: #0a2a14;
+            --red: #ff453a;
+            --red-bg: #3a0a0a;
+            --orange: #ff9f0a;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: var(--bg-stage);
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: var(--text);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Cadre « téléphone » centré, ratio fixe pour vidéoprojecteur */
+        .stage {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2vh 2vw;
+        }
+
+        .phone {
+            --phone-ratio: 9 / 19.5;
+            height: min(96vh, calc(96vw / (9 / 19.5)));
+            width: calc(min(96vh, calc(96vw / (9 / 19.5))) * (9 / 19.5));
+            max-width: 100%;
+            background: var(--bg-phone);
+            border-radius: clamp(28px, 4.5vh, 48px);
+            box-shadow:
+                0 0 0 2px #2a2a2a,
+                0 0 0 6px #0a0a0a,
+                0 24px 80px rgba(0, 0, 0, 0.65);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .status-bar {
+            height: 4.2%;
+            min-height: 22px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 2px;
+            flex-shrink: 0;
+        }
+
+        .notch {
+            width: 28%;
+            height: 55%;
+            background: #000;
+            border-radius: 999px;
+            opacity: 0.35;
+        }
+
+        .title {
+            text-align: center;
+            font-size: clamp(0.95rem, 2.4vh, 1.15rem);
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            padding: 1.2% 0 0.5%;
+            flex-shrink: 0;
+        }
+
+        .display-area {
+            flex: 1 1 auto;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            padding: 0 4%;
+        }
+
+        .views {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+            touch-action: pan-y;
+        }
+
+        .view {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+
+        .view.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .digital-time {
+            font-size: clamp(3.2rem, 11vh, 5.6rem);
+            font-weight: 200;
+            letter-spacing: -0.03em;
+            font-variant-numeric: tabular-nums;
+            line-height: 1;
+            white-space: nowrap;
+        }
+
+        .analog-wrap {
+            width: min(78%, 42vh);
+            aspect-ratio: 1;
+            position: relative;
+        }
+
+        .analog-wrap canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .analog-digital {
+            position: absolute;
+            left: 50%;
+            top: 62%;
+            transform: translateX(-50%);
+            font-size: clamp(1.05rem, 2.8vh, 1.45rem);
+            font-weight: 300;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.02em;
+            pointer-events: none;
+        }
+
+        .dots {
+            display: flex;
+            gap: 7px;
+            justify-content: center;
+            padding: 1.5% 0 2%;
+            flex-shrink: 0;
+        }
+
+        .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #3a3a3c;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+        }
+
+        .dot.active { background: #fff; }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            padding: 0 8% 3%;
+            flex-shrink: 0;
+        }
+
+        .ctrl-btn {
+            width: clamp(64px, 16vh, 88px);
+            height: clamp(64px, 16vh, 88px);
+            border-radius: 50%;
+            border: 2px solid transparent;
+            font-size: clamp(0.85rem, 2vh, 1.05rem);
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.08s ease, filter 0.15s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .ctrl-btn:active { transform: scale(0.94); }
+
+        .ctrl-btn.lap {
+            background: var(--btn-lap);
+            color: #fff;
+        }
+
+        .ctrl-btn.lap:disabled,
+        .ctrl-btn.lap.is-disabled {
+            color: #636366;
+            cursor: default;
+        }
+
+        .ctrl-btn.start {
+            background: var(--green-bg);
+            color: var(--green);
+            border-color: transparent;
+            box-shadow: inset 0 0 0 2px var(--green-bg);
+        }
+
+        .ctrl-btn.start.running {
+            background: var(--red-bg);
+            color: var(--red);
+        }
+
+        .laps {
+            flex: 0 1 28%;
+            min-height: 0;
+            overflow-y: auto;
+            margin: 0 6%;
+            border-top: 1px solid var(--lap-line);
+            scrollbar-width: thin;
+            scrollbar-color: #3a3a3c transparent;
+        }
+
+        .lap-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2.6% 2%;
+            border-bottom: 1px solid var(--lap-line);
+            font-size: clamp(0.95rem, 2.1vh, 1.1rem);
+            font-weight: 400;
+            color: #fff;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .lap-row.best { color: var(--green); }
+        .lap-row.worst { color: var(--red); }
+
+        .tab-bar {
+            flex-shrink: 0;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            padding: 1.8% 2% 3.5%;
+            border-top: 1px solid #1c1c1e;
+            background: rgba(20, 20, 20, 0.92);
+            backdrop-filter: blur(12px);
+        }
+
+        .tab {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            background: none;
+            border: none;
+            color: var(--muted);
+            font-size: clamp(0.55rem, 1.15vh, 0.68rem);
+            cursor: default;
+            padding: 2px 0;
+        }
+
+        .tab.active { color: var(--orange); }
+
+        .tab svg {
+            width: clamp(20px, 3.2vh, 26px);
+            height: clamp(20px, 3.2vh, 26px);
+            fill: currentColor;
+        }
+
+        .home-indicator {
+            position: absolute;
+            bottom: 1.1%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 34%;
+            height: 4px;
+            background: #fff;
+            border-radius: 999px;
+            opacity: 0.85;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="stage">
+        <div class="phone" id="phone" role="application" aria-label="Chronomètre">
+            <div class="status-bar" aria-hidden="true"><div class="notch"></div></div>
+            <div class="title">Chronomètre</div>
+
+            <div class="display-area">
+                <div class="views" id="views">
+                    <div class="view active" id="view-digital" data-view="0">
+                        <div class="digital-time" id="digital-time" aria-live="polite">00:00,00</div>
+                    </div>
+                    <div class="view" id="view-analog" data-view="1">
+                        <div class="analog-wrap">
+                            <canvas id="analog-canvas" width="600" height="600" aria-hidden="true"></canvas>
+                            <div class="analog-digital" id="analog-digital">00:00,00</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dots" role="tablist" aria-label="Vue chronomètre">
+                <button type="button" class="dot active" id="dot-0" aria-label="Vue numérique"></button>
+                <button type="button" class="dot" id="dot-1" aria-label="Vue analogique"></button>
+            </div>
+
+            <div class="controls">
+                <button type="button" class="ctrl-btn lap is-disabled" id="btn-lap" disabled>Tour</button>
+                <button type="button" class="ctrl-btn start" id="btn-start">Démarrer</button>
+            </div>
+
+            <div class="laps" id="laps" aria-label="Liste des tours"></div>
+
+            <nav class="tab-bar" aria-hidden="true">
+                <div class="tab">
+                    <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm7.4 9h-3.1a15.4 15.4 0 0 0-1.4-5.5A8 8 0 0 1 19.4 11zM12 4a13.5 13.5 0 0 1 1.7 6H10.3A13.5 13.5 0 0 1 12 4zM4.6 13h3.1a15.4 15.4 0 0 0 1.4 5.5A8 8 0 0 1 4.6 13zm3.1-2H4.6a8 8 0 0 1 4.5-5.5A15.4 15.4 0 0 0 7.7 11zm4.3 9a13.5 13.5 0 0 1-1.7-6h3.4A13.5 13.5 0 0 1 12 20zm2.9-1.5a15.4 15.4 0 0 0 1.4-5.5h3.1a8 8 0 0 1-4.5 5.5z"/></svg>
+                    Heure
+                </div>
+                <div class="tab">
+                    <svg viewBox="0 0 24 24"><path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11a6 6 0 1 0-12 0v5l-2 2v1h16v-1l-2-2z"/></svg>
+                    Alarme
+                </div>
+                <div class="tab">
+                    <svg viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0-6 6c0 2.4 1.4 4.4 3.4 5.4L9 21h6l-.4-6.6A6 6 0 0 0 18 9a6 6 0 0 0-6-6zm0 2a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"/></svg>
+                    Sommeil
+                </div>
+                <div class="tab active">
+                    <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 10.4 3.5 2.1-.8 1.3L11 13V7h2z"/></svg>
+                    Chronomètre
+                </div>
+                <div class="tab">
+                    <svg viewBox="0 0 24 24"><path d="M15 1H9v2h6V1zm-3 19a7 7 0 1 1 7-7 7 7 0 0 1-7 7zm0-12a5 5 0 1 0 5 5 5 5 0 0 0-5-5zm.5 2v3.25l2.5 1.5-.75 1.25L11 13V10z"/><path d="M18.5 5.5 20 4l1.5 1.5-1.5 1.5zM4 4l1.5 1.5L4 7 2.5 5.5z"/></svg>
+                    Minuteur
+                </div>
+            </nav>
+            <div class="home-indicator" aria-hidden="true"></div>
+        </div>
+    </div>
+
+    <script>
+(function () {
+    const digitalEl = document.getElementById('digital-time');
+    const analogDigitalEl = document.getElementById('analog-digital');
+    const canvas = document.getElementById('analog-canvas');
+    const ctx = canvas.getContext('2d');
+    const lapsEl = document.getElementById('laps');
+    const btnLap = document.getElementById('btn-lap');
+    const btnStart = document.getElementById('btn-start');
+    const viewsRoot = document.getElementById('views');
+
+    let running = false;
+    let startTs = 0;
+    let elapsed = 0;
+    let rafId = 0;
+    let laps = [];
+    let lastLapElapsed = 0;
+    let currentView = 0;
+
+    function formatTime(ms) {
+        const totalCs = Math.floor(ms / 10);
+        const cs = totalCs % 100;
+        const totalSec = Math.floor(totalCs / 100);
+        const sec = totalSec % 60;
+        const min = Math.floor(totalSec / 60) % 100;
+        const pad = (n, w) => String(n).padStart(w, '0');
+        return pad(min, 2) + ':' + pad(sec, 2) + ',' + pad(cs, 2);
+    }
+
+    function nowElapsed() {
+        if (!running) return elapsed;
+        return elapsed + (performance.now() - startTs);
+    }
+
+    function updateDisplay(ms) {
+        const text = formatTime(ms);
+        digitalEl.textContent = text;
+        analogDigitalEl.textContent = text;
+        drawAnalog(ms);
+    }
+
+    function drawAnalog(ms) {
+        const w = canvas.width;
+        const h = canvas.height;
+        const cx = w / 2;
+        const cy = h / 2;
+        const r = w * 0.46;
+
+        ctx.clearRect(0, 0, w, h);
+
+        // Outer dial
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.strokeStyle = '#3a3a3c';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Ticks & numbers (60 units = 60 seconds)
+        for (let i = 0; i < 240; i++) {
+            const angle = (i / 240) * Math.PI * 2 - Math.PI / 2;
+            const isMajor = i % 20 === 0;
+            const isMedium = i % 4 === 0;
+            const len = isMajor ? r * 0.08 : isMedium ? r * 0.045 : r * 0.025;
+            const outer = r * 0.96;
+            const inner = outer - len;
+            ctx.beginPath();
+            ctx.moveTo(cx + Math.cos(angle) * outer, cy + Math.sin(angle) * outer);
+            ctx.lineTo(cx + Math.cos(angle) * inner, cy + Math.sin(angle) * inner);
+            ctx.strokeStyle = isMajor ? '#fff' : '#636366';
+            ctx.lineWidth = isMajor ? 2.5 : 1;
+            ctx.stroke();
+
+            if (isMajor) {
+                const num = (i / 4) || 60;
+                const tx = cx + Math.cos(angle) * (r * 0.78);
+                const ty = cy + Math.sin(angle) * (r * 0.78);
+                ctx.fillStyle = '#fff';
+                ctx.font = '500 ' + Math.round(w * 0.055) + 'px -apple-system, BlinkMacSystemFont, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(String(num), tx, ty);
+            }
+        }
+
+        // Inner minute dial (0–30)
+        const ir = r * 0.22;
+        const icy = cy - r * 0.38;
+        ctx.beginPath();
+        ctx.arc(cx, icy, ir, 0, Math.PI * 2);
+        ctx.strokeStyle = '#3a3a3c';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        for (let i = 0; i < 30; i++) {
+            const angle = (i / 30) * Math.PI * 2 - Math.PI / 2;
+            const isLabel = i % 5 === 0;
+            const outer = ir * 0.92;
+            const inner = outer - (isLabel ? ir * 0.18 : ir * 0.1);
+            ctx.beginPath();
+            ctx.moveTo(cx + Math.cos(angle) * outer, icy + Math.sin(angle) * outer);
+            ctx.lineTo(cx + Math.cos(angle) * inner, icy + Math.sin(angle) * inner);
+            ctx.strokeStyle = '#8e8e93';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            if (isLabel) {
+                const n = i === 0 ? 30 : i;
+                ctx.fillStyle = '#8e8e93';
+                ctx.font = Math.round(w * 0.028) + 'px -apple-system, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(String(n), cx + Math.cos(angle) * ir * 0.62, icy + Math.sin(angle) * ir * 0.62);
+            }
+        }
+
+        const totalSec = ms / 1000;
+        const secAngle = ((totalSec % 60) / 60) * Math.PI * 2 - Math.PI / 2;
+        const minAngle = ((Math.floor(totalSec / 60) % 30) / 30) * Math.PI * 2 - Math.PI / 2;
+
+        // Minute hand (inner)
+        ctx.beginPath();
+        ctx.moveTo(cx, icy);
+        ctx.lineTo(cx + Math.cos(minAngle) * ir * 0.72, icy + Math.sin(minAngle) * ir * 0.72);
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+
+        // Second hand (orange)
+        ctx.beginPath();
+        ctx.moveTo(cx - Math.cos(secAngle) * r * 0.12, cy - Math.sin(secAngle) * r * 0.12);
+        ctx.lineTo(cx + Math.cos(secAngle) * r * 0.88, cy + Math.sin(secAngle) * r * 0.88);
+        ctx.strokeStyle = '#ff9f0a';
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+        ctx.fillStyle = '#ff9f0a';
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#000';
+        ctx.fill();
+    }
+
+    function tick() {
+        updateDisplay(nowElapsed());
+        if (running) rafId = requestAnimationFrame(tick);
+    }
+
+    function setRunning(isRunning) {
+        running = isRunning;
+        if (running) {
+            btnStart.textContent = 'Arrêter';
+            btnStart.classList.add('running');
+            btnLap.textContent = 'Tour';
+            btnLap.disabled = false;
+            btnLap.classList.remove('is-disabled');
+            startTs = performance.now();
+            cancelAnimationFrame(rafId);
+            rafId = requestAnimationFrame(tick);
+        } else {
+            elapsed = nowElapsed();
+            cancelAnimationFrame(rafId);
+            btnStart.textContent = 'Démarrer';
+            btnStart.classList.remove('running');
+            btnLap.textContent = 'Réinitialiser';
+            btnLap.disabled = false;
+            btnLap.classList.remove('is-disabled');
+            updateDisplay(elapsed);
+        }
+    }
+
+    function resetAll() {
+        cancelAnimationFrame(rafId);
+        running = false;
+        elapsed = 0;
+        lastLapElapsed = 0;
+        laps = [];
+        btnStart.textContent = 'Démarrer';
+        btnStart.classList.remove('running');
+        btnLap.textContent = 'Tour';
+        btnLap.disabled = true;
+        btnLap.classList.add('is-disabled');
+        lapsEl.innerHTML = '';
+        updateDisplay(0);
+    }
+
+    function renderLaps() {
+        if (!laps.length) {
+            lapsEl.innerHTML = '';
+            return;
+        }
+        let best = Infinity;
+        let worst = -Infinity;
+        if (laps.length >= 2) {
+            for (const lap of laps) {
+                if (lap.duration < best) best = lap.duration;
+                if (lap.duration > worst) worst = lap.duration;
+            }
+        }
+        const rows = [...laps].reverse().map((lap) => {
+            let cls = '';
+            if (laps.length >= 2) {
+                if (lap.duration === best) cls = 'best';
+                else if (lap.duration === worst) cls = 'worst';
+            }
+            return '<div class="lap-row ' + cls + '"><span>Tour ' + lap.n + '</span><span>' + formatTime(lap.duration) + '</span></div>';
+        }).join('');
+        lapsEl.innerHTML = rows;
+    }
+
+    function addLap() {
+        const total = nowElapsed();
+        const duration = total - lastLapElapsed;
+        lastLapElapsed = total;
+        laps.push({ n: laps.length + 1, duration: duration });
+        renderLaps();
+    }
+
+    btnStart.addEventListener('click', () => {
+        setRunning(!running);
+    });
+
+    btnLap.addEventListener('click', () => {
+        if (btnLap.disabled) return;
+        if (running) addLap();
+        else resetAll();
+    });
+
+    function showView(index) {
+        currentView = index;
+        document.querySelectorAll('.view').forEach((v) => {
+            v.classList.toggle('active', Number(v.dataset.view) === index);
+        });
+        document.getElementById('dot-0').classList.toggle('active', index === 0);
+        document.getElementById('dot-1').classList.toggle('active', index === 1);
+        updateDisplay(nowElapsed());
+    }
+
+    document.getElementById('dot-0').addEventListener('click', () => showView(0));
+    document.getElementById('dot-1').addEventListener('click', () => showView(1));
+
+    // Swipe between digital / analog
+    let touchX = null;
+    viewsRoot.addEventListener('touchstart', (e) => {
+        touchX = e.changedTouches[0].clientX;
+    }, { passive: true });
+    viewsRoot.addEventListener('touchend', (e) => {
+        if (touchX == null) return;
+        const dx = e.changedTouches[0].clientX - touchX;
+        touchX = null;
+        if (Math.abs(dx) < 40) return;
+        if (dx < 0) showView(Math.min(1, currentView + 1));
+        else showView(Math.max(0, currentView - 1));
+    }, { passive: true });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.code === 'Space') {
+            e.preventDefault();
+            setRunning(!running);
+        } else if (e.code === 'KeyL' || e.code === 'Enter') {
+            if (running) addLap();
+            else if (elapsed > 0) resetAll();
+        } else if (e.code === 'KeyR' && !running) {
+            resetAll();
+        } else if (e.code === 'ArrowLeft') {
+            showView(0);
+        } else if (e.code === 'ArrowRight') {
+            showView(1);
+        }
+    });
+
+    updateDisplay(0);
+})();
+    </script>
+</body>
+</html>

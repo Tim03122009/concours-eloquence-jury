@@ -1057,6 +1057,16 @@ document.getElementById('start-scoring-button').onclick = async () => {
             return;
         }
 
+        // Accès chronomètre candidats : identifiant "chronometre" / "chrono", mot de passe vide
+        if (name.toLowerCase() === 'chronometre' || name.toLowerCase() === 'chronomètre' || name.toLowerCase() === 'chrono') {
+            if (password && password.trim() !== '') {
+                alert('Pour le chronomètre, laissez le mot de passe vide.');
+                return;
+            }
+            window.location.href = 'chronometre.html';
+            return;
+        }
+
         // Accès interface grande finale : identifiant "final" ou "finale", mot de passe vide
         if (name.toLowerCase() === 'final' || name.toLowerCase() === 'finale') {
             if (password && password.trim() !== '') {

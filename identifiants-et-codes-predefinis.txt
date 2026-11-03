@@ -15,6 +15,12 @@ video.html :
              - Identifiant : "vidéo" / code : vide
              - Identifiant : "video" / code : vide
 
+chronometre.html (Chronomètre candidats — projection) :
+             - Identifiant : "chronometre" / code : vide
+             - Identifiant : "chronomètre" / code : vide
+             - Identifiant : "chrono" / code : vide
+             - Aussi : lien direct depuis admin.html (onglet Réinitialiser) et guide-interfaces.html
+
 finale.html :
              - Identifiant : "final" / code : vide
              - Identifiant : "finale" / code : vide
