@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#000000">
-    <meta name="description" content="Chronomètre candidats — projection salle">
+    <meta name="description" content="Chronomètre candidats — projection salle + télécommande">
     <title>Chronomètre — Concours d'éloquence</title>
     <style>
         :root {
@@ -13,7 +13,6 @@
             --text: #ffffff;
             --muted: #8e8e93;
             --lap-line: #38383a;
-            --btn-idle: #1c1c1e;
             --btn-lap: #2c2c2e;
             --green: #30d158;
             --green-bg: #0a2a14;
@@ -34,7 +33,6 @@
             -webkit-font-smoothing: antialiased;
         }
 
-        /* Cadre « téléphone » centré, ratio fixe pour vidéoprojecteur */
         .stage {
             width: 100%;
             height: 100%;
@@ -45,7 +43,6 @@
         }
 
         .phone {
-            --phone-ratio: 9 / 19.5;
             height: min(96vh, calc(96vw / (9 / 19.5)));
             width: calc(min(96vh, calc(96vw / (9 / 19.5))) * (9 / 19.5));
             max-width: 100%;
@@ -89,6 +86,31 @@
             padding: 1.2% 0 0.5%;
             flex-shrink: 0;
         }
+
+        .sync-pill {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-size: clamp(0.7rem, 1.5vh, 0.82rem);
+            color: var(--muted);
+            padding-bottom: 0.6%;
+            flex-shrink: 0;
+        }
+
+        .sync-pill.visible { display: flex; }
+
+        .sync-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #636366;
+        }
+
+        .sync-pill.ok .sync-dot { background: var(--green); }
+        .sync-pill.err .sync-dot { background: var(--red); }
+        .sync-pill.ok { color: var(--green); }
+        .sync-pill.err { color: var(--red); }
 
         .display-area {
             flex: 1 1 auto;
@@ -158,6 +180,65 @@
             pointer-events: none;
         }
 
+        /* ——— Télécommande ——— */
+        .remote-panel {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-evenly;
+            padding: 2% 4% 4%;
+            gap: 2%;
+        }
+
+        .remote-time {
+            font-size: clamp(2.4rem, 8vh, 3.8rem);
+            font-weight: 200;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.03em;
+        }
+
+        .remote-btns {
+            display: flex;
+            gap: clamp(18px, 5vw, 36px);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .remote-btn {
+            width: clamp(64px, 16vh, 88px);
+            height: clamp(64px, 16vh, 88px);
+            border-radius: 50%;
+            border: none;
+            font-size: clamp(0.85rem, 2vh, 1.05rem);
+            font-weight: 500;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            transition: transform 0.08s ease;
+        }
+
+        .remote-btn:active { transform: scale(0.94); }
+
+        .remote-btn.lap {
+            background: var(--btn-lap);
+            color: #fff;
+        }
+
+        .remote-btn.lap:disabled {
+            color: #636366;
+        }
+
+        .remote-btn.start {
+            background: var(--green-bg);
+            color: var(--green);
+        }
+
+        .remote-btn.start.running {
+            background: var(--red-bg);
+            color: var(--red);
+        }
+
         .dots {
             display: flex;
             gap: 7px;
@@ -185,6 +266,11 @@
             flex-shrink: 0;
         }
 
+        .phone.remote-mode .controls,
+        .phone.remote-mode .laps {
+            display: none;
+        }
+
         .ctrl-btn {
             width: clamp(64px, 16vh, 88px);
             height: clamp(64px, 16vh, 88px);
@@ -196,7 +282,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: transform 0.08s ease, filter 0.15s ease;
+            transition: transform 0.08s ease;
             -webkit-tap-highlight-color: transparent;
         }
 
@@ -216,8 +302,6 @@
         .ctrl-btn.start {
             background: var(--green-bg);
             color: var(--green);
-            border-color: transparent;
-            box-shadow: inset 0 0 0 2px var(--green-bg);
         }
 
         .ctrl-btn.start.running {
@@ -242,8 +326,6 @@
             padding: 2.6% 2%;
             border-bottom: 1px solid var(--lap-line);
             font-size: clamp(0.95rem, 2.1vh, 1.1rem);
-            font-weight: 400;
-            color: #fff;
             font-variant-numeric: tabular-nums;
         }
 
@@ -265,11 +347,8 @@
             flex-direction: column;
             align-items: center;
             gap: 3px;
-            background: none;
-            border: none;
             color: var(--muted);
             font-size: clamp(0.55rem, 1.15vh, 0.68rem);
-            cursor: default;
             padding: 2px 0;
         }
 
@@ -299,7 +378,8 @@
     <div class="stage">
         <div class="phone" id="phone" role="application" aria-label="Chronomètre">
             <div class="status-bar" aria-hidden="true"><div class="notch"></div></div>
-            <div class="title">Chronomètre</div>
+            <div class="title" id="page-title">Chronomètre</div>
+            <div class="sync-pill" id="sync-pill"><span class="sync-dot"></span><span id="sync-label">Sync…</span></div>
 
             <div class="display-area">
                 <div class="views" id="views">
@@ -312,12 +392,22 @@
                             <div class="analog-digital" id="analog-digital">00:00,00</div>
                         </div>
                     </div>
+                    <div class="view" id="view-remote" data-view="2">
+                        <div class="remote-panel">
+                            <div class="remote-time" id="remote-time">00:00,00</div>
+                            <div class="remote-btns">
+                                <button type="button" class="remote-btn lap" id="remote-lap" disabled>Tour</button>
+                                <button type="button" class="remote-btn start" id="remote-start">Démarrer</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <div class="dots" role="tablist" aria-label="Vue chronomètre">
-                <button type="button" class="dot active" id="dot-0" aria-label="Vue numérique"></button>
-                <button type="button" class="dot" id="dot-1" aria-label="Vue analogique"></button>
+                <button type="button" class="dot active" id="dot-0" aria-label="Minuteur numérique"></button>
+                <button type="button" class="dot" id="dot-1" aria-label="Horloge analogique"></button>
+                <button type="button" class="dot" id="dot-2" aria-label="Télécommande"></button>
             </div>
 
             <div class="controls">
@@ -353,282 +443,377 @@
         </div>
     </div>
 
-    <script>
-(function () {
-    const digitalEl = document.getElementById('digital-time');
-    const analogDigitalEl = document.getElementById('analog-digital');
-    const canvas = document.getElementById('analog-canvas');
-    const ctx = canvas.getContext('2d');
-    const lapsEl = document.getElementById('laps');
-    const btnLap = document.getElementById('btn-lap');
-    const btnStart = document.getElementById('btn-start');
-    const viewsRoot = document.getElementById('views');
+    <script type="module">
+import { db } from './firebase-init.js';
+import { doc, onSnapshot, setDoc } from 'https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js';
 
-    let running = false;
-    let startTs = 0;
-    let elapsed = 0;
-    let rafId = 0;
-    let laps = [];
-    let lastLapElapsed = 0;
-    let currentView = 0;
+const CHRONO_REF = doc(db, 'config', 'chronoSync');
+const CLIENT_ID = 'c_' + Math.random().toString(36).slice(2, 10) + '_' + Date.now().toString(36);
 
-    function formatTime(ms) {
-        const totalCs = Math.floor(ms / 10);
-        const cs = totalCs % 100;
-        const totalSec = Math.floor(totalCs / 100);
-        const sec = totalSec % 60;
-        const min = Math.floor(totalSec / 60) % 100;
-        const pad = (n, w) => String(n).padStart(w, '0');
-        return pad(min, 2) + ':' + pad(sec, 2) + ',' + pad(cs, 2);
-    }
+const phone = document.getElementById('phone');
+const pageTitle = document.getElementById('page-title');
+const digitalEl = document.getElementById('digital-time');
+const analogDigitalEl = document.getElementById('analog-digital');
+const remoteTimeEl = document.getElementById('remote-time');
+const canvas = document.getElementById('analog-canvas');
+const ctx = canvas.getContext('2d');
+const lapsEl = document.getElementById('laps');
+const btnLap = document.getElementById('btn-lap');
+const btnStart = document.getElementById('btn-start');
+const remoteLap = document.getElementById('remote-lap');
+const remoteStart = document.getElementById('remote-start');
+const viewsRoot = document.getElementById('views');
+const syncPill = document.getElementById('sync-pill');
+const syncLabel = document.getElementById('sync-label');
+let running = false;
+let elapsed = 0;       // ms figés à l'ancre
+let startTs = 0;       // Date.now() de l'ancre si running
+let rafId = 0;
+let laps = [];
+let lastLapElapsed = 0;
+let currentView = 0;
+let applyingRemote = false;
+let lastPushedRev = 0;
 
-    function nowElapsed() {
-        if (!running) return elapsed;
-        return elapsed + (performance.now() - startTs);
-    }
+const TITLES = ['Chronomètre', 'Chronomètre', 'Télécommande'];
 
-    function updateDisplay(ms) {
-        const text = formatTime(ms);
-        digitalEl.textContent = text;
-        analogDigitalEl.textContent = text;
-        drawAnalog(ms);
-    }
+function formatTime(ms) {
+    const totalCs = Math.floor(Math.max(0, ms) / 10);
+    const cs = totalCs % 100;
+    const totalSec = Math.floor(totalCs / 100);
+    const sec = totalSec % 60;
+    const min = Math.floor(totalSec / 60) % 100;
+    const pad = (n, w) => String(n).padStart(w, '0');
+    return pad(min, 2) + ':' + pad(sec, 2) + ',' + pad(cs, 2);
+}
 
-    function drawAnalog(ms) {
-        const w = canvas.width;
-        const h = canvas.height;
-        const cx = w / 2;
-        const cy = h / 2;
-        const r = w * 0.46;
+function nowElapsed() {
+    if (!running) return elapsed;
+    return elapsed + (Date.now() - startTs);
+}
 
-        ctx.clearRect(0, 0, w, h);
+function updateDisplay(ms) {
+    const text = formatTime(ms);
+    digitalEl.textContent = text;
+    analogDigitalEl.textContent = text;
+    remoteTimeEl.textContent = text;
+    if (currentView === 1 || canvas.width) drawAnalog(ms);
+}
 
-        // Outer dial
+function drawAnalog(ms) {
+    const w = canvas.width;
+    const h = canvas.height;
+    const cx = w / 2;
+    const cy = h / 2;
+    const r = w * 0.46;
+
+    ctx.clearRect(0, 0, w, h);
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.strokeStyle = '#3a3a3c';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    for (let i = 0; i < 240; i++) {
+        const angle = (i / 240) * Math.PI * 2 - Math.PI / 2;
+        const isMajor = i % 20 === 0;
+        const isMedium = i % 4 === 0;
+        const len = isMajor ? r * 0.08 : isMedium ? r * 0.045 : r * 0.025;
+        const outer = r * 0.96;
+        const inner = outer - len;
         ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.strokeStyle = '#3a3a3c';
-        ctx.lineWidth = 2;
+        ctx.moveTo(cx + Math.cos(angle) * outer, cy + Math.sin(angle) * outer);
+        ctx.lineTo(cx + Math.cos(angle) * inner, cy + Math.sin(angle) * inner);
+        ctx.strokeStyle = isMajor ? '#fff' : '#636366';
+        ctx.lineWidth = isMajor ? 2.5 : 1;
         ctx.stroke();
 
-        // Ticks & numbers (60 units = 60 seconds)
-        for (let i = 0; i < 240; i++) {
-            const angle = (i / 240) * Math.PI * 2 - Math.PI / 2;
-            const isMajor = i % 20 === 0;
-            const isMedium = i % 4 === 0;
-            const len = isMajor ? r * 0.08 : isMedium ? r * 0.045 : r * 0.025;
-            const outer = r * 0.96;
-            const inner = outer - len;
-            ctx.beginPath();
-            ctx.moveTo(cx + Math.cos(angle) * outer, cy + Math.sin(angle) * outer);
-            ctx.lineTo(cx + Math.cos(angle) * inner, cy + Math.sin(angle) * inner);
-            ctx.strokeStyle = isMajor ? '#fff' : '#636366';
-            ctx.lineWidth = isMajor ? 2.5 : 1;
-            ctx.stroke();
-
-            if (isMajor) {
-                const num = (i / 4) || 60;
-                const tx = cx + Math.cos(angle) * (r * 0.78);
-                const ty = cy + Math.sin(angle) * (r * 0.78);
-                ctx.fillStyle = '#fff';
-                ctx.font = '500 ' + Math.round(w * 0.055) + 'px -apple-system, BlinkMacSystemFont, sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(String(num), tx, ty);
-            }
-        }
-
-        // Inner minute dial (0–30)
-        const ir = r * 0.22;
-        const icy = cy - r * 0.38;
-        ctx.beginPath();
-        ctx.arc(cx, icy, ir, 0, Math.PI * 2);
-        ctx.strokeStyle = '#3a3a3c';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-
-        for (let i = 0; i < 30; i++) {
-            const angle = (i / 30) * Math.PI * 2 - Math.PI / 2;
-            const isLabel = i % 5 === 0;
-            const outer = ir * 0.92;
-            const inner = outer - (isLabel ? ir * 0.18 : ir * 0.1);
-            ctx.beginPath();
-            ctx.moveTo(cx + Math.cos(angle) * outer, icy + Math.sin(angle) * outer);
-            ctx.lineTo(cx + Math.cos(angle) * inner, icy + Math.sin(angle) * inner);
-            ctx.strokeStyle = '#8e8e93';
-            ctx.lineWidth = 1;
-            ctx.stroke();
-            if (isLabel) {
-                const n = i === 0 ? 30 : i;
-                ctx.fillStyle = '#8e8e93';
-                ctx.font = Math.round(w * 0.028) + 'px -apple-system, sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(String(n), cx + Math.cos(angle) * ir * 0.62, icy + Math.sin(angle) * ir * 0.62);
-            }
-        }
-
-        const totalSec = ms / 1000;
-        const secAngle = ((totalSec % 60) / 60) * Math.PI * 2 - Math.PI / 2;
-        const minAngle = ((Math.floor(totalSec / 60) % 30) / 30) * Math.PI * 2 - Math.PI / 2;
-
-        // Minute hand (inner)
-        ctx.beginPath();
-        ctx.moveTo(cx, icy);
-        ctx.lineTo(cx + Math.cos(minAngle) * ir * 0.72, icy + Math.sin(minAngle) * ir * 0.72);
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 2;
-        ctx.lineCap = 'round';
-        ctx.stroke();
-
-        // Second hand (orange)
-        ctx.beginPath();
-        ctx.moveTo(cx - Math.cos(secAngle) * r * 0.12, cy - Math.sin(secAngle) * r * 0.12);
-        ctx.lineTo(cx + Math.cos(secAngle) * r * 0.88, cy + Math.sin(secAngle) * r * 0.88);
-        ctx.strokeStyle = '#ff9f0a';
-        ctx.lineWidth = 2.5;
-        ctx.lineCap = 'round';
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.arc(cx, cy, 6, 0, Math.PI * 2);
-        ctx.fillStyle = '#ff9f0a';
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
-        ctx.fillStyle = '#000';
-        ctx.fill();
-    }
-
-    function tick() {
-        updateDisplay(nowElapsed());
-        if (running) rafId = requestAnimationFrame(tick);
-    }
-
-    function setRunning(isRunning) {
-        running = isRunning;
-        if (running) {
-            btnStart.textContent = 'Arrêter';
-            btnStart.classList.add('running');
-            btnLap.textContent = 'Tour';
-            btnLap.disabled = false;
-            btnLap.classList.remove('is-disabled');
-            startTs = performance.now();
-            cancelAnimationFrame(rafId);
-            rafId = requestAnimationFrame(tick);
-        } else {
-            elapsed = nowElapsed();
-            cancelAnimationFrame(rafId);
-            btnStart.textContent = 'Démarrer';
-            btnStart.classList.remove('running');
-            btnLap.textContent = 'Réinitialiser';
-            btnLap.disabled = false;
-            btnLap.classList.remove('is-disabled');
-            updateDisplay(elapsed);
+        if (isMajor) {
+            const num = (i / 4) || 60;
+            ctx.fillStyle = '#fff';
+            ctx.font = '500 ' + Math.round(w * 0.055) + 'px -apple-system, BlinkMacSystemFont, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(String(num), cx + Math.cos(angle) * (r * 0.78), cy + Math.sin(angle) * (r * 0.78));
         }
     }
 
-    function resetAll() {
-        cancelAnimationFrame(rafId);
-        running = false;
-        elapsed = 0;
-        lastLapElapsed = 0;
-        laps = [];
-        btnStart.textContent = 'Démarrer';
-        btnStart.classList.remove('running');
-        btnLap.textContent = 'Tour';
-        btnLap.disabled = true;
-        btnLap.classList.add('is-disabled');
+    const ir = r * 0.22;
+    const icy = cy - r * 0.38;
+    ctx.beginPath();
+    ctx.arc(cx, icy, ir, 0, Math.PI * 2);
+    ctx.strokeStyle = '#3a3a3c';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    for (let i = 0; i < 30; i++) {
+        const angle = (i / 30) * Math.PI * 2 - Math.PI / 2;
+        const isLabel = i % 5 === 0;
+        const outer = ir * 0.92;
+        const inner = outer - (isLabel ? ir * 0.18 : ir * 0.1);
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(angle) * outer, icy + Math.sin(angle) * outer);
+        ctx.lineTo(cx + Math.cos(angle) * inner, icy + Math.sin(angle) * inner);
+        ctx.strokeStyle = '#8e8e93';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        if (isLabel) {
+            const n = i === 0 ? 30 : i;
+            ctx.fillStyle = '#8e8e93';
+            ctx.font = Math.round(w * 0.028) + 'px -apple-system, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(String(n), cx + Math.cos(angle) * ir * 0.62, icy + Math.sin(angle) * ir * 0.62);
+        }
+    }
+
+    const totalSec = ms / 1000;
+    const secAngle = ((totalSec % 60) / 60) * Math.PI * 2 - Math.PI / 2;
+    const minAngle = (((totalSec / 60) % 30) / 30) * Math.PI * 2 - Math.PI / 2;
+
+    ctx.beginPath();
+    ctx.moveTo(cx - Math.cos(minAngle) * ir * 0.15, icy - Math.sin(minAngle) * ir * 0.15);
+    ctx.lineTo(cx + Math.cos(minAngle) * ir * 0.78, icy + Math.sin(minAngle) * ir * 0.78);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx, icy, 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(cx - Math.cos(secAngle) * r * 0.12, cy - Math.sin(secAngle) * r * 0.12);
+    ctx.lineTo(cx + Math.cos(secAngle) * r * 0.88, cy + Math.sin(secAngle) * r * 0.88);
+    ctx.strokeStyle = '#ff9f0a';
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+    ctx.fillStyle = '#ff9f0a';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#000';
+    ctx.fill();
+}
+
+function tick() {
+    updateDisplay(nowElapsed());
+    if (running) rafId = requestAnimationFrame(tick);
+}
+
+function syncButtons() {
+    const hasTime = nowElapsed() > 0 || laps.length > 0;
+    const startLabel = running ? 'Arrêter' : 'Démarrer';
+    const lapLabel = running ? 'Tour' : 'Réinitialiser';
+    const lapDisabled = !running && !hasTime;
+
+    [btnStart, remoteStart].forEach((btn) => {
+        btn.textContent = startLabel;
+        btn.classList.toggle('running', running);
+    });
+    [btnLap, remoteLap].forEach((btn) => {
+        btn.textContent = lapLabel;
+        btn.disabled = lapDisabled;
+        btn.classList.toggle('is-disabled', lapDisabled);
+    });
+}
+
+function renderLaps() {
+    if (!laps.length) {
         lapsEl.innerHTML = '';
-        updateDisplay(0);
+        return;
     }
-
-    function renderLaps() {
-        if (!laps.length) {
-            lapsEl.innerHTML = '';
-            return;
+    let best = Infinity;
+    let worst = -Infinity;
+    if (laps.length >= 2) {
+        for (const lap of laps) {
+            if (lap.duration < best) best = lap.duration;
+            if (lap.duration > worst) worst = lap.duration;
         }
-        let best = Infinity;
-        let worst = -Infinity;
+    }
+    lapsEl.innerHTML = [...laps].reverse().map((lap) => {
+        let cls = '';
         if (laps.length >= 2) {
-            for (const lap of laps) {
-                if (lap.duration < best) best = lap.duration;
-                if (lap.duration > worst) worst = lap.duration;
-            }
+            if (lap.duration === best) cls = 'best';
+            else if (lap.duration === worst) cls = 'worst';
         }
-        const rows = [...laps].reverse().map((lap) => {
-            let cls = '';
-            if (laps.length >= 2) {
-                if (lap.duration === best) cls = 'best';
-                else if (lap.duration === worst) cls = 'worst';
-            }
-            return '<div class="lap-row ' + cls + '"><span>Tour ' + lap.n + '</span><span>' + formatTime(lap.duration) + '</span></div>';
-        }).join('');
-        lapsEl.innerHTML = rows;
+        return '<div class="lap-row ' + cls + '"><span>Tour ' + lap.n + '</span><span>' + formatTime(lap.duration) + '</span></div>';
+    }).join('');
+}
+
+function applyLocalClock(nextRunning, nextElapsed, nextStartTs) {
+    cancelAnimationFrame(rafId);
+    running = nextRunning;
+    elapsed = nextElapsed;
+    startTs = nextStartTs;
+    syncButtons();
+    updateDisplay(nowElapsed());
+    if (running) rafId = requestAnimationFrame(tick);
+}
+
+function snapshotState(extra = {}) {
+    const ms = nowElapsed();
+    return {
+        running,
+        anchorElapsed: running ? elapsed : ms,
+        anchorAt: running ? startTs : Date.now(),
+        laps,
+        lastLapElapsed,
+        clientId: CLIENT_ID,
+        rev: Date.now(),
+        ...extra
+    };
+}
+
+async function pushState(extra = {}) {
+    if (applyingRemote) return;
+    const data = snapshotState(extra);
+    lastPushedRev = data.rev;
+    try {
+        await setDoc(CHRONO_REF, data, { merge: true });
+        setSyncStatus(true, 'Synchronisé');
+    } catch (e) {
+        console.error(e);
+        setSyncStatus(false, 'Hors ligne');
+    }
+}
+
+function setSyncStatus(ok, label) {
+    syncPill.classList.add('visible');
+    syncPill.classList.toggle('ok', ok);
+    syncPill.classList.toggle('err', !ok);
+    syncLabel.textContent = label;
+}
+
+function applyRemoteState(data) {
+    if (!data) return;
+    if (data.clientId === CLIENT_ID && data.rev === lastPushedRev) return;
+
+    applyingRemote = true;
+    laps = Array.isArray(data.laps) ? data.laps : [];
+    lastLapElapsed = Number(data.lastLapElapsed) || 0;
+    renderLaps();
+
+    const remRunning = !!data.running;
+    const anchorElapsed = Number(data.anchorElapsed) || 0;
+    const anchorAt = Number(data.anchorAt) || Date.now();
+
+    if (remRunning) {
+        applyLocalClock(true, anchorElapsed, anchorAt);
+    } else {
+        applyLocalClock(false, anchorElapsed, 0);
     }
 
-    function addLap() {
+    applyingRemote = false;
+    setSyncStatus(true, 'Synchronisé');
+}
+
+function toggleRun() {
+    if (running) {
+        const ms = nowElapsed();
+        applyLocalClock(false, ms, 0);
+        pushState();
+    } else {
+        const now = Date.now();
+        applyLocalClock(true, elapsed, now);
+        pushState();
+    }
+}
+
+function lapOrReset() {
+    if (running) {
         const total = nowElapsed();
         const duration = total - lastLapElapsed;
         lastLapElapsed = total;
-        laps.push({ n: laps.length + 1, duration: duration });
+        laps = [...laps, { n: laps.length + 1, duration }];
         renderLaps();
+        pushState();
+    } else if (elapsed > 0 || laps.length > 0) {
+        applyLocalClock(false, 0, 0);
+        laps = [];
+        lastLapElapsed = 0;
+        renderLaps();
+        pushState();
     }
+}
 
-    btnStart.addEventListener('click', () => {
-        setRunning(!running);
+function showView(index) {
+    currentView = index;
+    document.querySelectorAll('.view').forEach((v) => {
+        v.classList.toggle('active', Number(v.dataset.view) === index);
     });
+    document.getElementById('dot-0').classList.toggle('active', index === 0);
+    document.getElementById('dot-1').classList.toggle('active', index === 1);
+    document.getElementById('dot-2').classList.toggle('active', index === 2);
+    phone.classList.toggle('remote-mode', index === 2);
+    pageTitle.textContent = TITLES[index] || 'Chronomètre';
+    updateDisplay(nowElapsed());
+}
 
-    btnLap.addEventListener('click', () => {
-        if (btnLap.disabled) return;
-        if (running) addLap();
-        else resetAll();
-    });
+btnStart.addEventListener('click', toggleRun);
+remoteStart.addEventListener('click', toggleRun);
+btnLap.addEventListener('click', () => { if (!btnLap.disabled) lapOrReset(); });
+remoteLap.addEventListener('click', () => { if (!remoteLap.disabled) lapOrReset(); });
 
-    function showView(index) {
-        currentView = index;
-        document.querySelectorAll('.view').forEach((v) => {
-            v.classList.toggle('active', Number(v.dataset.view) === index);
-        });
-        document.getElementById('dot-0').classList.toggle('active', index === 0);
-        document.getElementById('dot-1').classList.toggle('active', index === 1);
-        updateDisplay(nowElapsed());
+document.getElementById('dot-0').addEventListener('click', () => showView(0));
+document.getElementById('dot-1').addEventListener('click', () => showView(1));
+document.getElementById('dot-2').addEventListener('click', () => showView(2));
+
+let touchX = null;
+viewsRoot.addEventListener('touchstart', (e) => {
+    touchX = e.changedTouches[0].clientX;
+}, { passive: true });
+viewsRoot.addEventListener('touchend', (e) => {
+    if (touchX == null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    touchX = null;
+    if (Math.abs(dx) < 40) return;
+    if (dx < 0) showView(Math.min(2, currentView + 1));
+    else showView(Math.max(0, currentView - 1));
+}, { passive: true });
+
+document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') {
+        e.preventDefault();
+        toggleRun();
+    } else if (e.code === 'KeyL' || e.code === 'Enter') {
+        lapOrReset();
+    } else if (e.code === 'KeyR' && !running) {
+        lapOrReset();
+    } else if (e.code === 'ArrowLeft') {
+        showView(Math.max(0, currentView - 1));
+    } else if (e.code === 'ArrowRight') {
+        showView(Math.min(2, currentView + 1));
     }
+});
 
-    document.getElementById('dot-0').addEventListener('click', () => showView(0));
-    document.getElementById('dot-1').addEventListener('click', () => showView(1));
+// Firebase sync
+setSyncStatus(false, 'Connexion…');
+onSnapshot(CHRONO_REF, (snap) => {
+    if (!snap.exists()) {
+        setSyncStatus(true, 'Prêt');
+        return;
+    }
+    applyRemoteState(snap.data());
+}, (err) => {
+    console.error(err);
+    setSyncStatus(false, 'Hors ligne');
+});
 
-    // Swipe between digital / analog
-    let touchX = null;
-    viewsRoot.addEventListener('touchstart', (e) => {
-        touchX = e.changedTouches[0].clientX;
-    }, { passive: true });
-    viewsRoot.addEventListener('touchend', (e) => {
-        if (touchX == null) return;
-        const dx = e.changedTouches[0].clientX - touchX;
-        touchX = null;
-        if (Math.abs(dx) < 40) return;
-        if (dx < 0) showView(Math.min(1, currentView + 1));
-        else showView(Math.max(0, currentView - 1));
-    }, { passive: true });
+// URL ?remote=1 → ouvre directement la télécommande
+const params = new URLSearchParams(location.search);
+if (params.get('remote') === '1' || params.get('view') === 'remote') {
+    showView(2);
+}
 
-    document.addEventListener('keydown', (e) => {
-        if (e.code === 'Space') {
-            e.preventDefault();
-            setRunning(!running);
-        } else if (e.code === 'KeyL' || e.code === 'Enter') {
-            if (running) addLap();
-            else if (elapsed > 0) resetAll();
-        } else if (e.code === 'KeyR' && !running) {
-            resetAll();
-        } else if (e.code === 'ArrowLeft') {
-            showView(0);
-        } else if (e.code === 'ArrowRight') {
-            showView(1);
-        }
-    });
-
-    updateDisplay(0);
-})();
+syncButtons();
+updateDisplay(0);
     </script>
 </body>
 </html>

@@ -15,11 +15,13 @@ video.html :
              - Identifiant : "vidéo" / code : vide
              - Identifiant : "video" / code : vide
 
-chronometre.html (Chronomètre candidats — projection) :
+chronometre.html (Chronomètre candidats — projection + télécommande) :
              - Identifiant : "chronometre" / code : vide
              - Identifiant : "chronomètre" / code : vide
              - Identifiant : "chrono" / code : vide
-             - Aussi : lien direct depuis admin.html (onglet Réinitialiser) et guide-interfaces.html
+             - Projection : chronometre.html (vues numérique / horloge)
+             - Télécommande téléphone : chronometre.html?remote=1
+             - Aussi : liens depuis admin.html (onglet Réinitialiser) et guide-interfaces.html
 
 finale.html :
              - Identifiant : "final" / code : vide

@@ -225,11 +225,23 @@
             <h3><a href="chronometre.html" target="_blank" rel="noopener">Chronomètre</a></h3>
             <p>Chronomètre style iPhone (fond noir) pour chronométrer les candidats en salle. Affiché dans un cadre téléphone fixe, idéal pour la projection vidéoprojecteur. Aussi accessible depuis l’admin (onglet Réinitialiser).</p>
             <p style="margin-top: 10px;"><strong style="color: var(--text);">Accès (connexion index) :</strong> identifiants <code style="color: var(--accent);">chrono</code>, <code style="color: var(--accent);">chronometre</code> ou <code style="color: var(--accent);">chronomètre</code>, mot de passe vide — détail dans la section sécurisée en bas de page.</p>
-            <p style="margin-top: 10px;"><strong style="color: var(--text);">Contrôles :</strong></p>
+            <p style="margin-top: 10px;"><strong style="color: var(--text);">Trois vues (points) :</strong></p>
+            <ul style="margin: 6px 0 0; padding-left: 1.2rem; color: var(--muted); font-size: 0.92rem; line-height: 1.5;">
+                <li>1 — Minuteur numérique</li>
+                <li>2 — Horloge analogique</li>
+                <li>3 — Télécommande (pilote le projecteur via Firebase)</li>
+            </ul>
+            <p style="margin-top: 10px;"><strong style="color: var(--text);">Télécommande téléphone :</strong></p>
+            <ul style="margin: 6px 0 0; padding-left: 1.2rem; color: var(--muted); font-size: 0.92rem; line-height: 1.5;">
+                <li>Projecteur : ouvrir <a href="chronometre.html" target="_blank" rel="noopener" style="color: var(--primary);">chronometre.html</a> (vue 1 ou 2)</li>
+                <li>Téléphone : ouvrir <a href="chronometre.html?remote=1" target="_blank" rel="noopener" style="color: var(--primary);">chronometre.html?remote=1</a> (vue télécommande)</li>
+                <li>Démarrer / Arrêter / Tour / Réinitialiser — synchronisé en temps réel avec le projecteur</li>
+            </ul>
+            <p style="margin-top: 10px;"><strong style="color: var(--text);">Contrôles clavier :</strong></p>
             <ul style="margin: 6px 0 0; padding-left: 1.2rem; color: var(--muted); font-size: 0.92rem; line-height: 1.5;">
                 <li><code style="color: var(--accent);">Espace</code> → démarrer / arrêter</li>
                 <li><code style="color: var(--accent);">Entrée</code> ou <code style="color: var(--accent);">L</code> → tour (si en cours) ou réinitialiser (si arrêté)</li>
-                <li>Flèches ← → ou points / balayage → vue numérique / analogique</li>
+                <li>Flèches ← → ou points / balayage → changer de vue</li>
             </ul>
         </div>
 
