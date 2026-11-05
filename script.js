@@ -89,6 +89,9 @@ let scoresRealtimeListener = null;
 let juryLayoutPingListener = null;
 let chronoSyncListener = null;
 let lastSavedChronoMs = null; // dernier temps enregistré (config/chronoSync.saved)
+let chronoTargetEnabled = false;
+let chronoTargetMs = 0;
+let chronoToleranceSec = 0;
 let previousClassementEntriesForOvertake = null; // Entrées avant mise à jour (pour animation dépassement)
 
 // Variables pour la configuration des tours
@@ -442,6 +445,9 @@ function logout() {
         chronoSyncListener = null;
     }
     lastSavedChronoMs = null;
+    chronoTargetEnabled = false;
+    chronoTargetMs = 0;
+    chronoToleranceSec = 0;
     
     // Supprimer uniquement les données de session, garder les préférences de thème
     localStorage.removeItem('currentJuryName');
@@ -1582,20 +1588,34 @@ function ensureJuryChronoBadge() {
     return el;
 }
 
+function isJuryChronoInTargetZone(ms) {
+    if (!chronoTargetEnabled) return null;
+    if (Math.max(0, Number(ms) || 0) <= 0) return null; // 00:00,00 → couleur par défaut
+    const tolMs = Math.max(0, Number(chronoToleranceSec) || 0) * 1000;
+    const start = Math.max(0, chronoTargetMs - tolMs);
+    const end = chronoTargetMs + tolMs;
+    return ms >= start && ms <= end;
+}
+
 function updateJuryChronoBadge() {
     const el = ensureJuryChronoBadge();
     if (!el) return;
     if (lastSavedChronoMs == null) {
         el.hidden = true;
         el.textContent = '';
+        el.classList.remove('time-in-zone', 'time-out-zone');
         return;
     }
     el.hidden = false;
     el.textContent = formatChronoMs(lastSavedChronoMs);
+    el.classList.remove('time-in-zone', 'time-out-zone');
+    const inZone = isJuryChronoInTargetZone(lastSavedChronoMs);
+    if (inZone === true) el.classList.add('time-in-zone');
+    else if (inZone === false) el.classList.add('time-out-zone');
 }
 
-function applyChronoSyncSaved(savedList) {
-    const saved = Array.isArray(savedList) ? savedList : [];
+function applyChronoSyncData(data) {
+    const saved = Array.isArray(data && data.saved) ? data.saved : [];
     if (!saved.length) {
         lastSavedChronoMs = null;
     } else {
@@ -1605,6 +1625,9 @@ function applyChronoSyncSaved(savedList) {
         }
         lastSavedChronoMs = latest.ms != null ? Number(latest.ms) : null;
     }
+    chronoTargetEnabled = !!(data && data.targetEnabled);
+    chronoTargetMs = data && typeof data.targetMs === 'number' ? Math.max(0, data.targetMs) : 0;
+    chronoToleranceSec = data && typeof data.toleranceSec === 'number' ? Math.max(0, data.toleranceSec) : 0;
     updateJuryChronoBadge();
 }
 
@@ -1612,7 +1635,7 @@ function setupChronoSyncListener() {
     if (chronoSyncListener) return;
     chronoSyncListener = onSnapshot(doc(db, 'config', 'chronoSync'), (snap) => {
         try {
-            applyChronoSyncSaved(snap.exists() ? (snap.data().saved || []) : []);
+            applyChronoSyncData(snap.exists() ? snap.data() : {});
         } catch (e) {
             console.error('chronoSync listener', e);
         }
