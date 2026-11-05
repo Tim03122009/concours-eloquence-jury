@@ -23,6 +23,11 @@
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
+        html {
+            /* Équivalent au zoom navigateur à 90 % */
+            zoom: 0.9;
+        }
+
         html, body {
             width: 100%;
             height: 100%;
@@ -40,11 +45,12 @@
             align-items: center;
             justify-content: center;
             padding: 2vh 2vw;
+            box-sizing: border-box;
         }
 
         .phone {
-            height: min(96vh, calc(96vw / (9 / 19.5)));
-            width: calc(min(96vh, calc(96vw / (9 / 19.5))) * (9 / 19.5));
+            height: min(100vh, calc(100vw / (9 / 19.5)));
+            width: calc(min(100vh, calc(100vw / (9 / 19.5))) * (9 / 19.5));
             max-width: 100%;
             background: var(--bg-phone);
             border-radius: clamp(28px, 4.5vh, 48px);
@@ -58,7 +64,6 @@
             position: relative;
             user-select: none;
             -webkit-user-select: none;
-            zoom: 0.9;
         }
 
         .status-bar {
