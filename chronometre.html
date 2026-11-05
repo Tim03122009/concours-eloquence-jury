@@ -293,7 +293,7 @@
         }
 
         .settings-gear {
-            display: none;
+            display: flex;
             position: absolute;
             top: 5.8%;
             right: 4.5%;
@@ -311,9 +311,83 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        .phone.remote-mode .settings-gear { display: flex; }
         .settings-gear:active { transform: scale(0.94); }
         .settings-gear svg { width: 58%; height: 58%; fill: currentColor; }
+        .settings-gear.linked { color: var(--green); }
+
+        .link-status {
+            margin: 0 0 10px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            background: #111;
+            border: 1px solid #3a3a3c;
+            font-size: 0.82rem;
+            color: var(--muted);
+            line-height: 1.35;
+        }
+
+        .link-status.ok { color: var(--green); border-color: #1a3a24; }
+        .link-status.wait { color: var(--orange); border-color: #4a320a; }
+
+        .link-pin {
+            font-size: 1.6rem;
+            font-weight: 600;
+            letter-spacing: 0.28em;
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+            color: #fff;
+            margin: 8px 0;
+        }
+
+        .link-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .link-row input {
+            flex: 1;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid #3a3a3c;
+            background: #000;
+            color: #fff;
+            font-size: 1.1rem;
+            letter-spacing: 0.2em;
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .link-row button,
+        .link-actions button {
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: none;
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+            background: #2c2c2e;
+            color: #fff;
+        }
+
+        .link-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .link-actions .primary {
+            background: var(--orange);
+            color: #000;
+        }
+
+        .link-note {
+            margin-top: 8px;
+            font-size: 0.75rem;
+            color: var(--muted);
+            line-height: 1.4;
+        }
 
         .settings-overlay {
             display: none;
@@ -730,6 +804,22 @@
                             <span>Clochette à l’entrée et à la sortie de la période</span>
                         </label>
                     </div>
+
+                    <div class="settings-field">
+                        <legend style="display:block;font-size:0.8rem;color:var(--muted);margin-bottom:6px;">Connexion directe (faible latence)</legend>
+                        <div class="link-status" id="link-status">Non connecté — sync cloud (Firebase)</div>
+                        <div class="link-pin" id="link-pin" hidden></div>
+                        <div class="link-actions">
+                            <button type="button" class="primary" id="link-host-btn">Créer un lien (ordinateur / projecteur)</button>
+                            <div class="link-row">
+                                <input type="text" id="link-pin-input" maxlength="4" inputmode="numeric" placeholder="Code" aria-label="Code à 4 chiffres">
+                                <button type="button" id="link-join-btn">Rejoindre</button>
+                            </div>
+                            <button type="button" id="link-disconnect-btn" hidden>Déconnecter</button>
+                        </div>
+                        <p class="link-note">Le Bluetooth ne peut pas relier deux navigateurs (Android ↔ Windows). À la place : lien direct Wi‑Fi / réseau local via WebRTC — latence quasi nulle après appairage. Les deux appareils doivent être sur le même réseau (ou autoriser Internet pour le STUN).</p>
+                    </div>
+
                     <div class="settings-actions">
                         <button type="button" class="settings-cancel" id="settings-cancel">Annuler</button>
                         <button type="button" class="settings-save" id="settings-save">Enregistrer</button>
@@ -828,10 +918,17 @@
 
     <script type="module">
 import { db } from './firebase-init.js';
-import { doc, onSnapshot, setDoc } from 'https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js';
+import { doc, onSnapshot, setDoc, deleteDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js';
 
 const CHRONO_REF = doc(db, 'config', 'chronoSync');
+const RTC_REF = doc(db, 'config', 'chronoRtc');
 const CLIENT_ID = 'c_' + Math.random().toString(36).slice(2, 10) + '_' + Date.now().toString(36);
+const RTC_CONFIG = {
+    iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+    ]
+};
 
 const phone = document.getElementById('phone');
 const pageTitle = document.getElementById('page-title');
@@ -853,8 +950,8 @@ const savedListEl = document.getElementById('saved-list');
 const savedClearBtn = document.getElementById('saved-clear');
 
 let running = false;
-let elapsed = 0;       // ms figés à l'ancre
-let startTs = 0;       // Date.now() de l'ancre si running
+let elapsed = 0;       // ms figés à l'ancre (temps total à l'instant startTs)
+let startTs = 0;       // performance.now() de l'ancre si running (horloge monotone locale)
 let rafId = 0;
 let laps = [];
 let lastLapElapsed = 0;
@@ -863,6 +960,7 @@ let currentView = 0;
 let displayView = 0;   // vue imposée au projecteur (0|1|2)
 let applyingRemote = false;
 let lastPushedRev = 0;
+let lastAppliedRev = 0;
 
 /** Paramètres temps cible / période / clochette */
 let targetEnabled = false;
@@ -890,6 +988,19 @@ const targetBellInput = document.getElementById('target-bell');
 const tolField = document.getElementById('tol-field');
 const bellField = document.getElementById('bell-field');
 const targetTimeRow = document.getElementById('target-time-row');
+const linkStatusEl = document.getElementById('link-status');
+const linkPinEl = document.getElementById('link-pin');
+const linkPinInput = document.getElementById('link-pin-input');
+const linkHostBtn = document.getElementById('link-host-btn');
+const linkJoinBtn = document.getElementById('link-join-btn');
+const linkDisconnectBtn = document.getElementById('link-disconnect-btn');
+
+let pc = null;
+let dataChannel = null;
+let rtcRole = null; // 'host' | 'guest'
+let rtcUnsub = null;
+let directLinked = false;
+let ignoreFirebaseClock = false;
 
 function formatTime(ms) {
     const totalCs = Math.floor(Math.max(0, ms) / 10);
@@ -903,7 +1014,27 @@ function formatTime(ms) {
 
 function nowElapsed() {
     if (!running) return elapsed;
-    return elapsed + (Date.now() - startTs);
+    return elapsed + (performance.now() - startTs);
+}
+
+/** Pose l'horloge locale sur un temps écoulé absolu (sans dépendre de Date.now() distant). */
+function armClock(nextRunning, elapsedNow) {
+    const ms = Math.max(0, Number(elapsedNow) || 0);
+    cancelAnimationFrame(rafId);
+    if (nextRunning) {
+        running = true;
+        elapsed = ms;
+        startTs = performance.now();
+        syncButtons();
+        updateDisplay(ms);
+        rafId = requestAnimationFrame(tick);
+    } else {
+        running = false;
+        elapsed = ms;
+        startTs = 0;
+        syncButtons();
+        updateDisplay(ms);
+    }
 }
 
 function updateDisplay(ms) {
@@ -1183,22 +1314,15 @@ function renderSaved() {
     }).join('');
 }
 
-function applyLocalClock(nextRunning, nextElapsed, nextStartTs) {
-    cancelAnimationFrame(rafId);
-    running = nextRunning;
-    elapsed = nextElapsed;
-    startTs = nextStartTs;
-    syncButtons();
-    updateDisplay(nowElapsed());
-    if (running) rafId = requestAnimationFrame(tick);
-}
-
 function snapshotState(extra = {}) {
     const ms = nowElapsed();
     return {
         running,
-        anchorElapsed: running ? elapsed : ms,
-        anchorAt: running ? startTs : Date.now(),
+        // Temps écoulé ABSOLU au moment de l'envoi (plus d'ancre Date.now() partagée)
+        elapsedNow: ms,
+        // Champs legacy (compat) — recalculés côté réception via elapsedNow
+        anchorElapsed: ms,
+        anchorAt: Date.now(),
         laps,
         lastLapElapsed,
         saved,
@@ -1213,16 +1337,221 @@ function snapshotState(extra = {}) {
     };
 }
 
+function sendDirectState(data) {
+    if (!dataChannel || dataChannel.readyState !== 'open') return false;
+    try {
+        dataChannel.send(JSON.stringify({ kind: 'chrono', ...data }));
+        return true;
+    } catch (e) {
+        console.error('DataChannel send', e);
+        return false;
+    }
+}
+
 async function pushState(extra = {}) {
     if (applyingRemote) return;
     const data = snapshotState(extra);
     lastPushedRev = data.rev;
+    lastAppliedRev = Math.max(lastAppliedRev, data.rev);
+
+    // Priorité : lien direct WebRTC (faible latence)
+    if (sendDirectState(data)) {
+        setSyncStatus(true, 'Lien direct');
+        // Persistance cloud légère (enregistrements / réglages) sans bloquer
+        setDoc(CHRONO_REF, data, { merge: true }).catch(() => {});
+        return;
+    }
+
     try {
         await setDoc(CHRONO_REF, data, { merge: true });
         setSyncStatus(true, 'Synchronisé');
     } catch (e) {
         console.error(e);
         setSyncStatus(false, 'Hors ligne');
+    }
+}
+
+function updateLinkUi(status, { pin = null, ok = false, wait = false } = {}) {
+    if (linkStatusEl) {
+        linkStatusEl.textContent = status;
+        linkStatusEl.classList.toggle('ok', ok);
+        linkStatusEl.classList.toggle('wait', wait);
+    }
+    if (linkPinEl) {
+        if (pin) {
+            linkPinEl.hidden = false;
+            linkPinEl.textContent = pin;
+        } else if (!wait) {
+            linkPinEl.hidden = true;
+            linkPinEl.textContent = '';
+        }
+    }
+    if (linkDisconnectBtn) linkDisconnectBtn.hidden = !directLinked && rtcRole == null;
+    if (settingsGear) settingsGear.classList.toggle('linked', directLinked);
+}
+
+function waitIceComplete(peer) {
+    if (peer.iceGatheringState === 'complete') return Promise.resolve();
+    return new Promise((resolve) => {
+        const done = () => {
+            if (peer.iceGatheringState === 'complete') {
+                peer.removeEventListener('icegatheringstatechange', done);
+                resolve();
+            }
+        };
+        peer.addEventListener('icegatheringstatechange', done);
+        // Filet de sécurité
+        setTimeout(resolve, 2500);
+    });
+}
+
+function wireDataChannel(channel) {
+    dataChannel = channel;
+    dataChannel.onopen = () => {
+        directLinked = true;
+        ignoreFirebaseClock = true;
+        updateLinkUi('Connecté — lien direct actif', { ok: true });
+        setSyncStatus(true, 'Lien direct');
+        // Envoyer l'état courant dès la connexion
+        const snap = snapshotState();
+        lastPushedRev = snap.rev;
+        lastAppliedRev = Math.max(lastAppliedRev, snap.rev);
+        sendDirectState(snap);
+    };
+    dataChannel.onclose = () => {
+        directLinked = false;
+        ignoreFirebaseClock = false;
+        updateLinkUi('Lien direct fermé — retour sync cloud');
+        setSyncStatus(true, 'Synchronisé');
+    };
+    dataChannel.onerror = () => {
+        setSyncStatus(false, 'Lien direct erreur');
+    };
+    dataChannel.onmessage = (ev) => {
+        try {
+            const msg = JSON.parse(ev.data);
+            if (!msg || msg.kind !== 'chrono') return;
+            if (msg.clientId === CLIENT_ID && msg.rev === lastPushedRev) return;
+            applyRemoteState(msg, { fromDirect: true });
+        } catch (e) {
+            console.error('DC message', e);
+        }
+    };
+}
+
+function resetPeer() {
+    if (rtcUnsub) {
+        rtcUnsub();
+        rtcUnsub = null;
+    }
+    try { if (dataChannel) dataChannel.close(); } catch (_) {}
+    try { if (pc) pc.close(); } catch (_) {}
+    dataChannel = null;
+    pc = null;
+    rtcRole = null;
+    directLinked = false;
+    ignoreFirebaseClock = false;
+}
+
+async function disconnectDirectLink() {
+    resetPeer();
+    updateLinkUi('Non connecté — sync cloud (Firebase)');
+    try { await deleteDoc(RTC_REF); } catch (_) {
+        try { await setDoc(RTC_REF, { cleared: true, at: Date.now() }, { merge: false }); } catch (__) {}
+    }
+    setSyncStatus(true, 'Synchronisé');
+}
+
+async function startHostLink() {
+    try {
+        resetPeer();
+        rtcRole = 'host';
+        const pin = String(Math.floor(1000 + Math.random() * 9000));
+        updateLinkUi('En attente de la télécommande…', { pin, wait: true });
+
+        pc = new RTCPeerConnection(RTC_CONFIG);
+        const channel = pc.createDataChannel('chrono', { ordered: true });
+        wireDataChannel(channel);
+
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        await waitIceComplete(pc);
+
+        await setDoc(RTC_REF, {
+            pin,
+            hostId: CLIENT_ID,
+            offer: {
+                type: pc.localDescription.type,
+                sdp: pc.localDescription.sdp
+            },
+            answer: null,
+            createdAt: Date.now()
+        });
+
+        rtcUnsub = onSnapshot(RTC_REF, async (snap) => {
+            if (!snap.exists() || rtcRole !== 'host' || !pc) return;
+            const data = snap.data();
+            if (!data.answer || pc.currentRemoteDescription) return;
+            try {
+                await pc.setRemoteDescription(data.answer);
+            } catch (e) {
+                console.error('host setRemoteDescription', e);
+            }
+        });
+    } catch (e) {
+        console.error(e);
+        updateLinkUi('Échec création du lien');
+        resetPeer();
+    }
+}
+
+async function joinDirectLink() {
+    const pin = String(linkPinInput.value || '').trim();
+    if (!/^\d{4}$/.test(pin)) {
+        updateLinkUi('Entrez un code à 4 chiffres');
+        return;
+    }
+    try {
+        resetPeer();
+        rtcRole = 'guest';
+        updateLinkUi('Connexion…', { wait: true });
+
+        const snap = await getDoc(RTC_REF);
+        if (!snap.exists()) {
+            updateLinkUi('Aucun lien en attente — créez-en un sur l’ordinateur');
+            resetPeer();
+            return;
+        }
+        const data = snap.data();
+        if (String(data.pin) !== pin || !data.offer) {
+            updateLinkUi('Code incorrect ou lien expiré');
+            resetPeer();
+            return;
+        }
+
+        pc = new RTCPeerConnection(RTC_CONFIG);
+        pc.ondatachannel = (ev) => wireDataChannel(ev.channel);
+
+        await pc.setRemoteDescription(data.offer);
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        await waitIceComplete(pc);
+
+        await setDoc(RTC_REF, {
+            answer: {
+                type: pc.localDescription.type,
+                sdp: pc.localDescription.sdp
+            },
+            guestId: CLIENT_ID,
+            answeredAt: Date.now()
+        }, { merge: true });
+
+        // Garde le PIN visible côté téléphone
+        updateLinkUi('Négociation…', { pin, wait: true });
+    } catch (e) {
+        console.error(e);
+        updateLinkUi('Échec de connexion');
+        resetPeer();
     }
 }
 
@@ -1233,11 +1562,37 @@ function setSyncStatus(ok, label) {
     syncLabel.textContent = label;
 }
 
-function applyRemoteState(data) {
+function resolveRemoteElapsed(data) {
+    if (typeof data.elapsedNow === 'number' && isFinite(data.elapsedNow)) {
+        return Math.max(0, data.elapsedNow);
+    }
+    // Compat anciens messages : ancre Date.now() (imprécis entre appareils)
+    const anchorElapsed = Number(data.anchorElapsed) || 0;
+    if (data.running && data.anchorAt) {
+        return Math.max(0, anchorElapsed + (Date.now() - Number(data.anchorAt)));
+    }
+    return Math.max(0, anchorElapsed);
+}
+
+function applyRemoteState(data, { fromDirect = false } = {}) {
     if (!data) return;
-    if (data.clientId === CLIENT_ID && data.rev === lastPushedRev) return;
+    const rev = Number(data.rev) || 0;
+    if (data.clientId === CLIENT_ID && rev === lastPushedRev) return;
+    // Ignorer les états périmés (évite retour en arrière après reprise)
+    if (rev && rev < lastAppliedRev) return;
+
+    // Si lien direct actif, ignorer le cloud pour l'horloge (évite la latence / les retours)
+    if (!fromDirect && ignoreFirebaseClock) {
+        if (Array.isArray(data.saved)) {
+            saved = data.saved;
+            renderSaved();
+        }
+        return;
+    }
 
     applyingRemote = true;
+    if (rev) lastAppliedRev = Math.max(lastAppliedRev, rev);
+
     laps = Array.isArray(data.laps) ? data.laps : [];
     lastLapElapsed = Number(data.lastLapElapsed) || 0;
     saved = Array.isArray(data.saved) ? data.saved : [];
@@ -1245,13 +1600,17 @@ function applyRemoteState(data) {
     renderSaved();
 
     const remRunning = !!data.running;
-    const anchorElapsed = Number(data.anchorElapsed) || 0;
-    const anchorAt = Number(data.anchorAt) || Date.now();
+    const remoteElapsed = resolveRemoteElapsed(data);
+    const localElapsed = nowElapsed();
 
-    if (remRunning) {
-        applyLocalClock(true, anchorElapsed, anchorAt);
+    // Ne réarmer l'horloge que si l'écart est significatif ou si l'état running change
+    const runningChanged = remRunning !== running;
+    const skew = Math.abs(remoteElapsed - localElapsed);
+    if (runningChanged || skew > 40) {
+        armClock(remRunning, remoteElapsed);
     } else {
-        applyLocalClock(false, anchorElapsed, 0);
+        syncButtons();
+        updateDisplay(localElapsed);
     }
 
     if (typeof data.displayView === 'number' && data.displayView >= 0 && data.displayView <= 2) {
@@ -1270,7 +1629,7 @@ function applyRemoteState(data) {
     wasInTargetZone = isInTargetZone(nowElapsed());
 
     applyingRemote = false;
-    setSyncStatus(true, 'Synchronisé');
+    setSyncStatus(true, fromDirect ? 'Lien direct' : 'Synchronisé');
 }
 
 function saveCurrentChrono() {
@@ -1306,26 +1665,18 @@ function clearSaved() {
 
 function toggleRun() {
     if (running) {
-        const ms = nowElapsed();
-        applyLocalClock(false, ms, 0);
+        armClock(false, nowElapsed());
         pushState();
     } else {
-        const now = Date.now();
-        applyLocalClock(true, elapsed, now);
+        armClock(true, elapsed);
         pushState();
     }
 }
 
 function adjustTime(deltaMs) {
     const total = Math.max(0, nowElapsed() + deltaMs);
-    if (running) {
-        // Garder le chronomètre en marche : on décale uniquement l'ancre
-        applyLocalClock(true, total, Date.now());
-    } else {
-        applyLocalClock(false, total, 0);
-    }
+    armClock(running, total);
     if (lastLapElapsed > total) lastLapElapsed = total;
-    syncButtons();
     pushState();
 }
 
@@ -1338,7 +1689,7 @@ function lapOrReset() {
         renderLaps();
         pushState();
     } else if (elapsed > 0 || laps.length > 0) {
-        applyLocalClock(false, 0, 0);
+        armClock(false, 0);
         laps = [];
         lastLapElapsed = 0;
         wasInTargetZone = false;
@@ -1389,6 +1740,12 @@ targetNoneRadio.addEventListener('change', syncSettingsFormEnabled);
 targetSetRadio.addEventListener('change', syncSettingsFormEnabled);
 settingsOverlay.addEventListener('click', (e) => {
     if (e.target === settingsOverlay) closeSettings();
+});
+linkHostBtn.addEventListener('click', startHostLink);
+linkJoinBtn.addEventListener('click', joinDirectLink);
+linkDisconnectBtn.addEventListener('click', disconnectDirectLink);
+linkPinInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') joinDirectLink();
 });
 savedClearBtn.addEventListener('click', clearSaved);
 savedListEl.addEventListener('click', (e) => {
@@ -1456,6 +1813,7 @@ if (isController) {
 syncButtons();
 renderSaved();
 fillSettingsForm();
+updateLinkUi('Non connecté — sync cloud (Firebase)');
 updateDisplay(0);
     </script>
 </body>
