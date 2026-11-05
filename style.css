@@ -134,6 +134,26 @@ body:not(.maquette-body) #scoring-page.page.active:has(.jury-tab-content.active 
     padding: 0;
     border: none;
 }
+
+/* Dernier temps chrono enregistré — coin haut gauche du rectangle jury */
+.jury-chrono-last {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 20;
+    padding: 0;
+    margin: 0;
+    background: none;
+    border: none;
+    pointer-events: none;
+    line-height: 1.15;
+    max-width: calc(100% - 56px);
+    font-size: 1.45rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--primary-color, #667eea);
+    letter-spacing: -0.02em;
+}
 #scoring-page #scoring-round-display {
     margin: 0 0 2px !important;
     font-size: 0.8rem;
@@ -375,14 +395,14 @@ h2 {
     transform: translateY(0);
 }
 /* --- Scoring Page Header --- */
-#scoring-page > div:first-of-type {
+#scoring-page > div:first-of-type:not(.jury-chrono-last):not(.burger-menu) {
     margin-bottom: var(--spacing-sm);
     padding-bottom: var(--spacing-sm);
     border-bottom: 2px solid var(--border-color);
     margin-top: 0;
 }
 
-#scoring-page > div:first-of-type h2 {
+#scoring-page > div:first-of-type:not(.jury-chrono-last):not(.burger-menu) h2 {
     margin: 0;
 }
 

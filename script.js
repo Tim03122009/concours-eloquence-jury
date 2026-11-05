@@ -87,6 +87,8 @@ let duelResultsRealtimeListener = null;
 let juryAccountRealtimeListener = null;
 let scoresRealtimeListener = null;
 let juryLayoutPingListener = null;
+let chronoSyncListener = null;
+let lastSavedChronoMs = null; // dernier temps enregistré (config/chronoSync.saved)
 let previousClassementEntriesForOvertake = null; // Entrées avant mise à jour (pour animation dépassement)
 
 // Variables pour la configuration des tours
@@ -435,6 +437,11 @@ function logout() {
         scoresRealtimeListener();
         scoresRealtimeListener = null;
     }
+    if (chronoSyncListener) {
+        chronoSyncListener();
+        chronoSyncListener = null;
+    }
+    lastSavedChronoMs = null;
     
     // Supprimer uniquement les données de session, garder les préférences de thème
     localStorage.removeItem('currentJuryName');
@@ -1547,22 +1554,91 @@ function juryUiRevisionOf(round) {
     return String(ui.revision || '') + ':' + (ui.forType || '') + ':' + tabsSig + ':' + ntSig;
 }
 
+function formatChronoMs(ms) {
+    const totalCs = Math.floor(Math.max(0, Number(ms) || 0) / 10);
+    const cs = totalCs % 100;
+    const totalSec = Math.floor(totalCs / 100);
+    const sec = totalSec % 60;
+    const min = Math.floor(totalSec / 60) % 100;
+    const pad = (n, w) => String(n).padStart(w, '0');
+    return pad(min, 2) + ':' + pad(sec, 2) + ',' + pad(cs, 2);
+}
+
+/** Badge coin haut-gauche du rectangle jury : dernier chrono enregistré. */
+function ensureJuryChronoBadge() {
+    const scoringPage = document.getElementById('scoring-page');
+    if (!scoringPage) return null;
+    let el = document.getElementById('jury-chrono-last');
+    if (!el) {
+        el = document.createElement('span');
+        el.id = 'jury-chrono-last';
+        el.className = 'jury-chrono-last';
+        el.setAttribute('aria-live', 'polite');
+        el.hidden = true;
+    }
+    if (el.parentElement !== scoringPage) {
+        scoringPage.prepend(el);
+    }
+    return el;
+}
+
+function updateJuryChronoBadge() {
+    const el = ensureJuryChronoBadge();
+    if (!el) return;
+    if (lastSavedChronoMs == null) {
+        el.hidden = true;
+        el.textContent = '';
+        return;
+    }
+    el.hidden = false;
+    el.textContent = formatChronoMs(lastSavedChronoMs);
+}
+
+function applyChronoSyncSaved(savedList) {
+    const saved = Array.isArray(savedList) ? savedList : [];
+    if (!saved.length) {
+        lastSavedChronoMs = null;
+    } else {
+        let latest = saved[0];
+        for (const item of saved) {
+            if ((item.savedAt || 0) >= (latest.savedAt || 0)) latest = item;
+        }
+        lastSavedChronoMs = latest.ms != null ? Number(latest.ms) : null;
+    }
+    updateJuryChronoBadge();
+}
+
+function setupChronoSyncListener() {
+    if (chronoSyncListener) return;
+    chronoSyncListener = onSnapshot(doc(db, 'config', 'chronoSync'), (snap) => {
+        try {
+            applyChronoSyncSaved(snap.exists() ? (snap.data().saved || []) : []);
+        } catch (e) {
+            console.error('chronoSync listener', e);
+        }
+    }, (err) => {
+        console.error('chronoSync listener', err);
+    });
+}
+
 function showInterfaceForCurrentRound() {
     const customUi = getActiveRoundJuryUi();
     const useCustom = customUi && activeRoundType !== 'Repêchage' && activeRoundTypeEpreuve !== 'repechage';
+    let done;
     if (useCustom) {
-        showJuryUiInterface(customUi);
-        return;
-    }
-    if (activeRoundType === 'Repêchage' || activeRoundTypeEpreuve === 'repechage') {
-        showRepechageInterface();
+        done = showJuryUiInterface(customUi);
+    } else if (activeRoundType === 'Repêchage' || activeRoundTypeEpreuve === 'repechage') {
+        done = showRepechageInterface();
     } else if (activeRoundType === 'Duels' || activeRoundTypeEpreuve === 'duels') {
-        showDuelsInterface();
+        done = showDuelsInterface();
     } else if (activeRoundType === 'Grande finale' || activeRoundTypeEpreuve === 'grande_finale') {
-        showGrandeFinaleInterface();
+        done = showGrandeFinaleInterface();
     } else {
-        showNotationInterface();
+        done = showNotationInterface();
     }
+    Promise.resolve(done).finally(() => {
+        updateJuryChronoBadge();
+    });
 }
 
 /**
@@ -1713,6 +1789,9 @@ async function startScoring() {
     setupSessionLockListener();
     // Mise à jour temps réel quand l'admin modifie tours, candidats, duels ou compte jury
     setupRealtimeListeners();
+    // Dernier temps chronomètre enregistré (télécommande / chronometre.html)
+    setupChronoSyncListener();
+    updateJuryChronoBadge();
 }
 
 /**

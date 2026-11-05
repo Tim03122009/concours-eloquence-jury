@@ -239,6 +239,325 @@
             color: var(--red);
         }
 
+        .remote-btn.adjust {
+            background: #1c1c1e;
+            color: #fff;
+            border: 1px solid #3a3a3c;
+        }
+
+        .remote-btns-col {
+            display: flex;
+            flex-direction: column;
+            gap: clamp(14px, 3vh, 22px);
+            align-items: center;
+        }
+
+        .remote-btn.save {
+            background: #1a2333;
+            color: #64d2ff;
+            border: 1px solid #2a3a4a;
+            font-size: clamp(0.72rem, 1.7vh, 0.88rem);
+        }
+
+        .remote-display-select {
+            width: min(100%, 260px);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            align-items: stretch;
+        }
+
+        .remote-display-select label {
+            font-size: clamp(0.72rem, 1.5vh, 0.85rem);
+            color: var(--muted);
+            text-align: center;
+        }
+
+        .remote-display-select select {
+            appearance: none;
+            -webkit-appearance: none;
+            background: #1c1c1e url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%238e8e93' d='M1 1l5 5 5-5'/%3E%3C/svg%3E") no-repeat right 12px center;
+            color: #fff;
+            border: 1px solid #3a3a3c;
+            border-radius: 12px;
+            padding: 12px 36px 12px 14px;
+            font-size: clamp(0.9rem, 2vh, 1.05rem);
+            font-family: inherit;
+            text-align: center;
+            cursor: pointer;
+        }
+
+        .remote-display-select select:focus {
+            outline: none;
+            border-color: var(--orange);
+        }
+
+        .settings-gear {
+            display: none;
+            position: absolute;
+            top: 5.8%;
+            right: 4.5%;
+            z-index: 30;
+            width: clamp(34px, 5.5vh, 42px);
+            height: clamp(34px, 5.5vh, 42px);
+            border: none;
+            border-radius: 50%;
+            background: #1c1c1e;
+            color: #8e8e93;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .phone.remote-mode .settings-gear { display: flex; }
+        .settings-gear:active { transform: scale(0.94); }
+        .settings-gear svg { width: 58%; height: 58%; fill: currentColor; }
+
+        .settings-overlay {
+            display: none;
+            position: absolute;
+            inset: 0;
+            z-index: 40;
+            background: rgba(0, 0, 0, 0.72);
+            align-items: center;
+            justify-content: center;
+            padding: 8%;
+        }
+
+        .settings-overlay.open { display: flex; }
+
+        .settings-sheet {
+            width: 100%;
+            max-height: 88%;
+            overflow-y: auto;
+            background: #1c1c1e;
+            border: 1px solid #3a3a3c;
+            border-radius: 16px;
+            padding: 16px 14px 14px;
+            color: #fff;
+        }
+
+        .settings-sheet h3 {
+            margin: 0 0 14px;
+            font-size: 1.05rem;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .settings-field {
+            margin-bottom: 14px;
+        }
+
+        .settings-field > label,
+        .settings-field legend {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+
+        .settings-field fieldset {
+            border: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .settings-radio {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .settings-radio label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.92rem;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        .settings-time-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-top: 8px;
+        }
+
+        .settings-time-row input[type="number"] {
+            width: 64px;
+            padding: 8px;
+            border-radius: 8px;
+            border: 1px solid #3a3a3c;
+            background: #000;
+            color: #fff;
+            font-size: 1rem;
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .settings-time-row span { color: var(--muted); }
+
+        .settings-field input[type="number"].settings-tol {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid #3a3a3c;
+            background: #000;
+            color: #fff;
+            font-size: 1rem;
+        }
+
+        .settings-check {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            font-size: 0.9rem;
+            line-height: 1.35;
+            cursor: pointer;
+        }
+
+        .settings-check input { margin-top: 3px; }
+
+        .settings-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .settings-actions button {
+            flex: 1;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: none;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .settings-cancel {
+            background: #2c2c2e;
+            color: #fff;
+        }
+
+        .settings-save {
+            background: var(--orange);
+            color: #000;
+        }
+
+        .settings-sub {
+            opacity: 0.45;
+            pointer-events: none;
+        }
+
+        .settings-sub.enabled {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* ——— Enregistrements ——— */
+        .saved-panel {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            padding: 0 2% 2%;
+        }
+
+        .saved-empty {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--muted);
+            font-size: clamp(0.9rem, 2vh, 1.05rem);
+            text-align: center;
+            padding: 12px;
+        }
+
+        .saved-list {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            border-top: 1px solid var(--lap-line);
+            scrollbar-width: thin;
+            scrollbar-color: #3a3a3c transparent;
+        }
+
+        .saved-row {
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            gap: 10px;
+            align-items: center;
+            padding: 3% 2%;
+            border-bottom: 1px solid var(--lap-line);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .saved-row-main {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+
+        .saved-row-label {
+            font-size: clamp(0.95rem, 2.1vh, 1.1rem);
+            color: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .saved-row-meta {
+            font-size: clamp(0.7rem, 1.5vh, 0.82rem);
+            color: var(--muted);
+        }
+
+        .saved-row-time {
+            font-size: clamp(1rem, 2.2vh, 1.2rem);
+            font-weight: 300;
+            color: var(--orange);
+        }
+
+        .saved-row-del {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: none;
+            background: #2c2c2e;
+            color: #ff453a;
+            font-size: 1rem;
+            line-height: 1;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .saved-footer {
+            flex-shrink: 0;
+            padding-top: 8px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .saved-clear {
+            background: transparent;
+            border: 1px solid #3a3a3c;
+            color: var(--muted);
+            border-radius: 999px;
+            padding: 8px 16px;
+            font-size: clamp(0.75rem, 1.6vh, 0.88rem);
+            cursor: pointer;
+        }
+
+        .saved-clear:disabled {
+            opacity: 0.4;
+            cursor: default;
+        }
+
         .dots {
             display: flex;
             gap: 7px;
@@ -266,8 +585,8 @@
             flex-shrink: 0;
         }
 
-        .phone.remote-mode .controls,
-        .phone.remote-mode .laps {
+        .phone.hide-chrono-controls .controls,
+        .phone.hide-chrono-controls .laps {
             display: none;
         }
 
@@ -379,7 +698,44 @@
         <div class="phone" id="phone" role="application" aria-label="Chronomètre">
             <div class="status-bar" aria-hidden="true"><div class="notch"></div></div>
             <div class="title" id="page-title">Chronomètre</div>
+            <button type="button" class="settings-gear" id="settings-gear" aria-label="Paramètres chronomètre" title="Paramètres">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.07 7.07 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.59.24-1.13.55-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.83 14.5a.5.5 0 0 0-.12.64l1.92 3.32c.12.22.37.3.6.22l2.39-.96c.5.39 1.04.7 1.63.94l.36 2.54c.05.24.26.42.5.42h3.84c.24 0 .45-.18.5-.42l.36-2.54c.59-.24 1.13-.55 1.63-.94l2.39.96c.23.08.48 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/></svg>
+            </button>
             <div class="sync-pill" id="sync-pill"><span class="sync-dot"></span><span id="sync-label">Sync…</span></div>
+
+            <div class="settings-overlay" id="settings-overlay" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+                <div class="settings-sheet">
+                    <h3 id="settings-title">Paramètres</h3>
+                    <div class="settings-field">
+                        <fieldset>
+                            <legend>Temps à atteindre</legend>
+                            <div class="settings-radio">
+                                <label><input type="radio" name="target-mode" id="target-none" value="none" checked> Aucun temps à atteindre</label>
+                                <label><input type="radio" name="target-mode" id="target-set" value="set"> Définir un temps</label>
+                            </div>
+                            <div class="settings-time-row settings-sub" id="target-time-row">
+                                <input type="number" id="target-min" min="0" max="99" value="5" aria-label="Minutes">
+                                <span>:</span>
+                                <input type="number" id="target-sec" min="0" max="59" value="0" aria-label="Secondes">
+                            </div>
+                        </fieldset>
+                    </div>
+                    <div class="settings-field settings-sub" id="tol-field">
+                        <label for="target-tol">Écart de période (± secondes autour du temps)</label>
+                        <input type="number" class="settings-tol" id="target-tol" min="0" max="600" step="1" value="5">
+                    </div>
+                    <div class="settings-field settings-sub" id="bell-field">
+                        <label class="settings-check">
+                            <input type="checkbox" id="target-bell">
+                            <span>Clochette à l’entrée et à la sortie de la période</span>
+                        </label>
+                    </div>
+                    <div class="settings-actions">
+                        <button type="button" class="settings-cancel" id="settings-cancel">Annuler</button>
+                        <button type="button" class="settings-save" id="settings-save">Enregistrer</button>
+                    </div>
+                </div>
+            </div>
 
             <div class="display-area">
                 <div class="views" id="views">
@@ -392,12 +748,38 @@
                             <div class="analog-digital" id="analog-digital">00:00,00</div>
                         </div>
                     </div>
-                    <div class="view" id="view-remote" data-view="2">
+                    <div class="view" id="view-saved" data-view="2">
+                        <div class="saved-panel">
+                            <div class="saved-empty" id="saved-empty">Aucun chronomètre enregistré</div>
+                            <div class="saved-list" id="saved-list" hidden></div>
+                            <div class="saved-footer">
+                                <button type="button" class="saved-clear" id="saved-clear" disabled>Tout effacer</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="view" id="view-remote" data-view="3">
                         <div class="remote-panel">
                             <div class="remote-time" id="remote-time">00:00,00</div>
-                            <div class="remote-btns">
-                                <button type="button" class="remote-btn lap" id="remote-lap" disabled>Tour</button>
-                                <button type="button" class="remote-btn start" id="remote-start">Démarrer</button>
+                            <div class="remote-display-select">
+                                <label for="proj-view-select">Affichage projecteur</label>
+                                <select id="proj-view-select" aria-label="Vue affichée sur le vidéoprojecteur">
+                                    <option value="0">1 — Minuteur numérique</option>
+                                    <option value="1">2 — Horloge analogique</option>
+                                    <option value="2">3 — Enregistrements</option>
+                                </select>
+                            </div>
+                            <div class="remote-btns-col">
+                                <div class="remote-btns">
+                                    <button type="button" class="remote-btn lap" id="remote-lap" disabled>Tour</button>
+                                    <button type="button" class="remote-btn start" id="remote-start">Démarrer</button>
+                                </div>
+                                <div class="remote-btns">
+                                    <button type="button" class="remote-btn adjust" id="remote-minus" aria-label="Retirer une seconde">−1s</button>
+                                    <button type="button" class="remote-btn adjust" id="remote-plus" aria-label="Ajouter une seconde">+1s</button>
+                                </div>
+                                <div class="remote-btns">
+                                    <button type="button" class="remote-btn save" id="remote-save">Enregistrer</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -407,7 +789,8 @@
             <div class="dots" role="tablist" aria-label="Vue chronomètre">
                 <button type="button" class="dot active" id="dot-0" aria-label="Minuteur numérique"></button>
                 <button type="button" class="dot" id="dot-1" aria-label="Horloge analogique"></button>
-                <button type="button" class="dot" id="dot-2" aria-label="Télécommande"></button>
+                <button type="button" class="dot" id="dot-2" aria-label="Chronomètres enregistrés"></button>
+                <button type="button" class="dot" id="dot-3" aria-label="Télécommande"></button>
             </div>
 
             <div class="controls">
@@ -465,17 +848,48 @@ const remoteStart = document.getElementById('remote-start');
 const viewsRoot = document.getElementById('views');
 const syncPill = document.getElementById('sync-pill');
 const syncLabel = document.getElementById('sync-label');
+const savedEmptyEl = document.getElementById('saved-empty');
+const savedListEl = document.getElementById('saved-list');
+const savedClearBtn = document.getElementById('saved-clear');
+
 let running = false;
 let elapsed = 0;       // ms figés à l'ancre
 let startTs = 0;       // Date.now() de l'ancre si running
 let rafId = 0;
 let laps = [];
 let lastLapElapsed = 0;
+let saved = [];        // chronomètres enregistrés
 let currentView = 0;
+let displayView = 0;   // vue imposée au projecteur (0|1|2)
 let applyingRemote = false;
 let lastPushedRev = 0;
 
-const TITLES = ['Chronomètre', 'Chronomètre', 'Télécommande'];
+/** Paramètres temps cible / période / clochette */
+let targetEnabled = false;
+let targetMs = 5 * 60 * 1000;
+let toleranceSec = 5;
+let bellEnabled = false;
+let wasInTargetZone = false;
+
+const bellAudio = new Audio(encodeURI('son clochette.mp3'));
+bellAudio.preload = 'auto';
+
+const TITLES = ['Chronomètre', 'Chronomètre', 'Enregistrements', 'Télécommande'];
+const MAX_VIEW = 3;
+const params = new URLSearchParams(location.search);
+const isController = params.get('remote') === '1' || params.get('view') === 'remote';
+const projViewSelect = document.getElementById('proj-view-select');
+const settingsGear = document.getElementById('settings-gear');
+const settingsOverlay = document.getElementById('settings-overlay');
+const targetNoneRadio = document.getElementById('target-none');
+const targetSetRadio = document.getElementById('target-set');
+const targetMinInput = document.getElementById('target-min');
+const targetSecInput = document.getElementById('target-sec');
+const targetTolInput = document.getElementById('target-tol');
+const targetBellInput = document.getElementById('target-bell');
+const tolField = document.getElementById('tol-field');
+const bellField = document.getElementById('bell-field');
+const targetTimeRow = document.getElementById('target-time-row');
 
 function formatTime(ms) {
     const totalCs = Math.floor(Math.max(0, ms) / 10);
@@ -498,6 +912,91 @@ function updateDisplay(ms) {
     analogDigitalEl.textContent = text;
     remoteTimeEl.textContent = text;
     if (currentView === 1 || canvas.width) drawAnalog(ms);
+    checkTargetZone(ms);
+}
+
+function getTargetZoneBounds() {
+    if (!targetEnabled) return null;
+    const tolMs = Math.max(0, Number(toleranceSec) || 0) * 1000;
+    return {
+        start: Math.max(0, targetMs - tolMs),
+        end: targetMs + tolMs
+    };
+}
+
+function isInTargetZone(ms) {
+    const bounds = getTargetZoneBounds();
+    if (!bounds) return false;
+    return ms >= bounds.start && ms <= bounds.end;
+}
+
+function playBell() {
+    if (!bellEnabled || !targetEnabled) return;
+    try {
+        bellAudio.currentTime = 0;
+        const p = bellAudio.play();
+        if (p && typeof p.catch === 'function') p.catch(() => {});
+    } catch (_) { /* ignore autoplay errors */ }
+}
+
+function checkTargetZone(ms) {
+    if (!targetEnabled) {
+        wasInTargetZone = false;
+        return;
+    }
+    const inZone = isInTargetZone(ms);
+    if (inZone !== wasInTargetZone) {
+        if (bellEnabled) playBell();
+        wasInTargetZone = inZone;
+    }
+}
+
+function syncSettingsFormEnabled() {
+    const hasTarget = targetSetRadio.checked;
+    targetTimeRow.classList.toggle('settings-sub', true);
+    targetTimeRow.classList.toggle('enabled', hasTarget);
+    tolField.classList.toggle('enabled', hasTarget);
+    bellField.classList.toggle('enabled', hasTarget);
+}
+
+function fillSettingsForm() {
+    if (targetEnabled) {
+        targetSetRadio.checked = true;
+    } else {
+        targetNoneRadio.checked = true;
+    }
+    const totalSec = Math.floor(Math.max(0, targetMs) / 1000);
+    targetMinInput.value = String(Math.floor(totalSec / 60));
+    targetSecInput.value = String(totalSec % 60);
+    targetTolInput.value = String(Math.max(0, toleranceSec));
+    targetBellInput.checked = !!bellEnabled;
+    syncSettingsFormEnabled();
+}
+
+function openSettings() {
+    fillSettingsForm();
+    settingsOverlay.classList.add('open');
+}
+
+function closeSettings() {
+    settingsOverlay.classList.remove('open');
+}
+
+function saveSettingsFromForm() {
+    targetEnabled = targetSetRadio.checked;
+    const min = Math.max(0, Math.min(99, parseInt(targetMinInput.value, 10) || 0));
+    const sec = Math.max(0, Math.min(59, parseInt(targetSecInput.value, 10) || 0));
+    targetMs = (min * 60 + sec) * 1000;
+    toleranceSec = Math.max(0, Math.min(600, parseInt(targetTolInput.value, 10) || 0));
+    bellEnabled = !!targetBellInput.checked && targetEnabled;
+    wasInTargetZone = isInTargetZone(nowElapsed());
+    closeSettings();
+    pushState({
+        targetEnabled,
+        targetMs,
+        toleranceSec,
+        bellEnabled
+    });
 }
 
 function drawAnalog(ms) {
@@ -603,7 +1102,8 @@ function drawAnalog(ms) {
 }
 
 function tick() {
-    updateDisplay(nowElapsed());
+    const ms = nowElapsed();
+    updateDisplay(ms);
     if (running) rafId = requestAnimationFrame(tick);
 }
 
@@ -647,6 +1147,42 @@ function renderLaps() {
     }).join('');
 }
 
+function formatSavedAt(ts) {
+    try {
+        return new Date(ts).toLocaleString('fr-FR', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit', second: '2-digit'
+        });
+    } catch {
+        return '';
+    }
+}
+
+function renderSaved() {
+    const has = saved.length > 0;
+    savedEmptyEl.hidden = has;
+    savedListEl.hidden = !has;
+    savedClearBtn.disabled = !has;
+    if (!has) {
+        savedListEl.innerHTML = '';
+        return;
+    }
+    // Plus récent en haut
+    const rows = [...saved].sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
+    savedListEl.innerHTML = rows.map((item, idx) => {
+        const n = rows.length - idx;
+        const label = item.label || ('Chrono ' + n);
+        return '<div class="saved-row" data-id="' + String(item.id).replace(/"/g, '') + '">' +
+            '<div class="saved-row-main">' +
+                '<span class="saved-row-label">' + label + '</span>' +
+                '<span class="saved-row-meta">' + formatSavedAt(item.savedAt) + '</span>' +
+            '</div>' +
+            '<span class="saved-row-time">' + formatTime(item.ms || 0) + '</span>' +
+            '<button type="button" class="saved-row-del" aria-label="Supprimer">×</button>' +
+        '</div>';
+    }).join('');
+}
+
 function applyLocalClock(nextRunning, nextElapsed, nextStartTs) {
     cancelAnimationFrame(rafId);
     running = nextRunning;
@@ -665,6 +1201,12 @@ function snapshotState(extra = {}) {
         anchorAt: running ? startTs : Date.now(),
         laps,
         lastLapElapsed,
+        saved,
+        displayView,
+        targetEnabled,
+        targetMs,
+        toleranceSec,
+        bellEnabled,
         clientId: CLIENT_ID,
         rev: Date.now(),
         ...extra
@@ -698,7 +1240,9 @@ function applyRemoteState(data) {
     applyingRemote = true;
     laps = Array.isArray(data.laps) ? data.laps : [];
     lastLapElapsed = Number(data.lastLapElapsed) || 0;
+    saved = Array.isArray(data.saved) ? data.saved : [];
     renderLaps();
+    renderSaved();
 
     const remRunning = !!data.running;
     const anchorElapsed = Number(data.anchorElapsed) || 0;
@@ -710,8 +1254,54 @@ function applyRemoteState(data) {
         applyLocalClock(false, anchorElapsed, 0);
     }
 
+    if (typeof data.displayView === 'number' && data.displayView >= 0 && data.displayView <= 2) {
+        displayView = data.displayView;
+        if (projViewSelect) projViewSelect.value = String(displayView);
+        // Le projecteur suit la vue choisie ; la télécommande (?remote=1) reste sur sa vue
+        if (!isController && currentView !== 3) {
+            showView(displayView, { localOnly: true });
+        }
+    }
+
+    if (typeof data.targetEnabled === 'boolean') targetEnabled = data.targetEnabled;
+    if (typeof data.targetMs === 'number') targetMs = Math.max(0, data.targetMs);
+    if (typeof data.toleranceSec === 'number') toleranceSec = Math.max(0, data.toleranceSec);
+    if (typeof data.bellEnabled === 'boolean') bellEnabled = data.bellEnabled;
+    wasInTargetZone = isInTargetZone(nowElapsed());
+
     applyingRemote = false;
     setSyncStatus(true, 'Synchronisé');
+}
+
+function saveCurrentChrono() {
+    const ms = Math.round(nowElapsed());
+    const nextN = saved.reduce((max, s) => {
+        const m = /^Chrono (\d+)$/.exec(s.label || '');
+        return m ? Math.max(max, Number(m[1])) : max;
+    }, 0) + 1;
+    const entry = {
+        id: 's_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7),
+        ms,
+        savedAt: Date.now(),
+        label: 'Chrono ' + nextN
+    };
+    saved = [...saved, entry];
+    renderSaved();
+    pushState();
+}
+
+function deleteSaved(id) {
+    saved = saved.filter((s) => s.id !== id);
+    renderSaved();
+    pushState();
+}
+
+function clearSaved() {
+    if (!saved.length) return;
+    if (!confirm('Effacer tous les chronomètres enregistrés ?')) return;
+    saved = [];
+    renderSaved();
+    pushState();
 }
 
 function toggleRun() {
@@ -726,6 +1316,19 @@ function toggleRun() {
     }
 }
 
+function adjustTime(deltaMs) {
+    const total = Math.max(0, nowElapsed() + deltaMs);
+    if (running) {
+        // Garder le chronomètre en marche : on décale uniquement l'ancre
+        applyLocalClock(true, total, Date.now());
+    } else {
+        applyLocalClock(false, total, 0);
+    }
+    if (lastLapElapsed > total) lastLapElapsed = total;
+    syncButtons();
+    pushState();
+}
+
 function lapOrReset() {
     if (running) {
         const total = nowElapsed();
@@ -738,32 +1341,67 @@ function lapOrReset() {
         applyLocalClock(false, 0, 0);
         laps = [];
         lastLapElapsed = 0;
+        wasInTargetZone = false;
         renderLaps();
         pushState();
     }
 }
 
-function showView(index) {
+function showView(index, { localOnly = false } = {}) {
     currentView = index;
     document.querySelectorAll('.view').forEach((v) => {
         v.classList.toggle('active', Number(v.dataset.view) === index);
     });
-    document.getElementById('dot-0').classList.toggle('active', index === 0);
-    document.getElementById('dot-1').classList.toggle('active', index === 1);
-    document.getElementById('dot-2').classList.toggle('active', index === 2);
-    phone.classList.toggle('remote-mode', index === 2);
+    for (let i = 0; i <= MAX_VIEW; i++) {
+        const dot = document.getElementById('dot-' + i);
+        if (dot) dot.classList.toggle('active', i === index);
+    }
+    phone.classList.toggle('hide-chrono-controls', index === 2 || index === 3);
+    phone.classList.toggle('remote-mode', index === 3);
     pageTitle.textContent = TITLES[index] || 'Chronomètre';
     updateDisplay(nowElapsed());
+
+    // Sur le projecteur, naviguer vers 0/1/2 met à jour la vue « officielle »
+    if (!localOnly && !isController && index >= 0 && index <= 2) {
+        displayView = index;
+        if (projViewSelect) projViewSelect.value = String(displayView);
+        pushState({ displayView });
+    }
 }
 
 btnStart.addEventListener('click', toggleRun);
 remoteStart.addEventListener('click', toggleRun);
 btnLap.addEventListener('click', () => { if (!btnLap.disabled) lapOrReset(); });
 remoteLap.addEventListener('click', () => { if (!remoteLap.disabled) lapOrReset(); });
+document.getElementById('remote-minus').addEventListener('click', () => adjustTime(-1000));
+document.getElementById('remote-plus').addEventListener('click', () => adjustTime(1000));
+document.getElementById('remote-save').addEventListener('click', saveCurrentChrono);
+projViewSelect.addEventListener('change', () => {
+    const v = Number(projViewSelect.value);
+    if (v < 0 || v > 2) return;
+    displayView = v;
+    pushState({ displayView });
+});
+settingsGear.addEventListener('click', openSettings);
+document.getElementById('settings-cancel').addEventListener('click', closeSettings);
+document.getElementById('settings-save').addEventListener('click', saveSettingsFromForm);
+targetNoneRadio.addEventListener('change', syncSettingsFormEnabled);
+targetSetRadio.addEventListener('change', syncSettingsFormEnabled);
+settingsOverlay.addEventListener('click', (e) => {
+    if (e.target === settingsOverlay) closeSettings();
+});
+savedClearBtn.addEventListener('click', clearSaved);
+savedListEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.saved-row-del');
+    if (!btn) return;
+    const row = btn.closest('.saved-row');
+    if (row && row.dataset.id) deleteSaved(row.dataset.id);
+});
 
 document.getElementById('dot-0').addEventListener('click', () => showView(0));
 document.getElementById('dot-1').addEventListener('click', () => showView(1));
 document.getElementById('dot-2').addEventListener('click', () => showView(2));
+document.getElementById('dot-3').addEventListener('click', () => showView(3));
 
 let touchX = null;
 viewsRoot.addEventListener('touchstart', (e) => {
@@ -774,7 +1412,7 @@ viewsRoot.addEventListener('touchend', (e) => {
     const dx = e.changedTouches[0].clientX - touchX;
     touchX = null;
     if (Math.abs(dx) < 40) return;
-    if (dx < 0) showView(Math.min(2, currentView + 1));
+    if (dx < 0) showView(Math.min(MAX_VIEW, currentView + 1));
     else showView(Math.max(0, currentView - 1));
 }, { passive: true });
 
@@ -786,10 +1424,12 @@ document.addEventListener('keydown', (e) => {
         lapOrReset();
     } else if (e.code === 'KeyR' && !running) {
         lapOrReset();
+    } else if (e.code === 'KeyS') {
+        saveCurrentChrono();
     } else if (e.code === 'ArrowLeft') {
         showView(Math.max(0, currentView - 1));
     } else if (e.code === 'ArrowRight') {
-        showView(Math.min(2, currentView + 1));
+        showView(Math.min(MAX_VIEW, currentView + 1));
     }
 });
 
@@ -807,12 +1447,15 @@ onSnapshot(CHRONO_REF, (snap) => {
 });
 
 // URL ?remote=1 → ouvre directement la télécommande
-const params = new URLSearchParams(location.search);
-if (params.get('remote') === '1' || params.get('view') === 'remote') {
-    showView(2);
+if (isController) {
+    showView(3, { localOnly: true });
+} else if (params.get('view') === 'saved') {
+    showView(2, { localOnly: true });
 }
 
 syncButtons();
+renderSaved();
+fillSettingsForm();
 updateDisplay(0);
     </script>
 </body>
