@@ -1045,24 +1045,26 @@ function armClock(nextRunning, elapsedNow) {
         elapsed = ms;
         startTs = performance.now();
         syncButtons();
-        updateDisplay(ms);
+        // Pas de clochette ici (±1s, pause, sync…) — uniquement via tick()
+        updateDisplay(ms, { checkBell: false });
         rafId = requestAnimationFrame(tick);
     } else {
         running = false;
         elapsed = ms;
         startTs = 0;
         syncButtons();
-        updateDisplay(ms);
+        updateDisplay(ms, { checkBell: false });
     }
 }
 
-function updateDisplay(ms) {
+function updateDisplay(ms, { checkBell = false } = {}) {
     const text = formatTime(ms);
     digitalEl.textContent = text;
     analogDigitalEl.textContent = text;
     remoteTimeEl.textContent = text;
     if (currentView === 1 || canvas.width) drawAnalog(ms);
-    checkTargetZone(ms);
+    if (checkBell) checkTargetZone(ms);
+    else syncTargetZoneState(ms);
 }
 
 function getTargetZoneBounds() {
@@ -1089,6 +1091,16 @@ function playBell() {
     } catch (_) { /* ignore autoplay errors */ }
 }
 
+/** Met à jour l'état de zone sans sonner (réglages manuels / sync). */
+function syncTargetZoneState(ms) {
+    if (!targetEnabled) {
+        wasInTargetZone = false;
+        return;
+    }
+    wasInTargetZone = isInTargetZone(ms);
+}
+
+/** Clochette uniquement quand le temps défile naturellement (tick). */
 function checkTargetZone(ms) {
     if (!targetEnabled) {
         wasInTargetZone = false;
@@ -1253,7 +1265,7 @@ function drawAnalog(ms) {
 
 function tick() {
     const ms = nowElapsed();
-    updateDisplay(ms);
+    updateDisplay(ms, { checkBell: true });
     if (running) rafId = requestAnimationFrame(tick);
 }
 
