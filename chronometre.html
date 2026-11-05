@@ -323,7 +323,8 @@
         .settings-gear svg,
         .views-lock-btn svg { width: 58%; height: 58%; fill: currentColor; }
         .settings-gear.linked { color: var(--green); }
-        .views-lock-btn.locked { color: var(--orange); }
+        .views-lock-btn { color: var(--green); }
+        .views-lock-btn.locked { color: var(--red); }
         .phone.views-locked .dots { opacity: 0.35; pointer-events: none; }
 
         .link-status {
@@ -785,8 +786,7 @@
             <div class="title" id="page-title">Chronomètre</div>
             <div class="top-tools">
                 <button type="button" class="views-lock-btn" id="views-lock-btn" aria-label="Verrouiller les vues" aria-pressed="false" title="Verrouiller les points / vues">
-                    <svg class="icon-unlocked" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8h-1V6a5 5 0 0 0-9.9-1h2.02A3 3 0 0 1 15 6v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zm0 12H6V10h12v10zm-6-3a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></svg>
-                    <svg class="icon-locked" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M18 8h-1V6A5 5 0 0 0 7 6v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zM9 6a3 3 0 0 1 6 0v2H9V6zm9 14H6V10h12v10zm-6-3a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></svg>
+                    <svg id="views-lock-icon" viewBox="0 0 24 24" aria-hidden="true"><path id="views-lock-path" d="M18 8h-1V6a5 5 0 0 0-9.9-1h2.02A3 3 0 0 1 15 6v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zm0 12H6V10h12v10zm-6-3a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></svg>
                 </button>
                 <button type="button" class="settings-gear" id="settings-gear" aria-label="Paramètres chronomètre" title="Paramètres">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.07 7.07 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.59.24-1.13.55-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.83 14.5a.5.5 0 0 0-.12.64l1.92 3.32c.12.22.37.3.6.22l2.39-.96c.5.39 1.04.7 1.63.94l.36 2.54c.05.24.26.42.5.42h3.84c.24 0 .45-.18.5-.42l.36-2.54c.59-.24 1.13-.55 1.63-.94l2.39.96c.23.08.48 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/></svg>
@@ -1357,6 +1357,9 @@ function snapshotState(extra = {}) {
     };
 }
 
+const LOCK_PATH_OPEN = 'M18 8h-1V6a5 5 0 0 0-9.9-1h2.02A3 3 0 0 1 15 6v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zm0 12H6V10h12v10zm-6-3a2 2 0 1 0 0-4 2 2 0 0 0 0 4z';
+const LOCK_PATH_CLOSED = 'M18 8h-1V6A5 5 0 0 0 7 6v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zM9 6a3 3 0 0 1 6 0v2H9V6zm9 14H6V10h12v10zm-6-3a2 2 0 1 0 0-4 2 2 0 0 0 0 4z';
+
 function applyViewsLockUi() {
     phone.classList.toggle('views-locked', viewsLocked);
     if (!viewsLockBtn) return;
@@ -1364,10 +1367,8 @@ function applyViewsLockUi() {
     viewsLockBtn.setAttribute('aria-pressed', viewsLocked ? 'true' : 'false');
     viewsLockBtn.title = viewsLocked ? 'Déverrouiller les points / vues' : 'Verrouiller les points / vues';
     viewsLockBtn.setAttribute('aria-label', viewsLocked ? 'Déverrouiller les vues' : 'Verrouiller les vues');
-    const unlockedIcon = viewsLockBtn.querySelector('.icon-unlocked');
-    const lockedIcon = viewsLockBtn.querySelector('.icon-locked');
-    if (unlockedIcon) unlockedIcon.hidden = viewsLocked;
-    if (lockedIcon) lockedIcon.hidden = !viewsLocked;
+    const path = document.getElementById('views-lock-path');
+    if (path) path.setAttribute('d', viewsLocked ? LOCK_PATH_CLOSED : LOCK_PATH_OPEN);
     if (projViewSelect) projViewSelect.disabled = viewsLocked;
 }
 
