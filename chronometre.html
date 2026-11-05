@@ -292,12 +292,19 @@
             border-color: var(--orange);
         }
 
-        .settings-gear {
-            display: flex;
+        .top-tools {
             position: absolute;
             top: 5.8%;
             right: 4.5%;
             z-index: 30;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .settings-gear,
+        .views-lock-btn {
+            display: flex;
             width: clamp(34px, 5.5vh, 42px);
             height: clamp(34px, 5.5vh, 42px);
             border: none;
@@ -311,9 +318,13 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        .settings-gear:active { transform: scale(0.94); }
-        .settings-gear svg { width: 58%; height: 58%; fill: currentColor; }
+        .settings-gear:active,
+        .views-lock-btn:active { transform: scale(0.94); }
+        .settings-gear svg,
+        .views-lock-btn svg { width: 58%; height: 58%; fill: currentColor; }
         .settings-gear.linked { color: var(--green); }
+        .views-lock-btn.locked { color: var(--orange); }
+        .phone.views-locked .dots { opacity: 0.35; pointer-events: none; }
 
         .link-status {
             margin: 0 0 10px;
@@ -772,9 +783,15 @@
         <div class="phone" id="phone" role="application" aria-label="Chronomètre">
             <div class="status-bar" aria-hidden="true"><div class="notch"></div></div>
             <div class="title" id="page-title">Chronomètre</div>
-            <button type="button" class="settings-gear" id="settings-gear" aria-label="Paramètres chronomètre" title="Paramètres">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.07 7.07 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.59.24-1.13.55-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.83 14.5a.5.5 0 0 0-.12.64l1.92 3.32c.12.22.37.3.6.22l2.39-.96c.5.39 1.04.7 1.63.94l.36 2.54c.05.24.26.42.5.42h3.84c.24 0 .45-.18.5-.42l.36-2.54c.59-.24 1.13-.55 1.63-.94l2.39.96c.23.08.48 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/></svg>
-            </button>
+            <div class="top-tools">
+                <button type="button" class="views-lock-btn" id="views-lock-btn" aria-label="Verrouiller les vues" aria-pressed="false" title="Verrouiller les points / vues">
+                    <svg class="icon-unlocked" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8h-1V6a5 5 0 0 0-9.9-1h2.02A3 3 0 0 1 15 6v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zm0 12H6V10h12v10zm-6-3a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></svg>
+                    <svg class="icon-locked" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M18 8h-1V6A5 5 0 0 0 7 6v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zM9 6a3 3 0 0 1 6 0v2H9V6zm9 14H6V10h12v10zm-6-3a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></svg>
+                </button>
+                <button type="button" class="settings-gear" id="settings-gear" aria-label="Paramètres chronomètre" title="Paramètres">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.07 7.07 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.59.24-1.13.55-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.83 14.5a.5.5 0 0 0-.12.64l1.92 3.32c.12.22.37.3.6.22l2.39-.96c.5.39 1.04.7 1.63.94l.36 2.54c.05.24.26.42.5.42h3.84c.24 0 .45-.18.5-.42l.36-2.54c.59-.24 1.13-.55 1.63-.94l2.39.96c.23.08.48 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/></svg>
+                </button>
+            </div>
             <div class="sync-pill" id="sync-pill"><span class="sync-dot"></span><span id="sync-label">Sync…</span></div>
 
             <div class="settings-overlay" id="settings-overlay" role="dialog" aria-modal="true" aria-labelledby="settings-title">
@@ -961,6 +978,7 @@ let displayView = 0;   // vue imposée au projecteur (0|1|2)
 let applyingRemote = false;
 let lastPushedRev = 0;
 let lastAppliedRev = 0;
+let viewsLocked = false;
 
 /** Paramètres temps cible / période / clochette */
 let targetEnabled = false;
@@ -978,6 +996,7 @@ const params = new URLSearchParams(location.search);
 const isController = params.get('remote') === '1' || params.get('view') === 'remote';
 const projViewSelect = document.getElementById('proj-view-select');
 const settingsGear = document.getElementById('settings-gear');
+const viewsLockBtn = document.getElementById('views-lock-btn');
 const settingsOverlay = document.getElementById('settings-overlay');
 const targetNoneRadio = document.getElementById('target-none');
 const targetSetRadio = document.getElementById('target-set');
@@ -1327,6 +1346,7 @@ function snapshotState(extra = {}) {
         lastLapElapsed,
         saved,
         displayView,
+        viewsLocked,
         targetEnabled,
         targetMs,
         toleranceSec,
@@ -1335,6 +1355,26 @@ function snapshotState(extra = {}) {
         rev: Date.now(),
         ...extra
     };
+}
+
+function applyViewsLockUi() {
+    phone.classList.toggle('views-locked', viewsLocked);
+    if (!viewsLockBtn) return;
+    viewsLockBtn.classList.toggle('locked', viewsLocked);
+    viewsLockBtn.setAttribute('aria-pressed', viewsLocked ? 'true' : 'false');
+    viewsLockBtn.title = viewsLocked ? 'Déverrouiller les points / vues' : 'Verrouiller les points / vues';
+    viewsLockBtn.setAttribute('aria-label', viewsLocked ? 'Déverrouiller les vues' : 'Verrouiller les vues');
+    const unlockedIcon = viewsLockBtn.querySelector('.icon-unlocked');
+    const lockedIcon = viewsLockBtn.querySelector('.icon-locked');
+    if (unlockedIcon) unlockedIcon.hidden = viewsLocked;
+    if (lockedIcon) lockedIcon.hidden = !viewsLocked;
+    if (projViewSelect) projViewSelect.disabled = viewsLocked;
+}
+
+function toggleViewsLock() {
+    viewsLocked = !viewsLocked;
+    applyViewsLockUi();
+    pushState({ viewsLocked });
 }
 
 function sendDirectState(data) {
@@ -1622,6 +1662,10 @@ function applyRemoteState(data, { fromDirect = false } = {}) {
         }
     }
 
+    if (typeof data.viewsLocked === 'boolean') {
+        viewsLocked = data.viewsLocked;
+        applyViewsLockUi();
+    }
     if (typeof data.targetEnabled === 'boolean') targetEnabled = data.targetEnabled;
     if (typeof data.targetMs === 'number') targetMs = Math.max(0, data.targetMs);
     if (typeof data.toleranceSec === 'number') toleranceSec = Math.max(0, data.toleranceSec);
@@ -1698,7 +1742,9 @@ function lapOrReset() {
     }
 }
 
-function showView(index, { localOnly = false } = {}) {
+function showView(index, { localOnly = false, force = false } = {}) {
+    if (viewsLocked && !force && !localOnly && index !== currentView) return;
+
     currentView = index;
     document.querySelectorAll('.view').forEach((v) => {
         v.classList.toggle('active', Number(v.dataset.view) === index);
@@ -1728,12 +1774,17 @@ document.getElementById('remote-minus').addEventListener('click', () => adjustTi
 document.getElementById('remote-plus').addEventListener('click', () => adjustTime(1000));
 document.getElementById('remote-save').addEventListener('click', saveCurrentChrono);
 projViewSelect.addEventListener('change', () => {
+    if (viewsLocked) {
+        projViewSelect.value = String(displayView);
+        return;
+    }
     const v = Number(projViewSelect.value);
     if (v < 0 || v > 2) return;
     displayView = v;
     pushState({ displayView });
 });
 settingsGear.addEventListener('click', openSettings);
+viewsLockBtn.addEventListener('click', toggleViewsLock);
 document.getElementById('settings-cancel').addEventListener('click', closeSettings);
 document.getElementById('settings-save').addEventListener('click', saveSettingsFromForm);
 targetNoneRadio.addEventListener('change', syncSettingsFormEnabled);
@@ -1813,6 +1864,7 @@ if (isController) {
 syncButtons();
 renderSaved();
 fillSettingsForm();
+applyViewsLockUi();
 updateLinkUi('Non connecté — sync cloud (Firebase)');
 updateDisplay(0);
     </script>
