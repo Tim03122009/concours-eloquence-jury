@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <meta name="theme-color" content="#0e1a1f">
+    <title>Accueil candidats — Concours d'éloquence</title>
+    <style>
+        * { box-sizing: border-box; }
+        :root {
+            --bg: #0e1a1f;
+            --surface: #15262e;
+            --surface-2: #1c323c;
+            --border: #2d4a56;
+            --text: #eef4f6;
+            --muted: #8aa0aa;
+            --accent: #2bbbad;
+            --accent-2: #1f8f86;
+            --danger: #e25b5b;
+            --ok: #3cbe7a;
+            --radius: 14px;
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+        }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "Segoe UI", system-ui, sans-serif;
+            background:
+                radial-gradient(1000px 500px at 10% -10%, rgba(43, 187, 173, 0.16), transparent 55%),
+                linear-gradient(180deg, #0b1418 0%, var(--bg) 45%, #0a1216 100%);
+            color: var(--text);
+            padding: 20px 16px 28px;
+        }
+        .wrap {
+            width: 100%;
+            max-width: 720px;
+            margin: 0 auto;
+            min-height: calc(100vh - 48px);
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            margin-bottom: 18px;
+        }
+        .header .eyebrow {
+            font-size: 0.72rem;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--accent);
+            font-weight: 700;
+            margin: 0 0 6px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: clamp(1.45rem, 4vw, 1.9rem);
+            letter-spacing: -0.02em;
+        }
+        .header p {
+            margin: 6px 0 0;
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 22px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .step-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 16px;
+        }
+        .field { margin-bottom: 18px; }
+        .field label {
+            display: block;
+            font-size: 0.82rem;
+            font-weight: 650;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+        select, input[type="text"], input[type="email"], input[type="tel"] {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--surface-2);
+            color: var(--text);
+            font-size: 1rem;
+            font-family: inherit;
+        }
+        select:focus, input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(43, 187, 173, 0.18);
+        }
+        .qcm {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .qcm-option {
+            position: relative;
+        }
+        .qcm-option input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .qcm-option span {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 56px;
+            padding: 12px;
+            border-radius: 12px;
+            border: 2px solid var(--border);
+            background: var(--surface-2);
+            font-weight: 650;
+            cursor: pointer;
+            transition: border-color .15s, background .15s, transform .1s;
+            text-align: center;
+        }
+        .qcm-option input:checked + span {
+            border-color: var(--accent);
+            background: rgba(43, 187, 173, 0.14);
+            box-shadow: inset 0 0 0 1px rgba(43, 187, 173, 0.35);
+        }
+        .qcm-option.late input:checked + span {
+            border-color: var(--danger);
+            background: rgba(226, 91, 91, 0.14);
+            box-shadow: inset 0 0 0 1px rgba(226, 91, 91, 0.35);
+        }
+        .qcm-hint {
+            margin-top: 8px;
+            color: var(--muted);
+            font-size: 0.86rem;
+        }
+        .candidate-banner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 16px;
+            border-radius: 12px;
+            background: rgba(43, 187, 173, 0.1);
+            border: 1px solid rgba(43, 187, 173, 0.28);
+            margin-bottom: 18px;
+        }
+        .candidate-banner strong {
+            font-size: 1.15rem;
+        }
+        .candidate-banner .meta {
+            color: var(--muted);
+            font-size: 0.88rem;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+        @media (max-width: 640px) {
+            .form-grid, .qcm { grid-template-columns: 1fr; }
+        }
+        .footer-bar {
+            margin-top: auto;
+            padding-top: 22px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+        .btn {
+            border: none;
+            border-radius: 999px;
+            padding: 12px 20px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+        .btn-ghost {
+            background: transparent;
+            color: var(--muted);
+            border: 1px solid var(--border);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+            color: #042a28;
+            margin-left: auto;
+        }
+        .btn-primary:hover:not(:disabled) { filter: brightness(1.05); }
+        .msg {
+            margin-top: 12px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            display: none;
+            font-size: 0.92rem;
+        }
+        .msg.show { display: block; }
+        .msg.ok {
+            background: rgba(60, 190, 122, 0.12);
+            border: 1px solid rgba(60, 190, 122, 0.35);
+            color: #b7f0d0;
+        }
+        .msg.err {
+            background: rgba(226, 91, 91, 0.12);
+            border: 1px solid rgba(226, 91, 91, 0.35);
+            color: #ffc9c9;
+        }
+        .hidden { display: none !important; }
+        .req {
+            color: #ff5c5c;
+            font-weight: 800;
+            margin-left: 3px;
+        }
+        .pin-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.55);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 16px;
+        }
+        .pin-overlay.show { display: flex; }
+        .pin-box {
+            width: 100%;
+            max-width: 360px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+        }
+        .pin-box h3 {
+            margin: 0 0 8px;
+            font-size: 1.1rem;
+        }
+        .pin-box p {
+            margin: 0 0 14px;
+            color: var(--muted);
+            font-size: 0.92rem;
+            line-height: 1.4;
+        }
+        .pin-box input {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--surface-2);
+            color: var(--text);
+            font-size: 1.25rem;
+            letter-spacing: 0.25em;
+            text-align: center;
+            font-family: inherit;
+            margin-bottom: 12px;
+        }
+        .pin-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        .pin-error {
+            color: #ffc9c9;
+            font-size: 0.88rem;
+            margin: -4px 0 10px;
+            min-height: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <header class="header">
+            <p class="eyebrow">Accueil</p>
+            <h1>Enregistrement à l’arrivée</h1>
+            <p>Sélectionnez le candidat, indiquez la ponctualité, puis complétez ses informations.</p>
+        </header>
+
+        <section class="card" id="step-1">
+            <div class="step-label">Étape 1 / 2 — Identification</div>
+
+            <div class="field">
+                <label for="candidate-select">Candidat</label>
+                <select id="candidate-select">
+                    <option value="">Chargement…</option>
+                </select>
+            </div>
+
+            <div class="field">
+                <label>Ponctualité</label>
+                <div class="qcm" role="radiogroup" aria-label="Ponctualité">
+                    <label class="qcm-option">
+                        <input type="radio" name="punctuality" value="on_time" checked>
+                        <span>À l’heure</span>
+                    </label>
+                    <label class="qcm-option late">
+                        <input type="radio" name="punctuality" value="late">
+                        <span>En retard</span>
+                    </label>
+                </div>
+                <p class="qcm-hint">« En retard » applique automatiquement un malus de <strong>5 points</strong>.</p>
+            </div>
+
+            <div id="step1-msg" class="msg"></div>
+
+            <div class="footer-bar">
+                <span></span>
+                <button type="button" class="btn btn-primary" id="btn-next" disabled>Suivant →</button>
+            </div>
+        </section>
+
+        <section class="card hidden" id="step-2">
+            <div class="step-label">Étape 2 / 2 — Renseignements</div>
+
+            <div class="candidate-banner">
+                <div>
+                    <strong id="selected-candidate-name">—</strong>
+                </div>
+                <div class="meta" id="selected-punctuality-label"></div>
+            </div>
+
+            <div class="form-grid">
+                <div class="field">
+                    <label for="field-email">Adresse mail <span class="req" aria-hidden="true">*</span></label>
+                    <input type="email" id="field-email" placeholder="prenom@email.com" autocomplete="email" required>
+                </div>
+                <div class="field">
+                    <label for="field-phone">Numéro de téléphone <span class="req" aria-hidden="true">*</span></label>
+                    <input type="tel" id="field-phone" placeholder="06 00 00 00 00" autocomplete="tel" required>
+                </div>
+                <div class="field">
+                    <label for="field-school-level">Niveau scolaire <span class="req" aria-hidden="true">*</span></label>
+                    <select id="field-school-level" required>
+                        <option value="">— Choisir —</option>
+                        <option value="Seconde">Seconde</option>
+                        <option value="Première">Première</option>
+                        <option value="Terminale">Terminale</option>
+                        <option value="Prépa">Prépa</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="field-establishment">Établissement <span class="req" aria-hidden="true">*</span></label>
+                    <select id="field-establishment" required>
+                        <option value="">— Choisir —</option>
+                        <option value="Blanche De Castille">Blanche De Castille</option>
+                        <option value="Loquidi">Loquidi</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="step2-msg" class="msg"></div>
+
+            <div class="footer-bar">
+                <button type="button" class="btn btn-ghost" id="btn-back">← Retour</button>
+                <button type="button" class="btn btn-primary" id="btn-save">Enregistrer</button>
+            </div>
+        </section>
+
+    </div>
+
+    <div class="pin-overlay" id="pin-overlay" aria-hidden="true">
+        <div class="pin-box" role="dialog" aria-modal="true" aria-labelledby="pin-title">
+            <h3 id="pin-title">Code requis</h3>
+            <p>Des informations sont manquantes. Entrez le code à 4 chiffres pour continuer.</p>
+            <input type="password" id="pin-input" inputmode="numeric" maxlength="4" pattern="[0-9]*" autocomplete="off" placeholder="••••">
+            <div class="pin-error" id="pin-error"></div>
+            <div class="pin-actions">
+                <button type="button" class="btn btn-ghost" id="pin-cancel">Annuler</button>
+                <button type="button" class="btn btn-primary" id="pin-confirm">Valider</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db } from './firebase-init.js';
+        import {
+            getDoc, getDocs, setDoc, doc, updateDoc, deleteField,
+            query, collection, where
+        } from 'https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js';
+
+        const LATE_MALUS_POINTS = 5;
+        const LATE_MALUS_REASON = 'Retard';
+        const BYPASS_CODE = '2026';
+
+        let CANDIDATES = [];
+        let activeRoundId = null;
+        let selectedCandidateId = null;
+        let selectedPunctuality = 'on_time';
+        let pinResolve = null;
+
+        const step1 = document.getElementById('step-1');
+        const step2 = document.getElementById('step-2');
+        const candidateSelect = document.getElementById('candidate-select');
+        const btnNext = document.getElementById('btn-next');
+        const btnBack = document.getElementById('btn-back');
+        const btnSave = document.getElementById('btn-save');
+        const step1Msg = document.getElementById('step1-msg');
+        const step2Msg = document.getElementById('step2-msg');
+        const pinOverlay = document.getElementById('pin-overlay');
+        const pinInput = document.getElementById('pin-input');
+        const pinError = document.getElementById('pin-error');
+        const pinCancel = document.getElementById('pin-cancel');
+        const pinConfirm = document.getElementById('pin-confirm');
+
+        function showMsg(el, text, isError = false) {
+            if (!el) return;
+            el.textContent = text;
+            el.className = 'msg show ' + (isError ? 'err' : 'ok');
+        }
+        function clearMsg(el) {
+            if (!el) return;
+            el.textContent = '';
+            el.className = 'msg';
+        }
+
+        function getFormValues() {
+            return {
+                email: (document.getElementById('field-email').value || '').trim(),
+                phone: (document.getElementById('field-phone').value || '').trim(),
+                schoolLevel: document.getElementById('field-school-level').value || '',
+                establishment: document.getElementById('field-establishment').value || ''
+            };
+        }
+
+        function isFormComplete() {
+            const v = getFormValues();
+            return !!(v.email && v.phone && v.schoolLevel && v.establishment);
+        }
+
+        function closePinDialog(result) {
+            pinOverlay.classList.remove('show');
+            pinOverlay.setAttribute('aria-hidden', 'true');
+            pinInput.value = '';
+            pinError.textContent = '';
+            if (pinResolve) {
+                const resolve = pinResolve;
+                pinResolve = null;
+                resolve(result);
+            }
+        }
+
+        function askBypassCode() {
+            return new Promise((resolve) => {
+                pinResolve = resolve;
+                pinError.textContent = '';
+                pinInput.value = '';
+                pinOverlay.classList.add('show');
+                pinOverlay.setAttribute('aria-hidden', 'false');
+                setTimeout(() => pinInput.focus(), 50);
+            });
+        }
+
+        async function ensureCanProceedIncomplete() {
+            if (isFormComplete()) return true;
+            const ok = await askBypassCode();
+            if (!ok) {
+                showMsg(step2Msg, 'Action annulée. Complétez les champs obligatoires ou validez le code.', true);
+            }
+            return ok;
+        }
+
+        pinCancel.addEventListener('click', () => closePinDialog(false));
+        pinConfirm.addEventListener('click', () => {
+            const code = (pinInput.value || '').trim();
+            if (code === BYPASS_CODE) {
+                closePinDialog(true);
+            } else {
+                pinError.textContent = 'Code incorrect.';
+                pinInput.select();
+            }
+        });
+        pinInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') pinConfirm.click();
+            if (e.key === 'Escape') closePinDialog(false);
+        });
+
+        function getSelectedPunctuality() {
+            const checked = document.querySelector('input[name="punctuality"]:checked');
+            return checked ? checked.value : 'on_time';
+        }
+
+        function renderCandidateOptions() {
+            const sorted = [...CANDIDATES].sort((a, b) => {
+                const na = String(a.name || '').localeCompare(String(b.name || ''), 'fr');
+                if (na !== 0) return na;
+                return String(a.id).localeCompare(String(b.id));
+            });
+            candidateSelect.innerHTML = '<option value="">— Sélectionner un candidat —</option>';
+            sorted.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                const done = c.email || c.phone || c.schoolLevel || c.establishment ? ' ✓' : '';
+                opt.textContent = `${c.name || 'Sans nom'}${done}`;
+                candidateSelect.appendChild(opt);
+            });
+        }
+
+        async function loadActiveRound() {
+            try {
+                const snap = await getDoc(doc(db, 'config', 'rounds'));
+                const data = snap.exists() ? snap.data() : {};
+                const rounds = data.rounds || [];
+                activeRoundId = data.activeRoundId || (rounds[0] && rounds[0].id) || 'round1';
+            } catch (e) {
+                console.error(e);
+                activeRoundId = 'round1';
+            }
+        }
+
+        async function loadCandidates() {
+            const snap = await getDoc(doc(db, 'candidats', 'liste_actuelle'));
+            CANDIDATES = snap.exists() ? (snap.data().candidates || []) : [];
+            renderCandidateOptions();
+        }
+
+        function findCandidate(id) {
+            return CANDIDATES.find(c => String(c.id) === String(id));
+        }
+
+        function fillStep2Form(candidate) {
+            document.getElementById('selected-candidate-name').textContent = candidate.name || candidate.id;
+            document.getElementById('selected-punctuality-label').textContent =
+                selectedPunctuality === 'late' ? 'En retard (−5 pts)' : 'À l’heure';
+            document.getElementById('field-email').value = candidate.email || '';
+            document.getElementById('field-phone').value = candidate.phone || '';
+            document.getElementById('field-school-level').value = candidate.schoolLevel || '';
+            document.getElementById('field-establishment').value = candidate.establishment || '';
+        }
+
+        function goStep1() {
+            step2.classList.add('hidden');
+            step1.classList.remove('hidden');
+            clearMsg(step1Msg);
+        }
+
+        async function handleBack() {
+            clearMsg(step2Msg);
+            if (!(await ensureCanProceedIncomplete())) return;
+            goStep1();
+        }
+
+        function goStep2() {
+            const id = candidateSelect.value;
+            if (!id) {
+                showMsg(step1Msg, 'Sélectionnez un candidat.', true);
+                return;
+            }
+            const candidate = findCandidate(id);
+            if (!candidate) {
+                showMsg(step1Msg, 'Candidat introuvable.', true);
+                return;
+            }
+            selectedCandidateId = id;
+            selectedPunctuality = getSelectedPunctuality();
+            fillStep2Form(candidate);
+            clearMsg(step2Msg);
+            step1.classList.add('hidden');
+            step2.classList.remove('hidden');
+        }
+
+        async function syncLateMalus(roundId, candidateId, isLate) {
+            const snap = await getDoc(doc(db, 'config', 'malus'));
+            const data = snap.exists() ? snap.data() : {};
+            const byRound = data.byRound || {};
+            if (!byRound[roundId]) byRound[roundId] = {};
+            if (!byRound[roundId][candidateId]) byRound[roundId][candidateId] = [];
+
+            let list = byRound[roundId][candidateId];
+            const existingIdx = list.findIndex(m => m && m.fromAccueilPage === true && m.reason === LATE_MALUS_REASON);
+
+            if (isLate) {
+                if (existingIdx >= 0) {
+                    list[existingIdx] = {
+                        reason: LATE_MALUS_REASON,
+                        points: LATE_MALUS_POINTS,
+                        fromAccueilPage: true
+                    };
+                } else {
+                    list.push({
+                        reason: LATE_MALUS_REASON,
+                        points: LATE_MALUS_POINTS,
+                        fromAccueilPage: true
+                    });
+                }
+            } else if (existingIdx >= 0) {
+                list.splice(existingIdx, 1);
+            }
+
+            const malusRef = doc(db, 'config', 'malus');
+            if (list.length === 0) {
+                delete byRound[roundId][candidateId];
+                const updates = { ['byRound.' + roundId + '.' + candidateId]: deleteField() };
+                if (Object.keys(byRound[roundId]).length === 0) {
+                    delete byRound[roundId];
+                    updates['byRound.' + roundId] = deleteField();
+                }
+                // Si le doc n'existe pas encore, setDoc complet
+                if (!snap.exists()) {
+                    await setDoc(malusRef, { byRound }, { merge: true });
+                } else {
+                    try {
+                        await updateDoc(malusRef, updates);
+                    } catch (e) {
+                        await setDoc(malusRef, { byRound }, { merge: true });
+                    }
+                }
+            } else {
+                byRound[roundId][candidateId] = list;
+                await setDoc(malusRef, { byRound }, { merge: true });
+            }
+        }
+
+        function computeScoreBase(score1, score2, isDuelRound) {
+            if (score1 === 'EL' || score2 === 'EL' || score1 === '-' || score2 === '-' || score1 == null || score2 == null) return 0;
+            const s1 = parseInt(score1, 10);
+            const s2 = parseInt(score2, 10);
+            if (isNaN(s1) || isNaN(s2)) return 0;
+            return isDuelRound ? (s1 + s2) : ((s1 * 3) + s2);
+        }
+
+        async function refreshClassementForRound(roundId) {
+            if (!roundId) return;
+            try {
+                const roundsSnap = await getDoc(doc(db, 'config', 'rounds'));
+                const roundsList = roundsSnap.exists() ? (roundsSnap.data().rounds || []) : [];
+                const round = roundsList.find(r => r.id === roundId);
+                const isDuelRound = !!(round && (round.type === 'Duels' || round.type_epreuve === 'duels'));
+
+                let classementId = (round && round.classementId && String(round.classementId).trim())
+                    ? String(round.classementId).trim()
+                    : null;
+                if (!classementId) {
+                    const activationsSnap = await getDoc(doc(db, 'config', 'activations'));
+                    classementId = (activationsSnap.exists() && activationsSnap.data().classementIdActif)
+                        ? String(activationsSnap.data().classementIdActif).trim()
+                        : ('classement_' + roundId);
+                }
+
+                const scoresSnap = await getDocs(query(collection(db, 'scores'), where('roundId', '==', roundId)));
+                const totalBaseByCandidate = {};
+                scoresSnap.forEach(s => {
+                    const data = s.data();
+                    const cid = data.candidateId;
+                    let base = 0;
+                    if (data.score_base != null) {
+                        base = (typeof data.score_base === 'number') ? data.score_base : (parseFloat(data.score_base) || 0);
+                    } else {
+                        base = computeScoreBase(data.score1, data.score2, isDuelRound);
+                    }
+                    totalBaseByCandidate[cid] = (totalBaseByCandidate[cid] || 0) + base;
+                });
+
+                const malusSnap = await getDoc(doc(db, 'config', 'malus'));
+                const malusByCandidate = ((malusSnap.exists() ? malusSnap.data() : {}).byRound || {})[roundId] || {};
+                const totalMalusByCandidate = {};
+                Object.keys(malusByCandidate).forEach(cid => {
+                    const list = Array.isArray(malusByCandidate[cid]) ? malusByCandidate[cid] : [];
+                    totalMalusByCandidate[cid] = list.reduce((sum, m) => sum + (typeof m.points === 'number' ? m.points : parseFloat(m.points) || 0), 0);
+                });
+
+                const candidatsSnap = await getDoc(doc(db, 'candidats', 'liste_actuelle'));
+                const allCandidates = candidatsSnap.exists() ? (candidatsSnap.data().candidates || []) : [];
+                let roundCandidates = allCandidates.filter(c => (c.tour || '') === roundId);
+                if (roundCandidates.length === 0) roundCandidates = allCandidates;
+
+                const classementRef = doc(db, 'classements', classementId);
+                const classementSnap = await getDoc(classementRef);
+                const currentData = classementSnap.exists() ? classementSnap.data() : {};
+                let malusDisabledList = Array.isArray(currentData.malusDisabled) ? [...currentData.malusDisabled] : null;
+                if (!malusDisabledList || malusDisabledList.length === 0) {
+                    malusDisabledList = roundCandidates.map(c => c.id).filter(Boolean);
+                }
+                const malusDisabledSet = new Set(malusDisabledList);
+
+                const withScore = roundCandidates.map(c => {
+                    const base = totalBaseByCandidate[c.id] || 0;
+                    const malus = malusDisabledSet.has(c.id) ? 0 : (totalMalusByCandidate[c.id] || 0);
+                    return {
+                        candidateId: c.id,
+                        name: c.name || c.id,
+                        score_base: Math.max(0, base - malus)
+                    };
+                });
+                withScore.sort((a, b) => b.score_base - a.score_base);
+
+                const activationsClassementSnap = await getDoc(doc(db, 'classement_activations', classementId));
+                const activated = activationsClassementSnap.exists() ? (activationsClassementSnap.data().activated || []) : [];
+                const pointsByCandidate = {};
+                activated.forEach(a => {
+                    if (a && a.candidateId && (a.points != null || a.points === 0)) {
+                        pointsByCandidate[a.candidateId] = (pointsByCandidate[a.candidateId] || 0) + (typeof a.points === 'number' ? a.points : parseFloat(a.points) || 0);
+                    }
+                });
+
+                const entries = withScore.map((x) => {
+                    const base = x.score_base != null ? (typeof x.score_base === 'number' ? x.score_base : parseFloat(x.score_base) || 0) : 0;
+                    const points = pointsByCandidate[x.candidateId] != null ? pointsByCandidate[x.candidateId] : 0;
+                    const total = Math.round((base + points) * 100) / 100;
+                    return { rank: 0, candidateId: x.candidateId, name: x.name, score_base: x.score_base, score_appliqué: total, score_affiché: total };
+                });
+                entries.sort((a, b) => (b.score_appliqué ?? 0) - (a.score_appliqué ?? 0));
+                entries.forEach((e, i) => { e.rank = i + 1; });
+
+                const duelBonusEnabled = Array.isArray(currentData.duelBonusEnabled) ? currentData.duelBonusEnabled : [];
+                await setDoc(classementRef, {
+                    ...currentData,
+                    code: roundId,
+                    entries,
+                    duelBonusEnabled,
+                    lastUpdateSource: 'accueil_page_update',
+                    updatedAt: new Date()
+                }, { merge: true });
+            } catch (e) {
+                console.error('refreshClassementForRound', e);
+            }
+        }
+
+        async function saveArrival() {
+            clearMsg(step2Msg);
+            const candidate = findCandidate(selectedCandidateId);
+            if (!candidate) {
+                showMsg(step2Msg, 'Candidat introuvable.', true);
+                return;
+            }
+
+            if (!(await ensureCanProceedIncomplete())) return;
+
+            const { email, phone, schoolLevel, establishment } = getFormValues();
+            const isLate = selectedPunctuality === 'late';
+
+            if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                showMsg(step2Msg, 'Adresse mail invalide.', true);
+                return;
+            }
+
+            btnSave.disabled = true;
+            btnSave.textContent = 'Enregistrement…';
+
+            try {
+                const idx = CANDIDATES.findIndex(c => String(c.id) === String(selectedCandidateId));
+                if (idx < 0) throw new Error('Candidat introuvable dans la liste');
+
+                CANDIDATES[idx] = {
+                    ...CANDIDATES[idx],
+                    email,
+                    phone,
+                    schoolLevel,
+                    establishment,
+                    punctuality: isLate ? 'late' : 'on_time',
+                    arrivalCheckedAt: new Date().toISOString()
+                };
+
+                await setDoc(doc(db, 'candidats', 'liste_actuelle'), { candidates: CANDIDATES });
+
+                const roundForMalus = CANDIDATES[idx].tour || activeRoundId || 'round1';
+                await syncLateMalus(roundForMalus, selectedCandidateId, isLate);
+                await refreshClassementForRound(roundForMalus);
+
+                showMsg(step2Msg, isLate
+                    ? 'Enregistré. Malus retard (−5 pts) appliqué.'
+                    : 'Enregistré. Candidat à l’heure.');
+
+                setTimeout(() => {
+                    // Prêt pour le candidat suivant
+                    selectedCandidateId = null;
+                    selectedPunctuality = 'on_time';
+                    document.querySelector('input[name="punctuality"][value="on_time"]').checked = true;
+                    candidateSelect.value = '';
+                    btnNext.disabled = true;
+                    renderCandidateOptions();
+                    goStep1();
+                    clearMsg(step1Msg);
+                }, 900);
+            } catch (e) {
+                console.error(e);
+                showMsg(step2Msg, 'Erreur : ' + (e.message || e), true);
+            } finally {
+                btnSave.disabled = false;
+                btnSave.textContent = 'Enregistrer';
+            }
+        }
+
+        candidateSelect.addEventListener('change', () => {
+            btnNext.disabled = !candidateSelect.value;
+            clearMsg(step1Msg);
+            const c = findCandidate(candidateSelect.value);
+            if (c && c.punctuality === 'late') {
+                document.querySelector('input[name="punctuality"][value="late"]').checked = true;
+            } else {
+                document.querySelector('input[name="punctuality"][value="on_time"]').checked = true;
+            }
+        });
+        btnNext.addEventListener('click', goStep2);
+        btnBack.addEventListener('click', handleBack);
+        btnSave.addEventListener('click', saveArrival);
+
+        await loadActiveRound();
+        await loadCandidates();
+        btnNext.disabled = !candidateSelect.value;
+    </script>
+</body>
+</html>

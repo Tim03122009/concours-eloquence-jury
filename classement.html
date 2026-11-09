@@ -112,6 +112,8 @@
 
         let classementMalusByCandidate = {};
         let classementMalusDisabled = new Set();
+        let hideFirstEnabled = false;
+        let hideFirstScoreById = {};
 
         function getScoreBase(entry) {
             const v = entry.score_affiché != null ? entry.score_affiché : (entry.score_appliqué != null ? entry.score_appliqué : (entry.score_base != null ? entry.score_base : 0));
@@ -122,6 +124,9 @@
         }
         /** Score affiché : note de base (malus appliqués par défaut, ou retirés par candidat) + 10% si le candidat a gagné un duel (calculé à l'affichage, pas stocké). */
         function getDisplayScore(entry, duelWinnerIds) {
+            if (entry && entry.candidateId != null && hideFirstScoreById[String(entry.candidateId)] != null) {
+                return hideFirstScoreById[String(entry.candidateId)];
+            }
             let base = getScoreBase(entry);
             const cid = entry.candidateId;
             const malus = classementMalusByCandidate && cid ? (classementMalusByCandidate[cid] || 0) : 0;
@@ -169,6 +174,7 @@
         let animationsInProgress = 0;
         let lastRenderData = null;
         let lastRenderDuelWinnerIds = null;
+        let lastClassementRoundId = null;
         let animationReady = false;
         let animationInitScheduled = false;
         /* Délai avant d'autoriser les animations (tous appareils) : la page a le temps de charger complètement, l'animation démarre ensuite sans bug. */
@@ -282,7 +288,16 @@
             }
             showState(loadingEl, tableEl, emptyEl, 'table');
             if (emptyEl) emptyEl.style.display = 'none';
-            const sorted = [...entries].sort((a, b) => getDisplayScore(b, duelWinnerIds) - getDisplayScore(a, duelWinnerIds));
+            hideFirstScoreById = {};
+            let sorted = [...entries].sort((a, b) => getDisplayScore(b, duelWinnerIds) - getDisplayScore(a, duelWinnerIds));
+            if (hideFirstEnabled && sorted.length >= 2) {
+                const donor = sorted[Math.min(24, sorted.length - 1)];
+                const first = sorted[0];
+                if (first && donor && first.candidateId !== donor.candidateId) {
+                    hideFirstScoreById[String(first.candidateId)] = getDisplayScore(donor, duelWinnerIds);
+                    sorted = [...entries].sort((a, b) => getDisplayScore(b, duelWinnerIds) - getDisplayScore(a, duelWinnerIds));
+                }
+            }
             const newRanks = new Map();
             sorted.forEach((entry, i) => newRanks.set(entry.candidateId, i));
             const movedUp = [];
@@ -541,6 +556,17 @@
         let currentQualifyCount = null;
 
         /** Charge config/rounds, trouve le tour roundId, lit nextRoundCandidates : 'ALL' → entriesLength, sinon N (nombre). Retourne null si indisponible. */
+        async function loadHideFirstForRound(roundId) {
+            hideFirstEnabled = false;
+            if (!roundId) return;
+            try {
+                const roundsSnap = await getDoc(doc(db, "config", "rounds"));
+                if (!roundsSnap.exists()) return;
+                const round = (roundsSnap.data().rounds || []).find(r => r.id === roundId);
+                hideFirstEnabled = !!(round && round.hideFirstCandidate);
+            } catch (_) {}
+        }
+
         async function getQualifyCountForRound(roundId, entriesLength) {
             if (!roundId) return null;
             try {
@@ -655,6 +681,8 @@
                     const duelWinnerIds = rawDuelWinnerIds.filter(id => duelBonusEnabled.includes(id));
                     const n = await getQualifyCountForRound(roundId, entries.length);
                     currentQualifyCount = n;
+                    lastClassementRoundId = roundId;
+                    await loadHideFirstForRound(roundId);
                     render(data, duelWinnerIds);
                 })();
             }, (err) => {
@@ -709,12 +737,20 @@
                     const duelWinnerIds = rawDuelWinnerIds.filter(id => duelBonusEnabled.includes(id));
                     const n = await getQualifyCountForRound(roundId, entries.length);
                     currentQualifyCount = n;
+                    lastClassementRoundId = roundId;
+                    await loadHideFirstForRound(roundId);
                     render(data, duelWinnerIds);
                 } catch (e) {
                     console.warn('Rafraîchissement classement:', e);
                 }
             };
             setInterval(refreshClassement, 45000);
+
+            onSnapshot(doc(db, "config", "rounds"), async () => {
+                if (animationsInProgress > 0 || !lastRenderData) return;
+                await loadHideFirstForRound(lastClassementRoundId);
+                render(lastRenderData, lastRenderDuelWinnerIds);
+            });
 
             window.addEventListener('resize', () => fitTableToViewport());
 

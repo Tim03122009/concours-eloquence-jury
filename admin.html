@@ -469,14 +469,19 @@
         /* Tab Navigation */
         .tab-navigation {
             display: flex;
-            gap: 5px;
+            align-items: stretch;
+            justify-content: flex-start;
+            gap: 0;
             border-bottom: 2px solid var(--border-color);
             margin-bottom: var(--spacing);
             flex-wrap: wrap;
+            width: 100%;
         }
 
         .tab-btn {
-            padding: 12px 24px;
+            flex: 0 0 auto;
+            box-sizing: border-box;
+            padding: 12px 6px;
             background: transparent;
             border: none;
             border-bottom: 3px solid transparent;
@@ -484,8 +489,10 @@
             font-size: 1rem;
             font-weight: 600;
             color: var(--text-secondary);
-            transition: all 0.3s ease;
+            transition: color 0.3s ease, background 0.3s ease, border-bottom-color 0.3s ease;
             font-family: inherit;
+            white-space: nowrap;
+            text-align: center;
         }
 
         .tab-btn:hover {
@@ -504,6 +511,223 @@
 
         .tab-content.active {
             display: block;
+        }
+
+        /* Statistiques */
+        .stats-scope-switch,
+        .stats-sub-switch {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .stats-scope-btn,
+        .stats-sub-btn {
+            padding: 10px 18px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--input-bg);
+            color: var(--text-color);
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+        .stats-scope-btn:hover,
+        .stats-sub-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        .stats-scope-btn.active,
+        .stats-sub-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: #fff;
+        }
+        .stats-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: flex-end;
+            margin-bottom: 18px;
+            padding: 14px;
+            background: var(--bg-secondary);
+            border-radius: var(--radius);
+        }
+        .stats-controls label {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 0.85em;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+        .stats-controls select {
+            min-width: 180px;
+            padding: 8px 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--input-bg);
+            color: var(--text-color);
+            font-size: 0.95em;
+        }
+        .stats-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .stats-card {
+            background: linear-gradient(145deg, var(--info-bg-start), var(--info-bg-end));
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 14px 16px;
+        }
+        .stats-card .stats-card-label {
+            font-size: 0.8em;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+        .stats-card .stats-card-value {
+            font-size: 1.45em;
+            font-weight: 700;
+            color: var(--text-color);
+            line-height: 1.2;
+        }
+        .stats-card .stats-card-hint {
+            font-size: 0.75em;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        .stats-chart-wrap {
+            position: relative;
+            width: 100%;
+            min-height: 320px;
+            margin-bottom: 24px;
+            padding: 12px;
+            background: #f3eefc;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+        }
+        [data-theme="dark"] .stats-chart-wrap {
+            background: #2a2438;
+        }
+        .stats-chart-wrap canvas {
+            max-height: 420px;
+        }
+        .stats-section-title {
+            color: var(--text-color);
+            margin: 8px 0 12px 0;
+            font-size: 1.15em;
+        }
+        .stats-ranking-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        .stats-ranking-table th,
+        .stats-ranking-table td {
+            border: 1px solid var(--border-color);
+            padding: 10px 12px;
+            text-align: left;
+            color: var(--text-color);
+        }
+        .stats-ranking-table th {
+            background: var(--bg-secondary);
+            font-weight: 700;
+        }
+        .stats-ranking-table tr.stats-rank-highlight {
+            background: rgba(0, 123, 255, 0.12);
+            font-weight: 600;
+        }
+        .stats-empty {
+            color: var(--text-secondary);
+            padding: 20px;
+            text-align: center;
+            font-style: italic;
+        }
+        .stats-help {
+            color: var(--text-secondary);
+            font-size: 0.9em;
+            margin: 0 0 16px 0;
+        }
+        .stats-compare-layout {
+            display: grid;
+            grid-template-columns: minmax(200px, 260px) 1fr;
+            gap: 16px;
+            align-items: stretch;
+        }
+        @media (max-width: 800px) {
+            .stats-compare-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+        .stats-compare-sidebar {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 12px;
+            max-height: 520px;
+            display: flex;
+            flex-direction: column;
+            min-height: 280px;
+        }
+        .stats-compare-sidebar h4 {
+            margin: 0 0 8px 0;
+            color: var(--text-color);
+            font-size: 0.95em;
+        }
+        .stats-compare-sidebar-actions {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .stats-compare-sidebar-actions button {
+            padding: 4px 10px;
+            font-size: 0.8em;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--input-bg);
+            color: var(--text-color);
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .stats-compare-list {
+            overflow-y: auto;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .stats-compare-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            color: var(--text-color);
+            font-size: 0.9em;
+        }
+        .stats-compare-item:hover {
+            background: rgba(0, 123, 255, 0.08);
+        }
+        .stats-compare-item input {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .stats-compare-swatch {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .stats-compare-main {
+            min-width: 0;
         }
 
         /* Candidate Table */
@@ -541,6 +765,15 @@
             display: flex;
             gap: 8px;
             justify-content: center;
+        }
+
+        .candidate-table tr.mystery-candidate-row,
+        .candidate-table tr.mystery-candidate-row td {
+            background: rgba(255, 192, 203, 0.08);
+        }
+        .candidate-table tr.mystery-candidate-row input,
+        .candidate-table tr.mystery-candidate-row select {
+            background: rgba(255, 240, 245, 0.45);
         }
 
         .icon-btn {
@@ -627,6 +860,25 @@
 
         .notes-table .locked-cell {
             background: rgba(220, 53, 69, 0.1);
+        }
+
+        /* Candidat ayant des notes sur le tour affiché mais plus rattaché à ce tour */
+        .notes-table tr.notes-row-past-round {
+            background: rgba(108, 117, 125, 0.14);
+            opacity: 0.72;
+            color: var(--text-secondary);
+        }
+        .notes-table tr.notes-row-past-round td {
+            color: var(--text-secondary);
+        }
+        .notes-table tr.notes-row-past-round .candidate-name::after {
+            content: ' (autre tour)';
+            font-weight: 500;
+            font-size: 0.8em;
+            opacity: 0.85;
+        }
+        [data-theme="dark"] .notes-table tr.notes-row-past-round {
+            background: rgba(120, 120, 140, 0.22);
         }
 
         .notes-table .col-actions {
@@ -956,6 +1208,7 @@
             <button class="tab-btn" onclick="switchTab('duels')">Duels</button>
             <button class="tab-btn" onclick="switchTab('activation-classements')">Activation classements</button>
             <button class="tab-btn" onclick="switchTab('vote-public')">Vote public</button>
+            <button class="tab-btn" onclick="switchTab('statistiques')">Statistiques</button>
             <button class="tab-btn" onclick="switchTab('reinitialiser')">Réinitialiser</button>
         </div>
 
@@ -978,9 +1231,14 @@
             <table class="candidate-table" id="candidate-table">
                 <thead>
                     <tr>
-                        <th style="width: 80px;">ID</th>
+                        <th style="width: 70px;">ID</th>
                         <th>Nom du candidat</th>
-                        <th style="width: 100px;">Actions</th>
+                        <th style="width: 180px;">Email</th>
+                        <th style="width: 120px;">Téléphone</th>
+                        <th style="width: 120px;">Niveau</th>
+                        <th style="width: 150px;">Établissement</th>
+                        <th style="width: 100px;">Ponctualité</th>
+                        <th style="width: 80px;">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="candidate-table-body">
@@ -1085,10 +1343,6 @@
                             <!-- Rempli dynamiquement -->
                         </select>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <input type="checkbox" id="notes-filter-current-round" checked style="width: 18px; height: 18px; cursor: pointer;">
-                        <label for="notes-filter-current-round" style="color: var(--text-color); cursor: pointer;">Candidats en cours sur ce tour</label>
-                    </div>
                     <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                         <button id="notes-validate-round-btn" onclick="validateRoundGlobally()" class="action-button" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white;">✓ Valider tout le tour</button>
                         <button type="button" id="reset-grande-finale-auto-btn" onclick="resetGrandeFinaleAutoStateForSelectedRound()" class="action-button" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); color: #111; font-weight: 700;">
@@ -1101,6 +1355,38 @@
                     <button onclick="exportNotesToCSV()" class="action-button export-button excel">📥 Exporter en CSV</button>
                     <input type="file" id="csv-import-file" accept=".csv" style="display: none;" onchange="importNotesFromCSV(event)">
                     <button onclick="document.getElementById('csv-import-file').click()" class="action-button import-button">📤 Importer depuis CSV</button>
+                </div>
+            </div>
+
+            <div id="result-emails-section" style="margin-bottom: 20px; padding: 16px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--input-bg);">
+                <h3 style="margin: 0 0 8px 0; color: var(--text-color);">Résultats par email</h3>
+                <p style="margin: 0 0 12px 0; color: var(--text-secondary); font-size: 0.9em;">
+                    Ouvre un mail prérempli. La 1<sup>re</sup> ligne du message contient les emails (séparés par des virgules) à couper-coller en CCI. Basé sur le statut Qualifié / Éliminé du tour affiché.
+                </p>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+                    <button type="button" onclick="openResultEmail('retenu')" class="action-button" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white;">📧 Mail retenus</button>
+                    <button type="button" onclick="openResultEmail('non_retenu')" class="action-button" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white;">📧 Mail non retenus</button>
+                    <button type="button" id="toggle-result-email-templates-btn" onclick="toggleResultEmailTemplates()" class="action-button" style="background: linear-gradient(135deg, #6c757d 0%, #495057 100%); color: white;">✏️ Modifier les messages</button>
+                </div>
+
+                <div id="result-email-templates" style="display: none; margin-top: 16px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+                        <div style="padding: 14px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color, #fff);">
+                            <h4 style="margin: 0 0 10px 0; color: var(--success, #28a745);">Message retenus</h4>
+                            <label for="email-subject-retenu" style="display: block; font-weight: 600; color: var(--text-color); margin-bottom: 4px;">Objet</label>
+                            <input type="text" id="email-subject-retenu" oninput="saveResultEmailTemplates()" style="width: 100%; box-sizing: border-box; padding: 8px 10px; margin-bottom: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--input-bg); color: var(--text-color); font-family: inherit;">
+                            <label for="email-body-retenu" style="display: block; font-weight: 600; color: var(--text-color); margin-bottom: 4px;">Message</label>
+                            <textarea id="email-body-retenu" rows="8" oninput="saveResultEmailTemplates()" style="width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--input-bg); color: var(--text-color); font-family: inherit; resize: vertical; line-height: 1.4;"></textarea>
+                        </div>
+                        <div style="padding: 14px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color, #fff);">
+                            <h4 style="margin: 0 0 10px 0; color: var(--danger, #dc3545);">Message non retenus</h4>
+                            <label for="email-subject-non-retenu" style="display: block; font-weight: 600; color: var(--text-color); margin-bottom: 4px;">Objet</label>
+                            <input type="text" id="email-subject-non-retenu" oninput="saveResultEmailTemplates()" style="width: 100%; box-sizing: border-box; padding: 8px 10px; margin-bottom: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--input-bg); color: var(--text-color); font-family: inherit;">
+                            <label for="email-body-non-retenu" style="display: block; font-weight: 600; color: var(--text-color); margin-bottom: 4px;">Message</label>
+                            <textarea id="email-body-non-retenu" rows="8" oninput="saveResultEmailTemplates()" style="width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--input-bg); color: var(--text-color); font-family: inherit; resize: vertical; line-height: 1.4;"></textarea>
+                        </div>
+                    </div>
+                    <p style="margin: 10px 0 0 0; color: var(--text-secondary); font-size: 0.85em;">Les emails seront ajoutés automatiquement en première ligne du message à l’ouverture. Les textes sont enregistrés automatiquement sur cet ordinateur.</p>
                 </div>
             </div>
 
@@ -1135,6 +1421,23 @@
                             <span style="color: var(--text-secondary); font-size: 0.95em;">Quand toutes les notes du tour sont remplies, un candidat dont le président a toutes ses notes en EL passe en statut Éliminé — même si le tour est configuré en « ALL » pour le tour suivant.</span>
                         </span>
                     </label>
+                </div>
+                <div id="hide-first-option-wrap" style="margin-top: 14px; padding: 12px 14px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--input-bg);">
+                    <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; color: var(--text-color);">
+                        <input type="checkbox" id="hide-first-candidate" onchange="toggleHideFirstCandidate(this.checked)" style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0;">
+                        <span>
+                            <strong>Cacher le premier</strong><br>
+                            <span style="color: var(--text-secondary); font-size: 0.95em;">Le 1er du classement public affiche le même score que le 25e (candidat mystère). Après le rattrapage, il est envoyé dans le tour d’attente choisi ci-dessous (où il reste visible si ce tour est affiché). Au rattrapage, on ne peut pas le passer en Qualifiés.</span>
+                        </span>
+                    </label>
+                    <div id="hide-first-hold-wrap" style="display: none; margin: 12px 0 0 28px;">
+                        <label for="hide-first-hold-round" style="display: block; font-weight: 600; color: var(--text-color); margin-bottom: 6px;">Tour d’attente du candidat mystère</label>
+                        <select id="hide-first-hold-round" onchange="setMysteryHoldRound(this.value)" style="min-width: 240px; padding: 8px 12px; border: 2px solid var(--border-color); border-radius: 6px; background: var(--card-bg, #fff); color: var(--text-color); font-family: inherit;">
+                            <option value="">— Choisir un tour —</option>
+                        </select>
+                        <p style="margin: 6px 0 0 0; color: var(--text-secondary); font-size: 0.9em;">Dès la sortie du rattrapage du 1er tour, le candidat mystère est placé dans ce tour et y attend.</p>
+                    </div>
+                    <p id="hide-first-mystery-info" style="display: none; margin: 10px 0 0 28px; font-weight: 600; color: var(--text-color);"></p>
                 </div>
             </div>
             
@@ -1287,6 +1590,87 @@
             </div>
         </div>
 
+        <!-- TAB: STATISTIQUES -->
+        <div id="tab-statistiques" class="tab-content">
+            <p class="stats-help">Notes 0 et 1 exclues. Notes hors /20 remises sur 20. Moyennes avec et sans coefficients.</p>
+
+            <div class="stats-scope-switch">
+                <button type="button" class="stats-scope-btn active" data-stats-scope="candidats" onclick="setStatsScope('candidats')">Candidats</button>
+                <button type="button" class="stats-scope-btn" data-stats-scope="jury" onclick="setStatsScope('jury')">Jury</button>
+                <button type="button" class="stats-scope-btn" data-stats-scope="comparaison" onclick="setStatsScope('comparaison')">Comparaison</button>
+            </div>
+
+            <div id="stats-panel-candidats">
+                <div class="stats-sub-switch">
+                    <button type="button" class="stats-sub-btn active" data-stats-sub="notes" onclick="setStatsCandidateMode('notes')">Par notes</button>
+                    <button type="button" class="stats-sub-btn" data-stats-sub="tours" onclick="setStatsCandidateMode('tours')">Par tours</button>
+                </div>
+                <div class="stats-controls">
+                    <label>Candidat
+                        <select id="stats-candidate-select" onchange="refreshStatsView()"></select>
+                    </label>
+                    <label id="stats-candidate-round-label">Tour
+                        <select id="stats-candidate-round" onchange="refreshStatsView()"></select>
+                    </label>
+                    <button type="button" class="action-button" style="background: var(--primary); color: #fff;" onclick="refreshStatsView(true)">Actualiser</button>
+                </div>
+                <div id="stats-candidate-cards" class="stats-cards"></div>
+                <h3 class="stats-section-title" id="stats-candidate-chart-title">Évolution des notes</h3>
+                <div class="stats-chart-wrap">
+                    <canvas id="stats-candidate-chart"></canvas>
+                </div>
+                <div id="stats-candidate-ranking-wrap" style="display: none;">
+                    <h3 class="stats-section-title">Classement candidats (meilleure moyenne)</h3>
+                    <div id="stats-candidate-ranking"></div>
+                </div>
+            </div>
+
+            <div id="stats-panel-jury" style="display: none;">
+                <div class="stats-controls">
+                    <label>Jury
+                        <select id="stats-jury-select" onchange="refreshStatsView()"></select>
+                    </label>
+                    <label>Tour (optionnel)
+                        <select id="stats-jury-round" onchange="refreshStatsView()"></select>
+                    </label>
+                    <button type="button" class="action-button" style="background: var(--primary); color: #fff;" onclick="refreshStatsView(true)">Actualiser</button>
+                </div>
+                <div id="stats-jury-cards" class="stats-cards"></div>
+                <h3 class="stats-section-title">Classement jurys (meilleure moyenne des notes données)</h3>
+                <div id="stats-jury-ranking"></div>
+            </div>
+
+            <div id="stats-panel-comparaison" style="display: none;">
+                <div class="stats-sub-switch">
+                    <button type="button" class="stats-sub-btn active" data-stats-compare="notes" onclick="setStatsCompareMode('notes')">Par notes</button>
+                    <button type="button" class="stats-sub-btn" data-stats-compare="tours" onclick="setStatsCompareMode('tours')">Par tours</button>
+                    <button type="button" class="stats-sub-btn" data-stats-compare="moyenne" onclick="setStatsCompareMode('moyenne')">Par moyenne</button>
+                </div>
+                <div class="stats-controls">
+                    <label id="stats-compare-round-label">Tour
+                        <select id="stats-compare-round" onchange="refreshStatsView()"></select>
+                    </label>
+                    <button type="button" class="action-button" style="background: var(--primary); color: #fff;" onclick="refreshStatsView(true)">Actualiser</button>
+                </div>
+                <div class="stats-compare-layout">
+                    <aside class="stats-compare-sidebar">
+                        <h4>Candidats</h4>
+                        <div class="stats-compare-sidebar-actions">
+                            <button type="button" onclick="statsCompareSelectAll(true)">Tout</button>
+                            <button type="button" onclick="statsCompareSelectAll(false)">Aucun</button>
+                        </div>
+                        <div id="stats-compare-list" class="stats-compare-list"></div>
+                    </aside>
+                    <div class="stats-compare-main">
+                        <h3 class="stats-section-title" id="stats-compare-chart-title">Comparaison</h3>
+                        <div class="stats-chart-wrap">
+                            <canvas id="stats-compare-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div id="tab-reinitialiser" class="tab-content">
             <div class="reset-zone" style="background: var(--info-bg-start); border: 2px solid var(--primary); margin-bottom: 24px;">
                 <h3 style="color: var(--primary);">📚 Guide des interfaces</h3>
@@ -1398,20 +1782,22 @@
 
             <div class="reset-zone" style="margin-top: 30px;">
                 <h3 style="color: var(--text-color);">Réinitialiser tous les scores et tours</h3>
-                <p>Supprime TOUTES les notes de TOUS les tours et remet TOUS les candidats en statut "Actif" au premier tour. Les jurys et candidats sont conservés.</p>
-                <p style="font-weight: 600; color: var(--warning-color); margin-top: 10px;">⚠️ Cette action efface toutes les notations mais garde les jurys et la liste des candidats.</p>
+                <p>Supprime toutes les notes, duels, malus, points de classement et validations, puis remet tous les candidats en statut « Actif » au premier tour. Les jurys et la liste des candidats (email, téléphone, etc.) sont conservés.</p>
+                <p style="font-weight: 600; color: var(--warning-color); margin-top: 10px;">⚠️ Cette action efface les notations / classements / malus, mais garde les jurys et les candidats.</p>
                 <button onclick="confirmResetAllScoresAndRounds()" class="action-button" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white;">🔄 Réinitialiser tous les scores et tours</button>
             </div>
 
             <div class="reset-zone" style="margin-top: 30px;">
                 <h3 style="color: var(--text-color);">Réinitialisation complète</h3>
-                <p>Supprime TOUS les jurys, TOUS les candidats, toutes les notations, tous les duels ET tous les points de classement. Remet l'application à zéro.</p>
-                <button onclick="confirmResetAll()" class="action-button">RÉINITIALISER TOUT (Jurys + Candidats + Scores + Duels + Classements)</button>
+                <p>Remet l’application à zéro : jurys, candidats (y compris email, téléphone, niveau, établissement, ponctualité), notes, duels, classements, malus, votes publics, validations de tours, paramètres de tours (repartis par défaut), et modèles d’emails locaux.</p>
+                <p style="font-weight: 600; color: var(--warning-color); margin-top: 10px;">⚠️ Conservé : mot de passe admin, mot de passe jury par défaut, réglages podium.</p>
+                <button onclick="confirmResetAll()" class="action-button">RÉINITIALISER TOUT (remise à zéro complète)</button>
             </div>
         </div>
     </div>
 
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="module">
         import { db } from './firebase-init.js';
         import { collection, getDocs, deleteDoc, doc, setDoc, getDoc, addDoc, query, where, writeBatch, onSnapshot, serverTimestamp, updateDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
@@ -2272,6 +2658,72 @@
             });
         }
 
+        // --- LARGEUR FIGÉE DES ONGLETS (pas de resserrement ; retour à la ligne aligné à gauche) ---
+        let tabNavResizeTimer = null;
+        let tabNavLockedWidths = null;
+
+        function layoutAdminTabNavigation() {
+            const nav = document.querySelector('.tab-navigation');
+            if (!nav) return;
+            const buttons = Array.from(nav.querySelectorAll('.tab-btn'));
+            if (!buttons.length) return;
+
+            // Mesure des largeurs "contenu" (sans étirement)
+            buttons.forEach(btn => {
+                btn.style.flex = '0 0 auto';
+                btn.style.width = 'auto';
+                btn.style.minWidth = '0';
+                btn.style.maxWidth = 'none';
+            });
+
+            const contentWidths = buttons.map(btn => Math.ceil(btn.getBoundingClientRect().width));
+            const totalContent = contentWidths.reduce((sum, w) => sum + w, 0);
+            const navWidth = Math.floor(nav.getBoundingClientRect().width);
+
+            if (navWidth >= totalContent && totalContent > 0) {
+                // Une ligne : on étale l'espace libre également, puis on fige ces largeurs
+                const extra = navWidth - totalContent;
+                const eachExtra = extra / buttons.length;
+                tabNavLockedWidths = contentWidths.map(w => Math.floor(w + eachExtra));
+                // Répartir le reste de pixels sur les premiers boutons pour coller pile à la largeur
+                let remainder = navWidth - tabNavLockedWidths.reduce((s, w) => s + w, 0);
+                for (let i = 0; i < tabNavLockedWidths.length && remainder > 0; i++, remainder--) {
+                    tabNavLockedWidths[i] += 1;
+                }
+            }
+
+            // Appliquer les largeurs figées (référence plein écran si déjà calculée)
+            const widths = tabNavLockedWidths || contentWidths;
+            const totalLocked = widths.reduce((sum, w) => sum + w, 0);
+            const wraps = totalLocked > navWidth;
+
+            nav.style.justifyContent = 'flex-start';
+            nav.style.flexWrap = wraps ? 'wrap' : 'nowrap';
+
+            buttons.forEach((btn, i) => {
+                const w = widths[i] || contentWidths[i];
+                btn.style.flex = '0 0 auto';
+                btn.style.width = w + 'px';
+                btn.style.minWidth = w + 'px';
+                btn.style.maxWidth = w + 'px';
+            });
+        }
+
+        function scheduleAdminTabNavigationLayout() {
+            if (tabNavResizeTimer) clearTimeout(tabNavResizeTimer);
+            tabNavResizeTimer = setTimeout(layoutAdminTabNavigation, 80);
+        }
+
+        window.addEventListener('resize', scheduleAdminTabNavigationLayout);
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(() => layoutAdminTabNavigation()).catch(() => layoutAdminTabNavigation());
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => layoutAdminTabNavigation());
+        } else {
+            layoutAdminTabNavigation();
+        }
+
         // --- TAB SWITCHING ---
         let votePublicUnsubscribe = null;
         window.switchTab = function(tabName) {
@@ -2338,6 +2790,8 @@
                 var unsubTotaux = onSnapshot(doc(db, 'vote_public', 'totaux'), function() { loadVotePublicData(); });
                 var unsubStats = onSnapshot(doc(db, 'vote_public', 'stats'), function() { loadVotePublicData(); });
                 votePublicUnsubscribe = function() { unsubTotaux(); unsubStats(); };
+            } else if (tabName === 'statistiques') {
+                initStatsTab();
             }
         };
 
@@ -2636,6 +3090,11 @@
                         const newCandidate = { 
                             id: newId, 
                             name: name,
+                            email: '',
+                            phone: '',
+                            schoolLevel: '',
+                            establishment: '',
+                            punctuality: '',
                             tour: activeRoundId || 'round1',
                             status: 'Actif'
                         };
@@ -2680,6 +3139,11 @@
             CANDIDATES.push({ 
                 id: newId, 
                 name: `Candidat ${newId}`,
+                email: '',
+                phone: '',
+                schoolLevel: '',
+                establishment: '',
+                punctuality: '',
                 tour: activeRoundId || 'round1',
                 status: 'Actif'
             });
@@ -2766,6 +3230,46 @@
             }
         };
 
+        window.updateCandidateEmail = (candidateId, newEmail) => {
+            const candidate = CANDIDATES.find(c => c.id === candidateId);
+            if (candidate) {
+                candidate.email = (newEmail || '').trim();
+                saveCandidates();
+            }
+        };
+
+        window.updateCandidatePhone = (candidateId, newPhone) => {
+            const candidate = CANDIDATES.find(c => c.id === candidateId);
+            if (candidate) {
+                candidate.phone = (newPhone || '').trim();
+                saveCandidates();
+            }
+        };
+
+        window.updateCandidateSchoolLevel = (candidateId, value) => {
+            const candidate = CANDIDATES.find(c => c.id === candidateId);
+            if (candidate) {
+                candidate.schoolLevel = value || '';
+                saveCandidates();
+            }
+        };
+
+        window.updateCandidateEstablishment = (candidateId, value) => {
+            const candidate = CANDIDATES.find(c => c.id === candidateId);
+            if (candidate) {
+                candidate.establishment = value || '';
+                saveCandidates();
+            }
+        };
+
+        window.updateCandidatePunctuality = (candidateId, value) => {
+            const candidate = CANDIDATES.find(c => c.id === candidateId);
+            if (candidate) {
+                candidate.punctuality = value || '';
+                saveCandidates();
+            }
+        };
+
         async function saveCandidates() {
             // Dédupliquer les candidats par ID avant de sauvegarder
             const seenIds = new Set();
@@ -2804,9 +3308,41 @@
             
             sortedCandidates.forEach(candidate => {
                 const row = tbody.insertRow();
+                if (typeof isMysteryCandidateId === 'function' && isMysteryCandidateId(candidate.id)) {
+                    row.classList.add('mystery-candidate-row');
+                    row.title = 'Candidat mystère (option « Cacher le premier »)';
+                }
+                const schoolLevel = candidate.schoolLevel || '';
+                const establishment = candidate.establishment || '';
+                const punctuality = candidate.punctuality || '';
                 row.innerHTML = `
                     <td><input type="text" id="candidate-id-${candidate.id}" name="candidate-id-${candidate.id}" value="${candidate.id}" onchange="updateCandidateId('${candidate.id}', this.value)" style="width: 70px; padding: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px; text-align: center; font-family: monospace;"></td>
                     <td><input type="text" id="candidate-name-${candidate.id}" name="candidate-name-${candidate.id}" value="${(candidate.name || '').replace(/"/g, '&quot;')}" onchange="updateCandidateName('${candidate.id}', this.value)" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px;"></td>
+                    <td><input type="email" id="candidate-email-${candidate.id}" name="candidate-email-${candidate.id}" value="${(candidate.email || '').replace(/"/g, '&quot;')}" onchange="updateCandidateEmail('${candidate.id}', this.value)" placeholder="email@exemple.com" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px;"></td>
+                    <td><input type="tel" id="candidate-phone-${candidate.id}" name="candidate-phone-${candidate.id}" value="${(candidate.phone || '').replace(/"/g, '&quot;')}" onchange="updateCandidatePhone('${candidate.id}', this.value)" placeholder="06 00 00 00 00" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px;"></td>
+                    <td>
+                        <select onchange="updateCandidateSchoolLevel('${candidate.id}', this.value)" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px;">
+                            <option value="" ${schoolLevel === '' ? 'selected' : ''}>—</option>
+                            <option value="Seconde" ${schoolLevel === 'Seconde' ? 'selected' : ''}>Seconde</option>
+                            <option value="Première" ${schoolLevel === 'Première' ? 'selected' : ''}>Première</option>
+                            <option value="Terminale" ${schoolLevel === 'Terminale' ? 'selected' : ''}>Terminale</option>
+                            <option value="Prépa" ${schoolLevel === 'Prépa' ? 'selected' : ''}>Prépa</option>
+                        </select>
+                    </td>
+                    <td>
+                        <select onchange="updateCandidateEstablishment('${candidate.id}', this.value)" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px;">
+                            <option value="" ${establishment === '' ? 'selected' : ''}>—</option>
+                            <option value="Blanche De Castille" ${establishment === 'Blanche De Castille' ? 'selected' : ''}>Blanche De Castille</option>
+                            <option value="Loquidi" ${establishment === 'Loquidi' ? 'selected' : ''}>Loquidi</option>
+                        </select>
+                    </td>
+                    <td>
+                        <select onchange="updateCandidatePunctuality('${candidate.id}', this.value)" style="width: 100%; padding: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); border-radius: 3px;">
+                            <option value="" ${punctuality === '' ? 'selected' : ''}>—</option>
+                            <option value="on_time" ${punctuality === 'on_time' ? 'selected' : ''}>À l'heure</option>
+                            <option value="late" ${punctuality === 'late' ? 'selected' : ''}>En retard</option>
+                        </select>
+                    </td>
                     <td class="actions">
                         <button class="icon-btn delete" onclick="deleteCandidate('${candidate.id}')" title="Supprimer">🗑️</button>
                     </td>
@@ -2830,6 +3366,7 @@
                     id: docSnap.id,  // ID numérique (jury1, jury2, etc.)
                     name: data.name || docSnap.id,  // Nom affiché
                     password: data.password || '',
+                    passwordIsDefault: data.passwordIsDefault,
                     theme: data.theme || 'light',
                     createdAt: data.createdAt,
                     rounds: data.rounds || [],  // Tours où le jury est présent
@@ -2871,6 +3408,10 @@
             } catch (e) {
                 console.log('Aucun mot de passe par défaut configuré');
             }
+            // Rafraîchir l’affichage Mot de passe (Prédéfini / Défini après)
+            if (typeof renderJuryTable === 'function' && Array.isArray(JURIES) && JURIES.length) {
+                try { await renderJuryTable(); } catch (e) { /* ignore */ }
+            }
         };
         
         window.saveDefaultJuryPassword = async () => {
@@ -2889,6 +3430,9 @@
                 });
                 
                 DEFAULT_JURY_PASSWORD = password;
+                if (typeof renderJuryTable === 'function') {
+                    try { await renderJuryTable(); } catch (err) { /* ignore */ }
+                }
                 await customAlert('✓ Mot de passe par défaut enregistré avec succès !\n\nCe mot de passe sera maintenant requis pour créer de nouveaux comptes jury.');
             } catch (e) {
                 console.error('Erreur:', e);
@@ -3092,6 +3636,7 @@
                     await setDoc(doc(db, "accounts", juryId), {
                         name: name,
                         password: DEFAULT_JURY_PASSWORD || '',
+                        passwordIsDefault: true,
                         theme: 'light',
                         createdAt: new Date(),
                         isPresident: isFirstJury,
@@ -3177,6 +3722,7 @@
             await setDoc(doc(db, "accounts", juryId), {
                 name: juryName,
                 password: DEFAULT_JURY_PASSWORD || '',
+                passwordIsDefault: true,
                 theme: 'light',
                 createdAt: new Date(),
                 isPresident: isFirstJury,
@@ -3340,13 +3886,33 @@
             if (!await confirm(`Réinitialiser le mot de passe de "${jury.name}" ${passwordMsg} ?`)) return;
             
             await setDoc(doc(db, "accounts", juryId), {
-                password: DEFAULT_JURY_PASSWORD || ''
+                password: DEFAULT_JURY_PASSWORD || '',
+                passwordIsDefault: true
             }, { merge: true });
             
             const successMsg = DEFAULT_JURY_PASSWORD ? 'réinitialisé au mot de passe par défaut' : 'réinitialisé à vide';
             await customAlert(`✓ Mot de passe ${successMsg}`);
             await loadJuries();
         };
+
+        function getJuryPasswordStatusLabel(jury) {
+            const pwd = jury && jury.password ? String(jury.password) : '';
+            if (!pwd) {
+                return '<span title="Aucun mot de passe">🔓 Vide</span>';
+            }
+            // Flag explicite (nouveaux comptes / reset)
+            if (jury.passwordIsDefault === true) {
+                return '<span title="Mot de passe prédéfini (par défaut)">🔑 Prédéfini</span>';
+            }
+            if (jury.passwordIsDefault === false) {
+                return '<span title="Mot de passe défini après création">🔒 Défini après</span>';
+            }
+            // Anciens comptes sans flag : comparer au mot de passe par défaut actuel
+            if (DEFAULT_JURY_PASSWORD && pwd === DEFAULT_JURY_PASSWORD) {
+                return '<span title="Mot de passe prédéfini (par défaut)">🔑 Prédéfini</span>';
+            }
+            return '<span title="Mot de passe défini après création">🔒 Défini après</span>';
+        }
         
         async function renderJuryTable() {
             console.log('🎨 renderJuryTable() appelé');
@@ -3377,7 +3943,7 @@
                 <th style="width: 100px; text-align: center;">Président</th>
                 <th style="min-width: 200px; text-align: center;">Tours présents</th>
                 ${hasPetiteFinaleRound ? '<th style="min-width: 180px; text-align: center;">Critère (petite finale)</th>' : ''}
-                <th style="width: 120px; text-align: center;">Mot de passe</th>
+                <th style="width: 140px; text-align: center;">Mot de passe</th>
                 <th style="width: 100px; text-align: center;">Actions</th>
             `;
             
@@ -3387,7 +3953,7 @@
                 console.log(`🎨 Jury ${jury.name}: rounds=${JSON.stringify(jury.rounds)}, isPresident=${jury.isPresident}`);
                 
                 const row = tbody.insertRow();
-                const passwordDisplay = jury.password ? '🔒 Défini' : '🔓 Vide';
+                const passwordDisplay = getJuryPasswordStatusLabel(jury);
                 const juryNumber = jury.id.replace('jury', '');
                 const critereValue = (jury.criterePetiteFinale || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                 
@@ -3801,9 +4367,15 @@
                 
                 console.log('📊 Classement des candidats:', sortedCandidates.map((id, i) => `${i+1}. ${id} (${candidateScores[id]}pts)`));
                 
-                // Les topN premiers reçoivent "1", les autres reçoivent "0"
-                const qualifiedCandidates = new Set(sortedCandidates.slice(0, topN));
-                const eliminatedCandidates = sortedCandidates.slice(topN);
+                const qualifiedCandidates = new Set();
+                for (const id of sortedCandidates) {
+                    if (isMysteryCandidateId(id)) continue;
+                    qualifiedCandidates.add(id);
+                    if (qualifiedCandidates.size >= topN) break;
+                }
+                const eliminatedCandidates = sortedCandidates.filter(id =>
+                    ![...qualifiedCandidates].some(q => String(q) === String(id))
+                );
                 
                 console.log(`✅ ${qualifiedCandidates.size} candidats qualifiés:`, Array.from(qualifiedCandidates));
                 console.log(`❌ ${eliminatedCandidates.length} candidats éliminés:`, eliminatedCandidates);
@@ -3820,12 +4392,19 @@
                 
                 // Créer les scores pour tous les candidats actifs du repêchage
                 const candidatesInRepechage = CANDIDATES.filter(c => c.tour === repechageRoundId && c.status === 'Actif');
+                (ROUNDS || []).forEach(r => {
+                    if (!r || !r.hideFirstCandidate || r.mysteryCandidateId == null || r.mysteryCandidateId === '') return;
+                    if (candidatesInRepechage.some(c => String(c.id) === String(r.mysteryCandidateId))) return;
+                    const mystery = CANDIDATES.find(c => String(c.id) === String(r.mysteryCandidateId));
+                    if (mystery) candidatesInRepechage.push(mystery);
+                });
                 
                 const batch = writeBatch(db);
                 let scoresCreated = 0;
                 
                 for (const candidate of candidatesInRepechage) {
-                    const noteValue = qualifiedCandidates.has(candidate.id) ? '1' : '0';
+                    const isPreQualified = [...qualifiedCandidates].some(q => String(q) === String(candidate.id));
+                    const noteValue = (isPreQualified && !isMysteryCandidateId(candidate.id)) ? '1' : '0';
                     
                     // Créer les scores seulement pour les jurys présents sur ce tour
                     for (const jury of juriesOnRepechage) {
@@ -3867,8 +4446,11 @@
             }
             
             // Vérifier que tous les candidats du tour actif sont soit qualifiés soit éliminés
+            // (le candidat mystère est géré à part : il n'a pas besoin d'être Qualifié/Éliminé)
             const candidatesInRound = CANDIDATES.filter(c => c.tour === activeRoundId);
-            const candidatesNotReady = candidatesInRound.filter(c => c.status !== 'Qualifie' && c.status !== 'Elimine');
+            const candidatesNotReady = candidatesInRound.filter(c =>
+                !isMysteryCandidateId(c.id) && c.status !== 'Qualifie' && c.status !== 'Elimine'
+            );
             
             if (candidatesNotReady.length > 0) {
                 const names = candidatesNotReady.map(c => `- ${c.name} (${c.status})`).join('\n');
@@ -3901,9 +4483,40 @@
             }
             
             // Passer les candidats qualifiés au tour suivant et les remettre en "Actif"
+            if (activeRound.hideFirstCandidate) {
+                await refreshMysteryCandidateForRound(activeRoundId, true);
+            }
+            const hideFirstSource = activeRound.hideFirstCandidate
+                ? activeRound
+                : ((ROUNDS || []).find(r => r.hideFirstCandidate) || null);
+            const mysteryHoldRound = getMysteryHoldRound(hideFirstSource);
             let movedCount = 0;
+            let mysteryMoved = 0;
+            let mysteryHoldName = '';
+            const nextIsRepechage = nextRound.type === 'Repêchage' || nextRound.type_epreuve === 'repechage';
             CANDIDATES.forEach(candidate => {
-                if (candidate.tour === activeRoundId && candidate.status === 'Qualifie') {
+                if (candidate.tour !== activeRoundId) return;
+                if (isMysteryCandidateId(candidate.id)) {
+                    if (nextIsRepechage) {
+                        // Passe d'abord par le rattrapage (non qualifiable)
+                        candidate.tour = nextRound.id;
+                        candidate.status = 'Elimine';
+                        mysteryHoldName = nextRound.name || nextRound.id;
+                    } else if (mysteryHoldRound) {
+                        // Sortie du rattrapage (ou pas de rattrapage) → tour d'attente choisi
+                        candidate.tour = mysteryHoldRound.id;
+                        candidate.status = 'Actif';
+                        mysteryHoldName = mysteryHoldRound.name || mysteryHoldRound.id;
+                    } else {
+                        // Fallback si aucun tour d'attente : suivre le flux normal vers le tour suivant
+                        candidate.tour = nextRound.id;
+                        candidate.status = 'Actif';
+                        mysteryHoldName = nextRound.name || nextRound.id;
+                    }
+                    mysteryMoved++;
+                    return;
+                }
+                if (candidate.status === 'Qualifie') {
                     candidate.tour = nextRound.id;
                     candidate.status = 'Actif';
                     movedCount++;
@@ -3912,6 +4525,21 @@
             
             // Sauvegarder les modifications
             await setDoc(doc(db, "candidats", "liste_actuelle"), { candidates: CANDIDATES });
+
+            // Mystère placé en tour d'attente : pas de notes préremplies sur ce tour
+            if (mysteryMoved && mysteryHoldRound && !nextIsRepechage) {
+                for (const c of CANDIDATES) {
+                    if (!isMysteryCandidateId(c.id)) continue;
+                    const mysteryScoresSnap = await getDocs(query(
+                        collection(db, "scores"),
+                        where("candidateId", "==", c.id),
+                        where("roundId", "==", mysteryHoldRound.id)
+                    ));
+                    for (const scoreDoc of mysteryScoresSnap.docs) {
+                        await deleteDoc(scoreDoc.ref);
+                    }
+                }
+            }
             
             // Changer le tour actif
             activeRoundId = nextRound.id;
@@ -3937,7 +4565,12 @@
                 timestamp: new Date()
             });
             
-            await customAlert(`✓ Tour terminé avec succès !\n\n${movedCount} candidat(s) qualifié(s) sont passés au tour "${nextRound.name}".\n\nLe tour actif est maintenant : "${nextRound.name}"\n\nℹ️ Les jurys présents sur le tour suivant verront leur page se recharger automatiquement.`);
+            const mysteryLine = mysteryMoved
+                ? (nextIsRepechage
+                    ? `\n🎭 ${mysteryMoved} candidat mystère passe dans le rattrapage (non qualifiable), puis ira ensuite dans le tour d’attente choisi.`
+                    : `\n🎭 ${mysteryMoved} candidat mystère placé dans le tour d’attente « ${mysteryHoldName} » (visible si ce tour est affiché).`)
+                : '';
+            await customAlert(`✓ Tour terminé avec succès !\n\n${movedCount} candidat(s) qualifié(s) sont passés au tour "${nextRound.name}".${mysteryLine}\n\nLe tour actif est maintenant : "${nextRound.name}"\n\nℹ️ Les jurys présents sur le tour suivant verront leur page se recharger automatiquement.`);
             
             // Rafraîchir l'affichage
             renderNotesTable();
@@ -4517,6 +5150,8 @@
             const addBtn = document.getElementById('add-note-type-btn');
             const elimOptWrap = document.getElementById('eliminate-president-el-option-wrap');
             const elimOptCb = document.getElementById('eliminate-president-all-el');
+            const hideFirstWrap = document.getElementById('hide-first-option-wrap');
+            const hideFirstCb = document.getElementById('hide-first-candidate');
             if (editor) editor.classList.toggle('locked', locked);
             if (help) help.style.display = locked ? 'none' : '';
             if (banner) banner.style.display = locked ? '' : 'none';
@@ -4526,6 +5161,13 @@
                 elimOptCb.checked = !!(round && round.eliminateIfPresidentAllEL);
                 elimOptCb.disabled = locked;
             }
+            if (hideFirstWrap) hideFirstWrap.style.display = locked ? 'none' : '';
+            if (hideFirstCb) {
+                hideFirstCb.checked = !!(round && round.hideFirstCandidate);
+                hideFirstCb.disabled = locked;
+            }
+            updateHideFirstHoldRoundSelect(round);
+            updateHideFirstMysteryInfo(round);
             const types = locked ? defaultNoteTypesForRound(round).map((nt, i) => normalizeNoteType(nt, i)) : getNoteTypesForRound(round);
             tbody.innerHTML = types.map((nt, index) => {
                 const scaleOpts = NOTE_SCALE_OPTIONS.map(opt =>
@@ -4544,6 +5186,164 @@
                 </tr>`;
             }).join('');
         }
+
+        function findPetiteFinaleRound() {
+            return (ROUNDS || []).find(r => r.type === 'Petite finale' || r.type_epreuve === 'petite_finale') || null;
+        }
+
+        function getMysteryHoldRound(sourceRound) {
+            if (!sourceRound) return null;
+            const holdId = sourceRound.mysteryHoldRoundId;
+            if (holdId) {
+                const found = (ROUNDS || []).find(r => String(r.id) === String(holdId));
+                if (found) return found;
+            }
+            // Fallback historique
+            return findPetiteFinaleRound();
+        }
+
+        function updateHideFirstHoldRoundSelect(round) {
+            const wrap = document.getElementById('hide-first-hold-wrap');
+            const select = document.getElementById('hide-first-hold-round');
+            if (!wrap || !select) return;
+            const show = !!(round && round.hideFirstCandidate && !isRepechageRound(round));
+            wrap.style.display = show ? '' : 'none';
+            if (!show) return;
+
+            const sorted = [...(ROUNDS || [])].sort((a, b) => (a.order || 0) - (b.order || 0));
+            const currentId = round.id;
+            const preferred = round.mysteryHoldRoundId
+                || (findPetiteFinaleRound() && findPetiteFinaleRound().id)
+                || '';
+            select.innerHTML = '<option value="">— Choisir un tour —</option>' + sorted
+                .filter(r => String(r.id) !== String(currentId))
+                .map(r => {
+                    const selected = String(r.id) === String(preferred) ? ' selected' : '';
+                    return `<option value="${escapeHtmlAttr(r.id)}"${selected}>${escapeHtmlAttr(r.name || r.id)}</option>`;
+                })
+                .join('');
+
+            // Si aucune valeur encore enregistrée mais un fallback existe, le mémoriser
+            if (!round.mysteryHoldRoundId && preferred) {
+                round.mysteryHoldRoundId = preferred;
+                saveRounds().catch(() => {});
+            }
+        }
+
+        window.setMysteryHoldRound = async function(roundId) {
+            const displayRound = notesDisplayRound || activeRoundId || 'round1';
+            const round = ROUNDS.find(r => r.id === displayRound);
+            if (!round || !round.hideFirstCandidate) return;
+            round.mysteryHoldRoundId = roundId || null;
+            try {
+                await saveRounds();
+                updateHideFirstMysteryInfo(round);
+            } catch (e) {
+                console.error(e);
+                await customAlert('Erreur lors de l\'enregistrement du tour d\'attente : ' + (e.message || e));
+            }
+        };
+
+        function updateHideFirstMysteryInfo(round) {
+            const info = document.getElementById('hide-first-mystery-info');
+            if (!info) return;
+            if (!round || !round.hideFirstCandidate) {
+                info.style.display = 'none';
+                info.textContent = '';
+                return;
+            }
+            const c = (CANDIDATES || []).find(x => String(x.id) === String(round.mysteryCandidateId));
+            const hold = getMysteryHoldRound(round);
+            const holdLabel = hold ? (hold.name || hold.id) : 'non choisi';
+            info.style.display = '';
+            if (c) {
+                const tourLabel = c.tour
+                    ? ((ROUNDS || []).find(r => String(r.id) === String(c.tour))?.name || c.tour)
+                    : '—';
+                info.textContent = 'Candidat mystère : ' + (c.id || '') + ' — ' + (c.name || '')
+                    + ' · actuellement dans « ' + tourLabel + ' »'
+                    + ' · tour d’attente : « ' + holdLabel + ' »';
+            } else if (round.mysteryCandidateId) {
+                info.textContent = 'Candidat mystère : ' + round.mysteryCandidateId
+                    + ' (hors liste actuelle) · tour d’attente : « ' + holdLabel + ' »';
+            } else {
+                info.textContent = 'Candidat mystère : pas encore déterminé (il faut un classement avec des notes). Tour d’attente : « ' + holdLabel + ' ».';
+            }
+        }
+
+        async function refreshMysteryCandidateForRound(roundId, persist) {
+            const round = (ROUNDS || []).find(r => r.id === roundId);
+            if (!round || !round.hideFirstCandidate) return null;
+            try {
+                const scoresQuery = query(collection(db, "scores"), where("roundId", "==", roundId));
+                const scoresSnap = await getDocs(scoresQuery);
+                const totalByCandidate = {};
+                scoresSnap.forEach(d => {
+                    const data = d.data();
+                    const cid = data.candidateId;
+                    if (!cid) return;
+                    const base = data.score_base != null
+                        ? (typeof data.score_base === 'number' ? data.score_base : parseFloat(data.score_base) || 0)
+                        : (typeof computeScoreBase === 'function'
+                            ? computeScoreBase(data.score1, data.score2, roundId, data.score3, data.score4, data.score5, data.score6, data.score7, data.score8, data.score9, data.score10)
+                            : 0);
+                    totalByCandidate[cid] = (totalByCandidate[cid] || 0) + (Number(base) || 0);
+                });
+                const ranked = Object.keys(totalByCandidate)
+                    .map(id => {
+                        const c = (CANDIDATES || []).find(x => String(x.id) === String(id));
+                        return { id, name: c ? c.name : id, total: totalByCandidate[id] };
+                    })
+                    .sort((a, b) => b.total - a.total);
+                const nextId = ranked[0] ? ranked[0].id : null;
+                if (String(round.mysteryCandidateId || '') !== String(nextId || '')) {
+                    round.mysteryCandidateId = nextId;
+                    if (persist !== false) await saveRounds();
+                    if (typeof renderCandidateTable === 'function') renderCandidateTable();
+                }
+                updateHideFirstMysteryInfo(round);
+                return nextId;
+            } catch (e) {
+                console.warn('refreshMysteryCandidateForRound', e);
+                updateHideFirstMysteryInfo(round);
+                return round.mysteryCandidateId || null;
+            }
+        }
+
+        function isMysteryCandidateId(candidateId) {
+            if (candidateId == null || candidateId === '') return false;
+            return (ROUNDS || []).some(r => r.hideFirstCandidate && String(r.mysteryCandidateId) === String(candidateId));
+        }
+
+        window.toggleHideFirstCandidate = async function(enabled) {
+            const displayRound = notesDisplayRound || activeRoundId || 'round1';
+            const round = ROUNDS.find(r => r.id === displayRound);
+            const cb = document.getElementById('hide-first-candidate');
+            if (!round || isRepechageRound(round)) {
+                if (cb) cb.checked = false;
+                return;
+            }
+            round.hideFirstCandidate = !!enabled;
+            if (!enabled) {
+                round.mysteryCandidateId = null;
+                round.mysteryHoldRoundId = null;
+            } else if (!round.mysteryHoldRoundId) {
+                const pf = findPetiteFinaleRound();
+                round.mysteryHoldRoundId = pf ? pf.id : null;
+            }
+            try {
+                await saveRounds();
+                if (enabled) await refreshMysteryCandidateForRound(displayRound, true);
+                updateHideFirstHoldRoundSelect(round);
+                updateHideFirstMysteryInfo(round);
+                if (typeof renderCandidateTable === 'function') renderCandidateTable();
+            } catch (e) {
+                console.error(e);
+                round.hideFirstCandidate = !enabled;
+                if (cb) cb.checked = !!round.hideFirstCandidate;
+                await customAlert('Erreur lors de l\'enregistrement de l\'option : ' + (e.message || e));
+            }
+        };
 
         window.toggleEliminateIfPresidentAllEL = async function(enabled) {
             const displayRound = notesDisplayRound || activeRoundId || 'round1';
@@ -4834,6 +5634,11 @@
             }
             
             console.log(`🔍 [renderNotesTable] Type de tour: ${currentRound?.type}, isRepechage: ${isRepechage}, isGrandeFinale: ${isGrandeFinale}, previousRoundId: ${previousRoundId}`);
+            if (currentRound && currentRound.hideFirstCandidate) {
+                refreshMysteryCandidateForRound(displayRound, true).catch(() => {});
+            } else {
+                updateHideFirstMysteryInfo(currentRound);
+            }
             
             // Charger TOUS les jurys depuis la collection accounts
             await loadJuries();
@@ -5116,13 +5921,17 @@
                 };
             });
             
-            // Filtrer par tour si le checkbox est coché
-            const filterCheckbox = document.getElementById('notes-filter-current-round');
-            if (filterCheckbox && filterCheckbox.checked) {
-                candidatesWithScores = candidatesWithScores.filter(item => 
-                    item.candidate.tour === displayRound
-                );
-            }
+            // Toujours : candidats encore sur ce tour + ceux qui y ont des notes (historique)
+            candidatesWithScores = candidatesWithScores.filter(item => {
+                if (item.candidate.tour === displayRound) return true;
+                const byJury = item.scoresByJury || {};
+                return Object.keys(byJury).length > 0;
+            });
+
+            // Lignes grisées = plus rattachés au tour affiché (notes conservées)
+            candidatesWithScores.forEach(item => {
+                item.isPastRound = item.candidate.tour !== displayRound;
+            });
             
             // Appliquer le tri si une colonne est sélectionnée
             if (notesSortColumn) {
@@ -5151,6 +5960,12 @@
                     if (valA < valB) return notesSortAscending ? -1 : 1;
                     if (valA > valB) return notesSortAscending ? 1 : -1;
                     return 0;
+                });
+            } else {
+                // Par défaut : candidats encore sur le tour d'abord, puis lignes grisées (autre tour)
+                candidatesWithScores.sort((a, b) => {
+                    if (a.isPastRound !== b.isPastRound) return a.isPastRound ? 1 : -1;
+                    return (a.candidate.name || '').localeCompare(b.candidate.name || '', 'fr');
                 });
             }
             
@@ -5199,6 +6014,10 @@
             candidatesWithScores.forEach(item => {
                 const candidate = item.candidate;
                 const row = tbody.insertRow();
+                if (item.isPastRound) {
+                    row.classList.add('notes-row-past-round');
+                    row.title = 'Candidat plus sur ce tour — notes conservées pour consultation';
+                }
                 
                 // ID
                 const idCell = row.insertCell();
@@ -5737,15 +6556,6 @@
                 select.value = sortedRounds[0].id;
             }
             
-            // Attacher l'event listener sur la checkbox de filtrage (si pas déjà fait)
-            const filterCheckbox = document.getElementById('notes-filter-current-round');
-            if (filterCheckbox && !filterCheckbox.hasAttribute('data-listener-attached')) {
-                filterCheckbox.addEventListener('change', () => {
-                    console.log('🔄 Checkbox changée, rechargement du tableau...');
-                    renderNotesTable();
-                });
-                filterCheckbox.setAttribute('data-listener-attached', 'true');
-            }
         }
         
         // Fonction pour remplir le dropdown des tours dans l'onglet Podium
@@ -7586,6 +8396,25 @@
                     return c.hasScores && candidate && candidate.status !== 'Elimine';
                 }).sort((a, b) => b.total - a.total);
             }
+            const podiumRound = ROUNDS.find(r => r.id === displayRound);
+            if (podiumRound && podiumRound.hideFirstCandidate && list.length >= 2) {
+                const scoreOf = (item) => {
+                    const v = item.total != null ? item.total : (item.score_affiché != null ? item.score_affiché : item.score_base);
+                    return typeof v === 'number' ? v : parseFloat(v) || 0;
+                };
+                list = [...list].sort((a, b) => scoreOf(b) - scoreOf(a));
+                const donor = list[Math.min(24, list.length - 1)];
+                const first = list[0];
+                const donorScore = scoreOf(donor);
+                if (first && donor && first.candidateId !== donor.candidateId) {
+                    list = list.map(item => {
+                        const same = (first.candidateId && item.candidateId && item.candidateId === first.candidateId)
+                            || (first.name && item.name && item.name === first.name);
+                        if (!same) return item;
+                        return { ...item, total: donorScore, score_affiché: donorScore };
+                    }).sort((a, b) => scoreOf(b) - scoreOf(a));
+                }
+            }
             if (list.length === 0) {
                 const row = body.insertRow();
                 const cell = row.insertCell();
@@ -8204,25 +9033,15 @@
             }
             
             try {
-                // Supprimer toutes les notations
-                const scoresSnapshot = await getDocs(collection(db, "scores"));
-                const batch1 = writeBatch(db);
-                scoresSnapshot.docs.forEach(d => batch1.delete(d.ref));
-                await batch1.commit();
-                const deletedScores = scoresSnapshot.docs.length;
-                
-                // Supprimer tous les comptes jurys
-                const accountsSnapshot = await getDocs(collection(db, "accounts"));
-                const batch2 = writeBatch(db);
-                accountsSnapshot.docs.forEach(d => batch2.delete(d.ref));
-                await batch2.commit();
-                const deletedJuries = accountsSnapshot.docs.length;
+                const deletedScores = await deleteCollectionInBatches('scores');
+                const deletedJuries = await deleteCollectionInBatches('accounts');
+                await deleteCollectionInBatches('jury_rankings');
                 
                 // Supprimer tous les verrous
                 candidateLocks = {};
                 await setDoc(doc(db, "config", "locks"), { locks: {} });
                 
-                await customAlert(`✓ Suppression terminée avec succès\n\n- ${deletedJuries} jury(s) supprimé(s)\n- ${deletedScores} notation(s) supprimée(s)`);
+                await customAlert(`✓ Suppression terminée avec succès\n\n- ${deletedJuries} jury(s) supprimé(s)\n- ${deletedScores} notation(s) supprimée(s)\n- Classements personnels des jurys effacés`);
                 location.reload();
             } catch (e) {
                 console.error('Erreur:', e);
@@ -8456,6 +9275,7 @@
                         await setDoc(doc(db, "accounts", newJuryId), {
                             name: juryName,
                             password: DEFAULT_JURY_PASSWORD || '',
+                            passwordIsDefault: true,
                             theme: 'light',
                             createdAt: new Date(),
                             isPresident: isFirstJury,
@@ -8465,6 +9285,8 @@
                         JURIES.push({
                             id: newJuryId,
                             name: juryName,
+                            password: DEFAULT_JURY_PASSWORD || '',
+                            passwordIsDefault: true,
                             isPresident: isFirstJury,
                             rounds: defaultRounds
                         });
@@ -8997,10 +9819,7 @@
             if(!await customConfirm("Supprimer TOUTES les notes (les candidats et jurys seront conservés) ?")) return;
             
             try {
-                const snap = await getDocs(collection(db, "scores"));
-                const batch = writeBatch(db);
-                snap.docs.forEach(d => batch.delete(d.ref));
-                await batch.commit();
+                await deleteCollectionInBatches('scores');
                 
                 // Réinitialiser les verrous
                 await setDoc(doc(db, "config", "locks"), { locks: {} });
@@ -9020,15 +9839,7 @@
             }
             
             try {
-                // Créer la configuration par défaut des tours
-                const defaultRounds = [
-                    { id: 'round1', order: 1, name: '1er tour', type: 'Notation individuelle', type_epreuve: 'notation', nextRoundCandidates: 'ALL', active: true },
-                    { id: 'round2', order: 2, name: 'Repechage 1er tour', type: 'Repêchage', type_epreuve: 'repechage', nextRoundCandidates: 18, active: false },
-                    { id: 'round3', order: 3, name: '2eme tour', type: 'Duels', type_epreuve: 'duels', nextRoundCandidates: 'ALL', active: false },
-                    { id: 'round4', order: 4, name: 'Repechage 2eme tour', type: 'Repêchage', type_epreuve: 'repechage', nextRoundCandidates: 7, active: false },
-                    { id: 'round5', order: 5, name: 'Demi-finale', type: 'Duels', type_epreuve: 'duels', nextRoundCandidates: 3, active: false },
-                    { id: 'round6', order: 6, name: 'Finale', type: 'Duels', type_epreuve: 'duels', nextRoundCandidates: 1, active: false }
-                ];
+                const defaultRounds = getDefaultRoundsConfig();
                 
                 // Sauvegarder la configuration par défaut
                 await setDoc(doc(db, "config", "rounds"), { 
@@ -9554,34 +10365,40 @@
         };
 
         window.confirmResetAllScoresAndRounds = async () => {
-            if (!await customConfirm('⚠️ ATTENTION : Réinitialiser tous les scores et tours ?\n\n❌ Toutes les notes de tous les tours seront supprimées\n❌ Tous les duels seront supprimés\n🔄 Tous les candidats seront remis en "Actif" au premier tour\n✅ Les jurys et la liste des candidats seront conservés\n\nCette action est IRRÉVERSIBLE !\n\nContinuer ?')) {
+            if (!await customConfirm('⚠️ ATTENTION : Réinitialiser tous les scores et tours ?\n\n❌ Toutes les notes de tous les tours seront supprimées\n❌ Tous les duels / malus / points de classement seront effacés\n🔄 Tous les candidats seront remis en "Actif" au premier tour\n✅ Les jurys et la liste des candidats (infos d’accueil) seront conservés\n\nCette action est IRRÉVERSIBLE !\n\nContinuer ?')) {
                 return;
             }
             
             try {
                 console.log('🔄 Réinitialisation de tous les scores, tours et duels...');
                 
-                // 1. Supprimer TOUS les scores
-                const scoresSnap = await getDocs(collection(db, "scores"));
-                console.log(`📊 ${scoresSnap.size} score(s) à supprimer`);
-                
-                const batch = writeBatch(db);
-                scoresSnap.docs.forEach(docSnap => {
-                    batch.delete(docSnap.ref);
-                });
-                await batch.commit();
-                console.log('✅ Tous les scores supprimés');
-                
-                // 1b. Supprimer tous les duels
-                const duelSnap = await getDocs(collection(db, "duel_results"));
-                if (duelSnap.size > 0) {
-                    const batchDuels = writeBatch(db);
-                    duelSnap.docs.forEach(d => batchDuels.delete(d.ref));
-                    await batchDuels.commit();
-                    console.log(`✅ ${duelSnap.size} duel(s) supprimé(s)`);
+                const deletedScores = await deleteCollectionInBatches('scores');
+                const deletedDuels = await deleteCollectionInBatches('duel_results');
+                await deleteCollectionInBatches('jury_rankings');
+                await deleteCollectionInBatches('classement_activations');
+                await deleteCollectionInBatches('grande_finale_auto_state');
+
+                const classementsSnap = await getDocs(collection(db, 'classements'));
+                for (const d of classementsSnap.docs) {
+                    await setDoc(d.ref, {
+                        ...d.data(),
+                        entries: [],
+                        duelBonusEnabled: [],
+                        malusDisabled: [],
+                        lastUpdateSource: 'admin_reset_all_scores_and_rounds',
+                        updatedAt: new Date()
+                    }, { merge: true });
                 }
+
+                await setDoc(doc(db, 'config', 'malus'), { byRound: {} });
+                await setDoc(doc(db, 'config', 'validated_rounds'), { rounds: {} });
+                await setDoc(doc(db, 'config', 'activations'), {
+                    bonusActif: false,
+                    classementActif: false,
+                    classementIdActif: ''
+                });
                 
-                // 2. Charger les candidats
+                // Charger les candidats
                 const candidatesDoc = await getDoc(doc(db, "candidats", "liste_actuelle"));
                 if (!candidatesDoc.exists()) {
                     await customAlert('Aucun candidat trouvé');
@@ -9589,37 +10406,31 @@
                 }
                 
                 const allCandidates = candidatesDoc.data().candidates || [];
-                console.log(`📋 ${allCandidates.length} candidat(s) trouvé(s)`);
                 
-                // 3. Trouver le premier tour (par ordre)
+                // Trouver le premier tour (par ordre)
                 const sortedRounds = [...ROUNDS].sort((a, b) => a.order - b.order);
                 const firstRound = sortedRounds.length > 0 ? sortedRounds[0] : { id: 'round1' };
-                console.log(`🎯 Premier tour : ${firstRound.id} (${firstRound.name || firstRound.id})`);
                 
-                // 4. Remettre tous les candidats au premier tour en statut "Actif"
+                // Remettre tous les candidats au premier tour en statut "Actif"
+                // (conserve email / téléphone / niveau / établissement)
                 allCandidates.forEach(candidate => {
                     candidate.tour = firstRound.id;
                     candidate.status = 'Actif';
+                    candidate.punctuality = '';
                 });
                 
-                // 5. Sauvegarder les candidats
                 await setDoc(doc(db, "candidats", "liste_actuelle"), { candidates: allCandidates });
-                console.log(`✅ ${allCandidates.length} candidat(s) remis en "Actif" au tour ${firstRound.id}`);
                 
-                // 6. Réinitialiser le tour actif au premier tour
                 ROUNDS.forEach(r => r.active = (r.id === firstRound.id));
                 activeRoundId = firstRound.id;
                 await saveRounds();
-                console.log(`✅ Tour actif réinitialisé à ${firstRound.id}`);
                 
-                // 7. Réinitialiser les verrous
                 await setDoc(doc(db, "config", "locks"), { locks: {} });
-                console.log('✅ Verrous réinitialisés');
+                candidateLocks = {};
                 
-                const duelMsg = duelSnap.size > 0 ? `\n❌ ${duelSnap.size} duel(s) supprimé(s)` : '';
-                await customAlert(`✓ Réinitialisation terminée !\n\n❌ ${scoresSnap.size} note(s) supprimée(s)${duelMsg}\n🔄 ${allCandidates.length} candidat(s) remis en "Actif" au tour "${firstRound.name || firstRound.id}"\n🎯 Tour actif réinitialisé à "${firstRound.name || firstRound.id}"\n✅ Jurys et candidats conservés`);
+                const duelMsg = deletedDuels > 0 ? `\n❌ ${deletedDuels} duel(s) supprimé(s)` : '';
+                await customAlert(`✓ Réinitialisation terminée !\n\n❌ ${deletedScores} note(s) supprimée(s)${duelMsg}\n❌ Malus / classements / validations effacés\n🔄 ${allCandidates.length} candidat(s) remis en "Actif" au tour "${firstRound.name || firstRound.id}"\n✅ Jurys et candidats conservés`);
                 
-                // Rafraîchir l'affichage
                 CANDIDATES = allCandidates;
                 duelsList = [];
                 await loadList();
@@ -9631,6 +10442,32 @@
             }
         };
 
+        async function deleteCollectionInBatches(collectionName) {
+            const snap = await getDocs(collection(db, collectionName));
+            const BATCH_SIZE = 450;
+            let deleted = 0;
+            for (let i = 0; i < snap.docs.length; i += BATCH_SIZE) {
+                const batch = writeBatch(db);
+                snap.docs.slice(i, i + BATCH_SIZE).forEach(d => {
+                    batch.delete(d.ref);
+                    deleted++;
+                });
+                await batch.commit();
+            }
+            return deleted;
+        }
+
+        function getDefaultRoundsConfig() {
+            return [
+                { id: 'round1', order: 1, name: '1er tour', type: 'Notation individuelle', type_epreuve: 'notation', nextRoundCandidates: 'ALL', active: true },
+                { id: 'round2', order: 2, name: 'Repechage 1er tour', type: 'Repêchage', type_epreuve: 'repechage', nextRoundCandidates: 18, active: false },
+                { id: 'round3', order: 3, name: '2eme tour', type: 'Duels', type_epreuve: 'duels', nextRoundCandidates: 'ALL', active: false },
+                { id: 'round4', order: 4, name: 'Repechage 2eme tour', type: 'Repêchage', type_epreuve: 'repechage', nextRoundCandidates: 7, active: false },
+                { id: 'round5', order: 5, name: 'Demi-finale', type: 'Duels', type_epreuve: 'duels', nextRoundCandidates: 3, active: false },
+                { id: 'round6', order: 6, name: 'Finale', type: 'Duels', type_epreuve: 'duels', nextRoundCandidates: 1, active: false }
+            ];
+        }
+
         window.confirmResetAll = async () => {
             const confirmation = await customPrompt('Pour confirmer la réinitialisation TOTALE, tapez "RESET":');
             if (confirmation !== 'RESET') {
@@ -9639,76 +10476,309 @@
             }
             
             try {
-                // Supprimer les scores
-                const scoresSnap = await getDocs(collection(db, "scores"));
-                const batch1 = writeBatch(db);
-                scoresSnap.docs.forEach(d => batch1.delete(d.ref));
-                await batch1.commit();
-                
-                // Supprimer tous les duels
-                const duelSnap = await getDocs(collection(db, "duel_results"));
-                if (duelSnap.size > 0) {
-                    const batchDuels = writeBatch(db);
-                    duelSnap.docs.forEach(d => batchDuels.delete(d.ref));
-                    await batchDuels.commit();
+                // Collections de données concours
+                await deleteCollectionInBatches('scores');
+                await deleteCollectionInBatches('duel_results');
+                await deleteCollectionInBatches('jury_rankings');
+                await deleteCollectionInBatches('classement_activations');
+                await deleteCollectionInBatches('activation_logs');
+                await deleteCollectionInBatches('grande_finale_auto_state');
+                await deleteCollectionInBatches('accounts');
+
+                // Classements : suppression complète des documents
+                await deleteCollectionInBatches('classements');
+
+                // Candidats (email, téléphone, niveau, établissement, ponctualité inclus)
+                await setDoc(doc(db, 'candidats', 'liste_actuelle'), { candidates: [] });
+
+                // Configs de concours
+                await setDoc(doc(db, 'config', 'locks'), { locks: {} });
+                await setDoc(doc(db, 'config', 'malus'), { byRound: {} });
+                await setDoc(doc(db, 'config', 'validated_rounds'), { rounds: {} });
+                await setDoc(doc(db, 'config', 'activations'), {
+                    bonusActif: false,
+                    classementActif: false,
+                    classementIdActif: ''
+                });
+                await setDoc(doc(db, 'config', 'finale_lock'), { locked: false, updatedAt: new Date() });
+                await setDoc(doc(db, 'config', 'petite_finale_critere_choix'), { choicesByRound: {} });
+                await setDoc(doc(db, 'config', 'petite_finale_critere_toggle'), { enabledByRound: {} });
+                await setDoc(doc(db, 'config', 'roundChange'), { ping: Date.now() });
+                await setDoc(doc(db, 'config', 'chronoSync'), {});
+                await setDoc(doc(db, 'config', 'chronoRtc'), {});
+
+                // Votes publics
+                await setDoc(doc(db, 'vote_public', 'totaux'), { _resetAt: serverTimestamp() });
+                await setDoc(doc(db, 'vote_public', 'stats'), { visitorCount: 0, locked: false }, { merge: true });
+
+                // Tours remis à la config par défaut (nouveaux paramètres de tours effacés)
+                const defaultRounds = getDefaultRoundsConfig();
+                await setDoc(doc(db, 'config', 'rounds'), {
+                    rounds: defaultRounds,
+                    activeRoundId: 'round1'
+                });
+
+                // Modèles d’emails résultats (stockage local)
+                try {
+                    localStorage.removeItem('concours_result_email_templates_v1');
+                } catch (e) {
+                    console.warn('Impossible de vider les modèles email locaux', e);
                 }
 
-                // Supprimer tous les points de classement (jury_rankings, classements, classement_activations)
-                const juryRankingsSnap = await getDocs(collection(db, "jury_rankings"));
-                if (juryRankingsSnap.size > 0) {
-                    const batchCR = writeBatch(db);
-                    juryRankingsSnap.docs.forEach(d => batchCR.delete(d.ref));
-                    await batchCR.commit();
-                }
-                const classementsSnap = await getDocs(collection(db, "classements"));
-                for (const d of classementsSnap.docs) {
-                    await setDoc(d.ref, { ...d.data(), entries: [], updatedAt: new Date() }, { merge: true });
-                }
-                const activationsSnap = await getDocs(collection(db, "classement_activations"));
-                if (activationsSnap.size > 0) {
-                    const batchAct = writeBatch(db);
-                    activationsSnap.docs.forEach(d => batchAct.delete(d.ref));
-                    await batchAct.commit();
-                }
-                
-                // Supprimer tous les jurys
-                const accountsSnap = await getDocs(collection(db, "accounts"));
-                const batch2 = writeBatch(db);
-                accountsSnap.docs.forEach(d => batch2.delete(d.ref));
-                await batch2.commit();
-                
-                // Supprimer les candidats
-                await setDoc(doc(db, "candidats", "liste_actuelle"), { candidates: [] });
-                
-                // Réinitialiser les verrous
-                await setDoc(doc(db, "config", "locks"), { locks: {} });
-                
-                // Réinitialiser le tour actif au premier tour (round1)
-                // Recharger les ROUNDS pour être sûr d'avoir les données à jour
-                const roundsDoc = await getDoc(doc(db, "config", "rounds"));
-                let firstRoundId = 'round1'; // Valeur par défaut
-                let loadedRounds = [];
-                if (roundsDoc.exists() && roundsDoc.data().rounds) {
-                    loadedRounds = roundsDoc.data().rounds;
-                    const sortedRounds = [...loadedRounds].sort((a, b) => a.order - b.order);
-                    if (sortedRounds.length > 0) {
-                        firstRoundId = sortedRounds[0].id;
-                    }
-                }
-                // Le tour actif est stocké dans config/rounds avec le champ activeRoundId
-                await setDoc(doc(db, "config", "rounds"), { 
-                    rounds: loadedRounds,
-                    activeRoundId: firstRoundId 
-                });
-                console.log(`✅ Tour actif réinitialisé à: ${firstRoundId}`);
-                
-                await customAlert('✓ Réinitialisation complète effectuée\n\n- Tous les jurys supprimés\n- Tous les candidats supprimés\n- Toutes les notations supprimées\n- Tous les duels supprimés\n- Tous les points de classement supprimés\n- Tous les verrous supprimés\n- Tour actif remis au premier tour');
+                candidateLocks = {};
+                CANDIDATES = [];
+                JURIES = [];
+                ROUNDS = defaultRounds;
+                activeRoundId = 'round1';
+
+                await customAlert('✓ Réinitialisation complète effectuée\n\n- Jurys supprimés\n- Candidats et infos d’accueil supprimés\n- Notes / duels / classements / malus supprimés\n- Votes publics réinitialisés\n- Tours remis par défaut\n- Validations et paramètres de concours effacés');
                 location.reload();
             } catch (e) {
                 console.error('Erreur:', e);
                 await customAlert('❌ Erreur lors de la réinitialisation:\n' + e.message);
             }
         };
+
+        // --- EMAILS RÉSULTATS (mailto, option gratuite) ---
+        const RESULT_EMAIL_STORAGE_KEY = 'concours_result_email_templates_v1';
+        const DEFAULT_RESULT_EMAIL_TEMPLATES = {
+            retenu: {
+                subject: 'Résultat du concours d’éloquence — vous êtes retenu(e)',
+                body: 'Bonjour,\n\nNous avons le plaisir de vous informer que vous êtes retenu(e) pour la suite du concours d’éloquence.\n\nNous vous recontacterons très bientôt avec les informations pratiques.\n\nMerci pour votre participation et à bientôt.\n\nL’équipe du concours d’éloquence'
+            },
+            non_retenu: {
+                subject: 'Résultat du concours d’éloquence — suite de votre candidature',
+                body: 'Bonjour,\n\nMerci pour votre participation au concours d’éloquence.\n\nAprès examen des prestations, nous sommes au regret de vous informer que vous n’avez pas été retenu(e) pour la suite.\n\nNous vous félicitons pour votre engagement et espérons vous revoir lors d’une prochaine édition.\n\nBien cordialement,\nL’équipe du concours d’éloquence'
+            }
+        };
+
+        function getResultEmailTemplates() {
+            try {
+                const raw = localStorage.getItem(RESULT_EMAIL_STORAGE_KEY);
+                if (!raw) return { ...DEFAULT_RESULT_EMAIL_TEMPLATES, retenu: { ...DEFAULT_RESULT_EMAIL_TEMPLATES.retenu }, non_retenu: { ...DEFAULT_RESULT_EMAIL_TEMPLATES.non_retenu } };
+                const parsed = JSON.parse(raw);
+                return {
+                    retenu: {
+                        subject: parsed?.retenu?.subject || DEFAULT_RESULT_EMAIL_TEMPLATES.retenu.subject,
+                        body: parsed?.retenu?.body || DEFAULT_RESULT_EMAIL_TEMPLATES.retenu.body
+                    },
+                    non_retenu: {
+                        subject: parsed?.non_retenu?.subject || DEFAULT_RESULT_EMAIL_TEMPLATES.non_retenu.subject,
+                        body: parsed?.non_retenu?.body || DEFAULT_RESULT_EMAIL_TEMPLATES.non_retenu.body
+                    }
+                };
+            } catch (e) {
+                return {
+                    retenu: { ...DEFAULT_RESULT_EMAIL_TEMPLATES.retenu },
+                    non_retenu: { ...DEFAULT_RESULT_EMAIL_TEMPLATES.non_retenu }
+                };
+            }
+        }
+
+        window.initResultEmailTemplates = () => {
+            const templates = getResultEmailTemplates();
+            const subjectRetenu = document.getElementById('email-subject-retenu');
+            const bodyRetenu = document.getElementById('email-body-retenu');
+            const subjectNon = document.getElementById('email-subject-non-retenu');
+            const bodyNon = document.getElementById('email-body-non-retenu');
+            if (subjectRetenu) subjectRetenu.value = templates.retenu.subject;
+            if (bodyRetenu) bodyRetenu.value = templates.retenu.body;
+            if (subjectNon) subjectNon.value = templates.non_retenu.subject;
+            if (bodyNon) bodyNon.value = templates.non_retenu.body;
+        };
+
+        window.saveResultEmailTemplates = () => {
+            const templates = {
+                retenu: {
+                    subject: document.getElementById('email-subject-retenu')?.value || DEFAULT_RESULT_EMAIL_TEMPLATES.retenu.subject,
+                    body: document.getElementById('email-body-retenu')?.value || DEFAULT_RESULT_EMAIL_TEMPLATES.retenu.body
+                },
+                non_retenu: {
+                    subject: document.getElementById('email-subject-non-retenu')?.value || DEFAULT_RESULT_EMAIL_TEMPLATES.non_retenu.subject,
+                    body: document.getElementById('email-body-non-retenu')?.value || DEFAULT_RESULT_EMAIL_TEMPLATES.non_retenu.body
+                }
+            };
+            localStorage.setItem(RESULT_EMAIL_STORAGE_KEY, JSON.stringify(templates));
+        };
+
+        window.toggleResultEmailTemplates = () => {
+            const panel = document.getElementById('result-email-templates');
+            const btn = document.getElementById('toggle-result-email-templates-btn');
+            if (!panel) return;
+            const open = panel.style.display === 'none' || panel.style.display === '';
+            panel.style.display = open ? 'block' : 'none';
+            if (btn) btn.textContent = open ? '▲ Masquer les messages' : '✏️ Modifier les messages';
+            if (open) initResultEmailTemplates();
+        };
+
+        function getNotesDisplayedRoundId() {
+            const select = document.getElementById('notes-round-select');
+            return (select && select.value) ? select.value : (activeRoundId || 'round1');
+        }
+
+        function normalizeCandidateEmail(email) {
+            return String(email || '').trim().toLowerCase();
+        }
+
+        function isValidEmail(email) {
+            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+        }
+
+        async function copyTextToClipboard(text) {
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(text);
+                    return true;
+                }
+            } catch (e) {
+                console.warn(e);
+            }
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.setAttribute('readonly', '');
+                ta.style.position = 'fixed';
+                ta.style.left = '-9999px';
+                document.body.appendChild(ta);
+                ta.select();
+                const ok = document.execCommand('copy');
+                document.body.removeChild(ta);
+                return ok;
+            } catch (e) {
+                console.warn(e);
+                return false;
+            }
+        }
+
+        function closeResultEmailPrepModal() {
+            const el = document.getElementById('result-email-prep-modal');
+            if (el) el.remove();
+        }
+
+        function showResultEmailPrepModal({ subject, fullBody, label }) {
+            closeResultEmailPrepModal();
+            const mailto = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(fullBody)}`;
+            const gmail = `https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(fullBody)}`;
+            const outlook = `https://outlook.live.com/mail/0/deeplink/compose?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(fullBody)}`;
+
+            const modal = document.createElement('div');
+            modal.id = 'result-email-prep-modal';
+            modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;';
+            modal.innerHTML = `
+                <div style="width:100%;max-width:640px;background:var(--card-bg,#fff);color:var(--text-color,#111);border-radius:12px;border:1px solid var(--border-color,#ddd);box-shadow:0 12px 40px rgba(0,0,0,0.25);padding:18px;">
+                    <h3 style="margin:0 0 8px 0;">Mail ${label} prêt</h3>
+                    <p style="margin:0 0 12px 0;color:var(--text-secondary,#666);font-size:0.92em;line-height:1.4;">
+                        1) Ouvre ton client mail (Gmail recommandé si aucun logiciel n’est installé)<br>
+                        2) Coupe la 1<sup>re</sup> ligne du message → colle-la en <strong>CCI</strong><br>
+                        3) Envoie
+                    </p>
+                    <label style="display:block;font-weight:600;margin-bottom:4px;">Objet</label>
+                    <input id="result-email-prep-subject" type="text" readonly value="" style="width:100%;box-sizing:border-box;padding:8px 10px;margin-bottom:10px;border:1px solid var(--border-color,#ccc);border-radius:6px;background:var(--input-bg,#f7f7f7);color:inherit;font-family:inherit;">
+                    <label style="display:block;font-weight:600;margin-bottom:4px;">Message (1<sup>re</sup> ligne = emails)</label>
+                    <textarea id="result-email-prep-body" readonly rows="10" style="width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--border-color,#ccc);border-radius:6px;background:var(--input-bg,#f7f7f7);color:inherit;font-family:inherit;resize:vertical;line-height:1.35;"></textarea>
+                    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;">
+                        <button type="button" id="result-email-copy-body" class="action-button" style="background:linear-gradient(135deg,#28a745 0%,#1e7e34 100%);color:#fff;">Copier le message</button>
+                        <button type="button" id="result-email-copy-subject" class="action-button" style="background:linear-gradient(135deg,#6c757d 0%,#495057 100%);color:#fff;">Copier l’objet</button>
+                        <a id="result-email-open-gmail" href="${gmail}" target="_blank" rel="noopener" class="action-button" style="display:inline-block;text-decoration:none;background:linear-gradient(135deg,#ea4335 0%,#c5221f 100%);color:#fff;text-align:center;">Ouvrir Gmail</a>
+                        <a id="result-email-open-outlook" href="${outlook}" target="_blank" rel="noopener" class="action-button" style="display:inline-block;text-decoration:none;background:linear-gradient(135deg,#0078d4 0%,#106ebe 100%);color:#fff;text-align:center;">Ouvrir Outlook</a>
+                        <button type="button" id="result-email-open-mailto" class="action-button" style="background:linear-gradient(135deg,#2196f3 0%,#1565c0 100%);color:#fff;">Client mail (mailto)</button>
+                        <button type="button" id="result-email-prep-close" class="action-button" style="margin-left:auto;background:#e9ecef;color:#333;">Fermer</button>
+                    </div>
+                    <p id="result-email-prep-status" style="margin:10px 0 0 0;font-size:0.9em;color:var(--text-secondary,#666);min-height:1.2em;"></p>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            const subjectInput = modal.querySelector('#result-email-prep-subject');
+            const bodyArea = modal.querySelector('#result-email-prep-body');
+            const statusEl = modal.querySelector('#result-email-prep-status');
+            subjectInput.value = subject;
+            bodyArea.value = fullBody;
+
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeResultEmailPrepModal();
+            });
+            modal.querySelector('#result-email-prep-close').addEventListener('click', closeResultEmailPrepModal);
+            modal.querySelector('#result-email-copy-body').addEventListener('click', async () => {
+                const ok = await copyTextToClipboard(fullBody);
+                statusEl.textContent = ok ? '✓ Message copié. Colle-le dans ton mail, puis coupe la 1re ligne vers CCI.' : 'Copie impossible : sélectionne le texte manuellement.';
+            });
+            modal.querySelector('#result-email-copy-subject').addEventListener('click', async () => {
+                const ok = await copyTextToClipboard(subject);
+                statusEl.textContent = ok ? '✓ Objet copié.' : 'Copie impossible.';
+            });
+            modal.querySelector('#result-email-open-mailto').addEventListener('click', () => {
+                // Évite window.location (souvent transformé en recherche si aucun client mail)
+                const a = document.createElement('a');
+                a.href = mailto;
+                a.style.display = 'none';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                statusEl.textContent = 'Si une recherche s’ouvre, aucun client mail n’est défini sur cet ordi : utilise Gmail ou Outlook ci-dessus.';
+            });
+        }
+
+        window.openResultEmail = async (kind) => {
+            const isRetenu = kind === 'retenu';
+            const statusWanted = isRetenu ? 'Qualifie' : 'Elimine';
+            const label = isRetenu ? 'retenus' : 'non retenus';
+            const roundId = getNotesDisplayedRoundId();
+
+            const candidatesOnRound = (CANDIDATES || []).filter(c => c.tour === roundId && c.status === statusWanted);
+            if (candidatesOnRound.length === 0) {
+                await customAlert(`Aucun candidat « ${isRetenu ? 'Qualifié' : 'Éliminé'} » sur le tour affiché.`);
+                return;
+            }
+
+            const withEmail = [];
+            const withoutEmail = [];
+            const seen = new Set();
+            candidatesOnRound.forEach(c => {
+                const email = normalizeCandidateEmail(c.email);
+                if (email && isValidEmail(email)) {
+                    if (!seen.has(email)) {
+                        seen.add(email);
+                        withEmail.push({ name: c.name || c.id, email });
+                    }
+                } else {
+                    withoutEmail.push(c.name || c.id);
+                }
+            });
+
+            if (withEmail.length === 0) {
+                await customAlert(`Aucun email valide pour les candidats ${label}.\n\nAjoutez les emails dans l’onglet Candidats.`);
+                return;
+            }
+
+            if (withoutEmail.length > 0) {
+                const preview = withoutEmail.slice(0, 8).map(n => `- ${n}`).join('\n');
+                const more = withoutEmail.length > 8 ? `\n… et ${withoutEmail.length - 8} autre(s)` : '';
+                const ok = await customConfirm(
+                    `${withoutEmail.length} candidat(s) ${label} sans email valide seront ignorés :\n${preview}${more}\n\nContinuer avec ${withEmail.length} email(s) ?`
+                );
+                if (!ok) return;
+            }
+
+            initResultEmailTemplates();
+            const templates = getResultEmailTemplates();
+            const subjectFromUi = document.getElementById(isRetenu ? 'email-subject-retenu' : 'email-subject-non-retenu')?.value;
+            const bodyFromUi = document.getElementById(isRetenu ? 'email-body-retenu' : 'email-body-non-retenu')?.value;
+            const subject = (subjectFromUi != null && subjectFromUi !== '') ? subjectFromUi : (isRetenu ? templates.retenu.subject : templates.non_retenu.subject);
+            const messageBody = (bodyFromUi != null && bodyFromUi !== '') ? bodyFromUi : (isRetenu ? templates.retenu.body : templates.non_retenu.body);
+
+            const emailsLine = withEmail.map(c => c.email).join(', ');
+            const fullBody = `${emailsLine}\n\n${messageBody}`;
+
+            showResultEmailPrepModal({ subject, fullBody, label });
+        };
+
+        // Init templates au chargement
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => initResultEmailTemplates());
+        } else {
+            initResultEmailTemplates();
+        }
 
         // Export vers CSV
         // Export des notes en CSV (format éditable)
@@ -10248,6 +11318,1152 @@
                 window.location.href = 'index.html';
             }
         };
+
+        // --- STATISTIQUES ---
+        let statsScope = 'candidats';
+        let statsCandidateMode = 'notes';
+        let statsCompareMode = 'notes';
+        let statsCompareSelected = new Set();
+        let statsCandidateChart = null;
+        let statsCompareChart = null;
+        let statsScoresCache = null;
+        let statsScoresCacheAt = 0;
+        const STATS_COMPARE_COLORS = [
+            '#3b6fd9', '#e05a8c', '#f59e0b', '#8b5cf6', '#14b8a6',
+            '#ef4444', '#84cc16', '#06b6d4', '#f97316', '#a855f7',
+            '#0ea5e9', '#d946ef', '#65a30d', '#e11d48', '#2563eb'
+        ];
+        const STATS_GLOBAL_COLOR = '#111111';
+
+        function statsFmt(n, digits = 2) {
+            if (n == null || Number.isNaN(Number(n))) return '—';
+            const fixed = Number(n).toFixed(digits);
+            return fixed.replace(/(\.\d*?[1-9])0+$/, '$1').replace(/\.0+$/, '');
+        }
+
+        function getStatsNoteScaleMax(nt) {
+            if (!nt) return 20;
+            if (nt.scale === 'binary') return null;
+            if (nt.scale === 'rangeCustom') return clampRangeMax(nt.rangeMax) || 20;
+            return 20;
+        }
+
+        function parseStatsNoteRaw(raw) {
+            if (raw == null || raw === '' || raw === '-' || raw === 'EL') return null;
+            const n = parseFloat(raw);
+            return Number.isNaN(n) ? null : n;
+        }
+
+        /** Note utilisable pour les stats : exclut 0, 1, binary, EL, vide. Remise sur 20. */
+        function normalizeStatsNote(raw, noteType) {
+            if (noteType && noteType.scale === 'binary') return null;
+            const n = parseStatsNoteRaw(raw);
+            if (n == null || n === 0 || n === 1) return null;
+            const max = getStatsNoteScaleMax(noteType);
+            if (max == null || max <= 0) return null;
+            return (n / max) * 20;
+        }
+
+        function averageOf(nums) {
+            if (!nums || !nums.length) return null;
+            return nums.reduce((a, b) => a + b, 0) / nums.length;
+        }
+
+        function weightedAverage(values, weights) {
+            if (!values || !values.length) return null;
+            let sum = 0;
+            let wSum = 0;
+            for (let i = 0; i < values.length; i++) {
+                const w = Number(weights[i]) || 0;
+                if (w === 0) continue;
+                sum += values[i] * w;
+                wSum += w;
+            }
+            if (wSum === 0) return averageOf(values);
+            return sum / wSum;
+        }
+
+        function stdDev(nums) {
+            if (!nums || nums.length < 2) return null;
+            const m = averageOf(nums);
+            const v = nums.reduce((acc, x) => acc + (x - m) ** 2, 0) / nums.length;
+            return Math.sqrt(v);
+        }
+
+        async function loadAllScoresForStats(force = false) {
+            const now = Date.now();
+            if (!force && statsScoresCache && (now - statsScoresCacheAt) < 15000) {
+                return statsScoresCache;
+            }
+            const snap = await getDocs(collection(db, 'scores'));
+            const rows = [];
+            snap.forEach(d => {
+                rows.push({ id: d.id, ...d.data() });
+            });
+            statsScoresCache = rows;
+            statsScoresCacheAt = now;
+            return rows;
+        }
+
+        function collectValidNotesFromScore(scoreDoc, noteTypes) {
+            const out = [];
+            (noteTypes || []).forEach(nt => {
+                const remapped = normalizeStatsNote(scoreDoc[nt.field], nt);
+                if (remapped == null) return;
+                out.push({
+                    value20: remapped,
+                    coefficient: Number(nt.coefficient) || 1,
+                    field: nt.field,
+                    name: nt.name || nt.field,
+                    noteType: nt,
+                    juryId: scoreDoc.juryId || scoreDoc.juryName,
+                    candidateId: scoreDoc.candidateId,
+                    roundId: scoreDoc.roundId
+                });
+            });
+            return out;
+        }
+
+        /** Moyenne d'un candidat sur un tour : moyenne des notes (par type, moyennée sur les jurys) avec/sans coef. */
+        function computeCandidateRoundAverages(candidateId, roundId, scores, noteTypes) {
+            const types = (noteTypes || []).filter(nt => nt.scale !== 'binary');
+            const perType = [];
+            types.forEach(nt => {
+                const vals = [];
+                scores.forEach(s => {
+                    if (s.candidateId !== candidateId || s.roundId !== roundId) return;
+                    const v = normalizeStatsNote(s[nt.field], nt);
+                    if (v != null) vals.push(v);
+                });
+                if (vals.length) {
+                    perType.push({
+                        name: nt.name || nt.field,
+                        field: nt.field,
+                        coefficient: Number(nt.coefficient) || 1,
+                        value20: averageOf(vals)
+                    });
+                }
+            });
+            if (!perType.length) {
+                return { withCoef: null, withoutCoef: null, notes: [], count: 0 };
+            }
+            return {
+                withCoef: weightedAverage(perType.map(p => p.value20), perType.map(p => p.coefficient)),
+                withoutCoef: averageOf(perType.map(p => p.value20)),
+                notes: perType,
+                count: perType.length
+            };
+        }
+
+        function resolveStatsJuryName(scoreDoc) {
+            const jid = scoreDoc.juryId || scoreDoc.juryName;
+            const j = JURIES.find(x => x.id === jid || x.name === jid || x.name === scoreDoc.juryName);
+            return (j && j.name) || scoreDoc.juryName || jid || '?';
+        }
+
+        /**
+         * Collecte toutes les notes réelles d'un candidat (docs scores), tour par tour.
+         * Ordre : tours → types de notes → jurys (nom). Ne dépend pas d'une liste fixe de jurys
+         * (les jurys peuvent changer d'un tour à l'autre sans perdre de notes).
+         */
+        function collectCandidateNotePoints(candidateId, roundIdFilter, scores) {
+            const points = [];
+            const roundsOrdered = [...ROUNDS]
+                .filter(r => !isRepechageRound(r))
+                .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+            roundsOrdered.forEach(round => {
+                if (roundIdFilter && roundIdFilter !== 'all' && round.id !== roundIdFilter) return;
+
+                const noteTypes = getNoteTypesForRound(round).filter(nt => nt.scale !== 'binary');
+                const candScores = (scores || []).filter(s =>
+                    s.candidateId === candidateId && s.roundId === round.id
+                ).slice().sort((a, b) =>
+                    resolveStatsJuryName(a).localeCompare(resolveStatsJuryName(b), 'fr')
+                );
+
+                noteTypes.forEach(nt => {
+                    candScores.forEach(s => {
+                        const value20 = normalizeStatsNote(s[nt.field], nt);
+                        if (value20 == null) return;
+                        const juryName = resolveStatsJuryName(s);
+                        const juryKey = String(s.juryId || s.juryName || juryName);
+                        const multiRound = !roundIdFilter || roundIdFilter === 'all';
+                        const label = multiRound
+                            ? `${round.name || round.id} — ${nt.name || nt.field} de ${juryName}`
+                            : `${nt.name || nt.field} de ${juryName}`;
+                        points.push({
+                            roundId: round.id,
+                            roundName: round.name || round.id,
+                            field: nt.field,
+                            noteName: nt.name || nt.field,
+                            juryKey,
+                            juryName,
+                            coefficient: Number(nt.coefficient) || 1,
+                            value20,
+                            label,
+                            slotKey: `${round.id}::${nt.field}::${juryKey}`
+                        });
+                    });
+                });
+            });
+            return points;
+        }
+
+        /** Série graphique à partir des notes réellement saisies (aucune note perdue si les jurys changent). */
+        function buildCandidateNotesSeries(candidateId, roundIdFilter, scores, candidatesOnRound) {
+            const myPoints = collectCandidateNotePoints(candidateId, roundIdFilter, scores);
+            if (!myPoints.length) {
+                return { labels: [], noteValues: [], runningAvg: [], classAvg: [], notes: [] };
+            }
+
+            const candIds = (candidatesOnRound && candidatesOnRound.length)
+                ? candidatesOnRound.map(c => c.id)
+                : [...new Set((scores || []).map(s => s.candidateId).filter(Boolean))];
+
+            // Index rapide : candidat → slotKey → valeur
+            const valueByCandSlot = {};
+            candIds.forEach(cid => {
+                valueByCandSlot[cid] = {};
+                collectCandidateNotePoints(cid, roundIdFilter, scores).forEach(p => {
+                    valueByCandSlot[cid][p.slotKey] = p;
+                });
+            });
+
+            const labels = [];
+            const noteValues = [];
+            const runningAvg = [];
+            const classAvg = [];
+            const notesMeta = [];
+            const cumValues = [];
+            const cumWeights = [];
+            const slotKeysSoFar = [];
+
+            myPoints.forEach(point => {
+                labels.push(point.label);
+                noteValues.push(+point.value20.toFixed(2));
+                notesMeta.push(point);
+
+                cumValues.push(point.value20);
+                cumWeights.push(point.coefficient);
+                slotKeysSoFar.push(point.slotKey);
+                runningAvg.push(+weightedAverage(cumValues, cumWeights).toFixed(2));
+
+                // Classe : candidats ayant cette même note (même tour/critère/jury), moyenne de leur cumul
+                const classRunnings = [];
+                candIds.forEach(cid => {
+                    const map = valueByCandSlot[cid];
+                    if (!map || !map[point.slotKey]) return;
+                    const vals = [];
+                    const weights = [];
+                    slotKeysSoFar.forEach(key => {
+                        const p = map[key];
+                        if (!p) return;
+                        vals.push(p.value20);
+                        weights.push(p.coefficient);
+                    });
+                    const run = weightedAverage(vals, weights);
+                    if (run != null) classRunnings.push(run);
+                });
+                classAvg.push(classRunnings.length ? +averageOf(classRunnings).toFixed(2) : null);
+            });
+
+            return { labels, noteValues, runningAvg, classAvg, notes: notesMeta };
+        }
+
+        function buildCandidateToursSeries(candidateId, scores) {
+            const labels = [];
+            const candAvg = [];
+            const classAvg = [];
+            const tourStats = [];
+
+            const roundsOrdered = [...ROUNDS].sort((a, b) => (a.order || 0) - (b.order || 0));
+            roundsOrdered.forEach(round => {
+                if (isRepechageRound(round)) return;
+                const noteTypes = getNoteTypesForRound(round);
+                const mine = computeCandidateRoundAverages(candidateId, round.id, scores, noteTypes);
+                if (mine.withCoef == null) return;
+
+                const others = [];
+                CANDIDATES.forEach(c => {
+                    const hasScore = scores.some(s => s.roundId === round.id && s.candidateId === c.id);
+                    if (!hasScore && c.tour !== round.id) return;
+                    const avg = computeCandidateRoundAverages(c.id, round.id, scores, noteTypes);
+                    if (avg.withCoef != null) others.push({ id: c.id, name: c.name, ...avg });
+                });
+
+                labels.push(round.name || round.id);
+                candAvg.push(+mine.withCoef.toFixed(2));
+                const classM = averageOf(others.map(o => o.withCoef));
+                classAvg.push(classM != null ? +classM.toFixed(2) : null);
+                tourStats.push({
+                    roundId: round.id,
+                    roundName: round.name || round.id,
+                    withCoef: mine.withCoef,
+                    withoutCoef: mine.withoutCoef,
+                    classWithCoef: classM,
+                    ranking: others.sort((a, b) => (b.withCoef || 0) - (a.withCoef || 0))
+                });
+            });
+
+            return { labels, candAvg, classAvg, tourStats };
+        }
+
+        function computeJuryAverages(juryId, scores, roundFilter) {
+            const values = [];
+            const weights = [];
+            let byRound = {};
+            scores.forEach(s => {
+                const jid = s.juryId || s.juryName;
+                if (jid !== juryId) return;
+                if (roundFilter && roundFilter !== 'all' && s.roundId !== roundFilter) return;
+                const round = ROUNDS.find(r => r.id === s.roundId);
+                if (!round || isRepechageRound(round)) return;
+                const noteTypes = getNoteTypesForRound(round);
+                const notes = collectValidNotesFromScore(s, noteTypes);
+                notes.forEach(n => {
+                    values.push(n.value20);
+                    weights.push(n.coefficient);
+                    if (!byRound[s.roundId]) byRound[s.roundId] = { values: [], weights: [] };
+                    byRound[s.roundId].values.push(n.value20);
+                    byRound[s.roundId].weights.push(n.coefficient);
+                });
+            });
+            return {
+                withCoef: weightedAverage(values, weights),
+                withoutCoef: averageOf(values),
+                count: values.length,
+                std: stdDev(values),
+                min: values.length ? Math.min(...values) : null,
+                max: values.length ? Math.max(...values) : null,
+                values,
+                byRound
+            };
+        }
+
+        function renderStatsCards(containerId, cards) {
+            const el = document.getElementById(containerId);
+            if (!el) return;
+            if (!cards || !cards.length) {
+                el.innerHTML = '<div class="stats-empty">Aucune donnée à afficher.</div>';
+                return;
+            }
+            el.innerHTML = cards.map(c => `
+                <div class="stats-card">
+                    <div class="stats-card-label">${escapeHtmlAttr(c.label)}</div>
+                    <div class="stats-card-value">${escapeHtmlAttr(String(c.value))}</div>
+                    ${c.hint ? `<div class="stats-card-hint">${escapeHtmlAttr(c.hint)}</div>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function renderStatsRanking(containerId, rows, highlightId) {
+            const el = document.getElementById(containerId);
+            if (!el) return;
+            if (!rows || !rows.length) {
+                el.innerHTML = '<div class="stats-empty">Pas encore assez de notes pour un classement.</div>';
+                return;
+            }
+            el.innerHTML = `
+                <table class="stats-ranking-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Nom</th>
+                            <th>Moy. avec coef</th>
+                            <th>Moy. sans coef</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows.map((r, i) => `
+                            <tr class="${r.id === highlightId ? 'stats-rank-highlight' : ''}">
+                                <td>${i + 1}</td>
+                                <td>${escapeHtmlAttr(r.name || r.id)}</td>
+                                <td>${statsFmt(r.withCoef)}</td>
+                                <td>${statsFmt(r.withoutCoef)}</td>
+                                <td>${r.count != null ? r.count : '—'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function destroyStatsCandidateChart() {
+            if (statsCandidateChart) {
+                try { statsCandidateChart.destroy(); } catch (_) {}
+                statsCandidateChart = null;
+            }
+        }
+
+        function destroyStatsCompareChart() {
+            if (statsCompareChart) {
+                try { statsCompareChart.destroy(); } catch (_) {}
+                statsCompareChart = null;
+            }
+        }
+
+        function statsChartTheme() {
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            return {
+                gridColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(100,80,140,0.18)',
+                textColor: isDark ? '#cfcfe0' : '#444'
+            };
+        }
+
+        function drawStatsCandidateChart(labels, datasets) {
+            destroyStatsCandidateChart();
+            const canvas = document.getElementById('stats-candidate-chart');
+            if (!canvas || typeof Chart === 'undefined') return;
+            const { gridColor, textColor } = statsChartTheme();
+            statsCandidateChart = new Chart(canvas, {
+                type: 'line',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: { color: textColor, usePointStyle: true, padding: 16 }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y != null ? Number(ctx.parsed.y).toFixed(2) : '—'}`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            min: 0,
+                            max: 20,
+                            ticks: { stepSize: 5, color: textColor },
+                            grid: { color: gridColor }
+                        },
+                        x: {
+                            ticks: {
+                                color: textColor,
+                                maxRotation: 55,
+                                minRotation: 45,
+                                autoSkip: false,
+                                font: { size: 10 }
+                            },
+                            grid: { color: gridColor }
+                        }
+                    }
+                }
+            });
+        }
+
+        function drawStatsCompareChart(type, labels, datasets) {
+            destroyStatsCompareChart();
+            const canvas = document.getElementById('stats-compare-chart');
+            if (!canvas || typeof Chart === 'undefined') return;
+            const { gridColor, textColor } = statsChartTheme();
+            const isBar = type === 'bar';
+            statsCompareChart = new Chart(canvas, {
+                type: isBar ? 'bar' : 'line',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: { color: textColor, usePointStyle: !isBar, padding: 14 }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y != null ? Number(ctx.parsed.y).toFixed(2) : '—'}`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            min: 0,
+                            max: 20,
+                            ticks: { stepSize: 5, color: textColor },
+                            grid: { color: gridColor }
+                        },
+                        x: {
+                            ticks: {
+                                color: textColor,
+                                maxRotation: isBar ? 40 : 55,
+                                minRotation: isBar ? 0 : 45,
+                                autoSkip: !isBar ? false : true,
+                                font: { size: 10 }
+                            },
+                            grid: { color: gridColor }
+                        }
+                    }
+                }
+            });
+        }
+
+        function populateStatsSelects() {
+            const candSel = document.getElementById('stats-candidate-select');
+            const candRound = document.getElementById('stats-candidate-round');
+            const jurySel = document.getElementById('stats-jury-select');
+            const juryRound = document.getElementById('stats-jury-round');
+            if (!candSel || !candRound || !jurySel || !juryRound) return;
+
+            const prevCand = candSel.value;
+            const prevCandRound = candRound.value;
+            const prevJury = jurySel.value;
+            const prevJuryRound = juryRound.value;
+
+            const sortedCands = [...CANDIDATES].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
+            candSel.innerHTML = sortedCands.map(c =>
+                `<option value="${escapeHtmlAttr(c.id)}">${escapeHtmlAttr(c.name || c.id)}</option>`
+            ).join('') || '<option value="">Aucun candidat</option>';
+
+            const roundsOpts = ROUNDS
+                .filter(r => !isRepechageRound(r))
+                .map(r => `<option value="${escapeHtmlAttr(r.id)}">${escapeHtmlAttr(r.name || r.id)}</option>`)
+                .join('');
+            candRound.innerHTML = `<option value="all">Tous les tours</option>${roundsOpts}`;
+            juryRound.innerHTML = `<option value="all">Tous les tours</option>${roundsOpts}`;
+
+            const compareRound = document.getElementById('stats-compare-round');
+            if (compareRound) {
+                const prevCompareRound = compareRound.value;
+                compareRound.innerHTML = `<option value="all">Tous les tours</option>${roundsOpts}`;
+                if (prevCompareRound && [...compareRound.options].some(o => o.value === prevCompareRound)) {
+                    compareRound.value = prevCompareRound;
+                } else {
+                    compareRound.value = 'all';
+                }
+            }
+
+            const sortedJuries = [...JURIES].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
+            jurySel.innerHTML = sortedJuries.map(j =>
+                `<option value="${escapeHtmlAttr(j.id)}">${escapeHtmlAttr(j.name || j.id)}${j.isPresident ? ' (Président)' : ''}</option>`
+            ).join('') || '<option value="">Aucun jury</option>';
+
+            if (prevCand && [...candSel.options].some(o => o.value === prevCand)) candSel.value = prevCand;
+            if (prevCandRound && [...candRound.options].some(o => o.value === prevCandRound)) candRound.value = prevCandRound;
+            else candRound.value = 'all';
+            if (prevJury && [...jurySel.options].some(o => o.value === prevJury)) jurySel.value = prevJury;
+            if (prevJuryRound && [...juryRound.options].some(o => o.value === prevJuryRound)) juryRound.value = prevJuryRound;
+
+            // Initialiser la sélection comparaison (garder les IDs encore présents)
+            const validIds = new Set(sortedCands.map(c => c.id));
+            statsCompareSelected = new Set([...statsCompareSelected].filter(id => validIds.has(id)));
+            if (statsCompareSelected.size === 0 && sortedCands.length) {
+                sortedCands.slice(0, Math.min(5, sortedCands.length)).forEach(c => statsCompareSelected.add(c.id));
+            }
+        }
+
+        function updateStatsPanelsVisibility() {
+            const candPanel = document.getElementById('stats-panel-candidats');
+            const juryPanel = document.getElementById('stats-panel-jury');
+            const comparePanel = document.getElementById('stats-panel-comparaison');
+            if (candPanel) candPanel.style.display = statsScope === 'candidats' ? '' : 'none';
+            if (juryPanel) juryPanel.style.display = statsScope === 'jury' ? '' : 'none';
+            if (comparePanel) comparePanel.style.display = statsScope === 'comparaison' ? '' : 'none';
+
+            document.querySelectorAll('.stats-scope-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.getAttribute('data-stats-scope') === statsScope);
+            });
+            document.querySelectorAll('#stats-panel-candidats .stats-sub-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.getAttribute('data-stats-sub') === statsCandidateMode);
+            });
+            document.querySelectorAll('#stats-panel-comparaison .stats-sub-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.getAttribute('data-stats-compare') === statsCompareMode);
+            });
+
+            const roundLabel = document.getElementById('stats-candidate-round-label');
+            if (roundLabel) roundLabel.style.display = statsCandidateMode === 'notes' ? '' : 'none';
+            const rankingWrap = document.getElementById('stats-candidate-ranking-wrap');
+            if (rankingWrap) rankingWrap.style.display = statsCandidateMode === 'tours' ? '' : 'none';
+
+            const compareRoundLabel = document.getElementById('stats-compare-round-label');
+            if (compareRoundLabel) {
+                // Tour utile pour « par notes » et « par moyenne » (masqué pour « par tours »)
+                compareRoundLabel.style.display = statsCompareMode === 'tours' ? 'none' : '';
+            }
+        }
+
+        window.setStatsScope = function(scope) {
+            if (scope === 'jury') statsScope = 'jury';
+            else if (scope === 'comparaison') statsScope = 'comparaison';
+            else statsScope = 'candidats';
+            updateStatsPanelsVisibility();
+            refreshStatsView();
+        };
+
+        window.setStatsCandidateMode = function(mode) {
+            statsCandidateMode = mode === 'tours' ? 'tours' : 'notes';
+            updateStatsPanelsVisibility();
+            refreshStatsView();
+        };
+
+        window.setStatsCompareMode = function(mode) {
+            if (mode === 'tours') statsCompareMode = 'tours';
+            else if (mode === 'moyenne') statsCompareMode = 'moyenne';
+            else statsCompareMode = 'notes';
+            updateStatsPanelsVisibility();
+            refreshStatsView();
+        };
+
+        window.statsCompareSelectAll = function(selectAll) {
+            if (selectAll) {
+                CANDIDATES.forEach(c => statsCompareSelected.add(c.id));
+            } else {
+                statsCompareSelected.clear();
+            }
+            refreshStatsView();
+        };
+
+        window.toggleStatsCompareCandidate = function(candidateId, checked) {
+            if (checked) statsCompareSelected.add(candidateId);
+            else statsCompareSelected.delete(candidateId);
+            refreshStatsView();
+        };
+
+        function renderStatsCompareSidebar() {
+            const list = document.getElementById('stats-compare-list');
+            if (!list) return;
+            const sorted = [...CANDIDATES].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
+            if (!sorted.length) {
+                list.innerHTML = '<div class="stats-empty">Aucun candidat</div>';
+                return;
+            }
+            list.innerHTML = sorted.map((c, idx) => {
+                const color = STATS_COMPARE_COLORS[idx % STATS_COMPARE_COLORS.length];
+                const checked = statsCompareSelected.has(c.id) ? 'checked' : '';
+                return `
+                    <label class="stats-compare-item">
+                        <input type="checkbox" ${checked} onchange="toggleStatsCompareCandidate('${escapeHtmlAttr(c.id)}', this.checked)">
+                        <span class="stats-compare-swatch" style="background:${color}"></span>
+                        <span>${escapeHtmlAttr(c.name || c.id)}</span>
+                    </label>
+                `;
+            }).join('');
+        }
+
+        function buildCompareNotesData(selectedIds, roundIdFilter, scores) {
+            const lookup = {};
+            CANDIDATES.forEach(c => {
+                lookup[c.id] = {};
+                collectCandidateNotePoints(c.id, roundIdFilter, scores).forEach(p => {
+                    lookup[c.id][p.slotKey] = p.value20;
+                });
+            });
+
+            // Axe X commun : tours → critères → jurys (toutes les notes existantes, sans en perdre)
+            const slots = [];
+            const seen = new Set();
+            const roundsOrdered = [...ROUNDS]
+                .filter(r => !isRepechageRound(r))
+                .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+            roundsOrdered.forEach(round => {
+                if (roundIdFilter && roundIdFilter !== 'all' && round.id !== roundIdFilter) return;
+                const noteTypes = getNoteTypesForRound(round).filter(nt => nt.scale !== 'binary');
+                const multiRound = !roundIdFilter || roundIdFilter === 'all';
+                noteTypes.forEach(nt => {
+                    const juries = [];
+                    const jurySeen = new Set();
+                    (scores || []).forEach(s => {
+                        if (s.roundId !== round.id) return;
+                        if (normalizeStatsNote(s[nt.field], nt) == null) return;
+                        const juryKey = String(s.juryId || s.juryName || '?');
+                        if (jurySeen.has(juryKey)) return;
+                        jurySeen.add(juryKey);
+                        juries.push({ juryKey, juryName: resolveStatsJuryName(s) });
+                    });
+                    juries.sort((a, b) => a.juryName.localeCompare(b.juryName, 'fr'));
+                    juries.forEach(({ juryKey, juryName }) => {
+                        const key = `${round.id}::${nt.field}::${juryKey}`;
+                        if (seen.has(key)) return;
+                        seen.add(key);
+                        slots.push({
+                            key,
+                            label: multiRound
+                                ? `${round.name || round.id} — ${nt.name || nt.field} de ${juryName}`
+                                : `${nt.name || nt.field} de ${juryName}`
+                        });
+                    });
+                });
+            });
+
+            const labels = slots.map(s => s.label);
+            const datasets = [];
+            selectedIds.forEach((cid, i) => {
+                const c = CANDIDATES.find(x => x.id === cid);
+                const colorIdx = Math.max(0, CANDIDATES.findIndex(x => x.id === cid));
+                const color = STATS_COMPARE_COLORS[colorIdx % STATS_COMPARE_COLORS.length] || STATS_COMPARE_COLORS[i % STATS_COMPARE_COLORS.length];
+                const data = slots.map(s => {
+                    const v = lookup[cid] && lookup[cid][s.key];
+                    return v != null ? +Number(v).toFixed(2) : null;
+                });
+                datasets.push({
+                    label: (c && c.name) || cid,
+                    data,
+                    borderColor: color,
+                    backgroundColor: color,
+                    tension: 0.15,
+                    pointRadius: 3,
+                    spanGaps: true
+                });
+            });
+
+            const globalData = slots.map(s => {
+                const vals = [];
+                Object.keys(lookup).forEach(cid => {
+                    if (lookup[cid][s.key] != null) vals.push(lookup[cid][s.key]);
+                });
+                return vals.length ? +averageOf(vals).toFixed(2) : null;
+            });
+            datasets.push({
+                label: 'Moyenne global',
+                data: globalData,
+                borderColor: STATS_GLOBAL_COLOR,
+                backgroundColor: STATS_GLOBAL_COLOR,
+                borderWidth: 3,
+                tension: 0.15,
+                pointRadius: 4,
+                spanGaps: true
+            });
+
+            return { labels, datasets };
+        }
+
+        function buildCompareToursData(selectedIds, scores) {
+            const roundsOrdered = [...ROUNDS]
+                .filter(r => !isRepechageRound(r))
+                .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+            const labels = [];
+            const roundIds = [];
+            roundsOrdered.forEach(round => {
+                const hasAny = scores.some(s => s.roundId === round.id);
+                if (!hasAny) return;
+                labels.push(round.name || round.id);
+                roundIds.push(round.id);
+            });
+
+            const datasets = [];
+            selectedIds.forEach((cid, i) => {
+                const c = CANDIDATES.find(x => x.id === cid);
+                const colorIdx = Math.max(0, CANDIDATES.findIndex(x => x.id === cid));
+                const color = STATS_COMPARE_COLORS[colorIdx % STATS_COMPARE_COLORS.length] || STATS_COMPARE_COLORS[i % STATS_COMPARE_COLORS.length];
+                const data = roundIds.map(rid => {
+                    const round = ROUNDS.find(r => r.id === rid);
+                    const avg = computeCandidateRoundAverages(cid, rid, scores, getNoteTypesForRound(round));
+                    return avg.withCoef != null ? +avg.withCoef.toFixed(2) : null;
+                });
+                datasets.push({
+                    label: (c && c.name) || cid,
+                    data,
+                    borderColor: color,
+                    backgroundColor: color,
+                    tension: 0.15,
+                    pointRadius: 4,
+                    spanGaps: true
+                });
+            });
+
+            const globalData = roundIds.map(rid => {
+                const round = ROUNDS.find(r => r.id === rid);
+                const noteTypes = getNoteTypesForRound(round);
+                const avgs = [];
+                CANDIDATES.forEach(c => {
+                    const avg = computeCandidateRoundAverages(c.id, rid, scores, noteTypes);
+                    if (avg.withCoef != null) avgs.push(avg.withCoef);
+                });
+                return avgs.length ? +averageOf(avgs).toFixed(2) : null;
+            });
+            datasets.push({
+                label: 'Moyenne global',
+                data: globalData,
+                borderColor: STATS_GLOBAL_COLOR,
+                backgroundColor: STATS_GLOBAL_COLOR,
+                borderWidth: 3,
+                tension: 0.15,
+                pointRadius: 4,
+                spanGaps: true
+            });
+
+            return { labels, datasets };
+        }
+
+        /**
+         * Comparaison par moyenne : comme « par tours », mais l'axe X = chaque critère de note.
+         * Pour chaque critère, valeur = moyenne des notes de tous les jurys (remise /20).
+         */
+        function buildCompareMoyenneData(selectedIds, roundIdFilter, scores) {
+            const slots = [];
+            const roundsOrdered = [...ROUNDS]
+                .filter(r => !isRepechageRound(r))
+                .sort((a, b) => (a.order || 0) - (b.order || 0));
+            const multiRound = !roundIdFilter || roundIdFilter === 'all';
+
+            roundsOrdered.forEach(round => {
+                if (roundIdFilter && roundIdFilter !== 'all' && round.id !== roundIdFilter) return;
+                const noteTypes = getNoteTypesForRound(round).filter(nt => nt.scale !== 'binary');
+                noteTypes.forEach(nt => {
+                    // Au moins une note valide pour ce critère sur ce tour ?
+                    const any = (scores || []).some(s =>
+                        s.roundId === round.id && normalizeStatsNote(s[nt.field], nt) != null
+                    );
+                    if (!any) return;
+                    slots.push({
+                        roundId: round.id,
+                        nt,
+                        label: multiRound
+                            ? `${round.name || round.id} — ${nt.name || nt.field}`
+                            : (nt.name || nt.field)
+                    });
+                });
+            });
+
+            const avgFor = (candidateId, slot) => {
+                const vals = [];
+                (scores || []).forEach(s => {
+                    if (s.candidateId !== candidateId || s.roundId !== slot.roundId) return;
+                    const v = normalizeStatsNote(s[slot.nt.field], slot.nt);
+                    if (v != null) vals.push(v);
+                });
+                return vals.length ? averageOf(vals) : null;
+            };
+
+            const labels = slots.map(s => s.label);
+            const datasets = [];
+            selectedIds.forEach((cid, i) => {
+                const c = CANDIDATES.find(x => x.id === cid);
+                const colorIdx = Math.max(0, CANDIDATES.findIndex(x => x.id === cid));
+                const color = STATS_COMPARE_COLORS[colorIdx % STATS_COMPARE_COLORS.length] || STATS_COMPARE_COLORS[i % STATS_COMPARE_COLORS.length];
+                const data = slots.map(slot => {
+                    const v = avgFor(cid, slot);
+                    return v != null ? +v.toFixed(2) : null;
+                });
+                datasets.push({
+                    label: (c && c.name) || cid,
+                    data,
+                    borderColor: color,
+                    backgroundColor: color,
+                    tension: 0.15,
+                    pointRadius: 4,
+                    spanGaps: true
+                });
+            });
+
+            const globalData = slots.map(slot => {
+                const avgs = [];
+                CANDIDATES.forEach(c => {
+                    const v = avgFor(c.id, slot);
+                    if (v != null) avgs.push(v);
+                });
+                return avgs.length ? +averageOf(avgs).toFixed(2) : null;
+            });
+            datasets.push({
+                label: 'Moyenne global',
+                data: globalData,
+                borderColor: STATS_GLOBAL_COLOR,
+                backgroundColor: STATS_GLOBAL_COLOR,
+                borderWidth: 3,
+                tension: 0.15,
+                pointRadius: 4,
+                spanGaps: true
+            });
+
+            return { labels, datasets };
+        }
+
+        async function renderCompareStats(scores) {
+            renderStatsCompareSidebar();
+            const titleEl = document.getElementById('stats-compare-chart-title');
+            const roundId = document.getElementById('stats-compare-round')?.value || 'all';
+            const selectedIds = [...statsCompareSelected];
+
+            if (statsCompareMode === 'notes') {
+                if (titleEl) titleEl.textContent = 'Comparaison par notes (chaque note jury)';
+                const { labels, datasets } = buildCompareNotesData(selectedIds, roundId, scores);
+                if (!labels.length) {
+                    destroyStatsCompareChart();
+                    return;
+                }
+                drawStatsCompareChart('line', labels, datasets);
+            } else if (statsCompareMode === 'tours') {
+                if (titleEl) titleEl.textContent = 'Comparaison par tours';
+                const { labels, datasets } = buildCompareToursData(selectedIds, scores);
+                if (!labels.length) {
+                    destroyStatsCompareChart();
+                    return;
+                }
+                drawStatsCompareChart('line', labels, datasets);
+            } else {
+                if (titleEl) titleEl.textContent = 'Comparaison par moyenne (moyenne des jurys par critère)';
+                const { labels, datasets } = buildCompareMoyenneData(selectedIds, roundId, scores);
+                if (!labels.length) {
+                    destroyStatsCompareChart();
+                    return;
+                }
+                drawStatsCompareChart('line', labels, datasets);
+            }
+        }
+
+        async function initStatsTab() {
+            if (!JURIES.length) {
+                try { await loadJuries(); } catch (_) {}
+            }
+            populateStatsSelects();
+            updateStatsPanelsVisibility();
+            await refreshStatsView(true);
+        }
+
+        window.refreshStatsView = async function(forceScores = false) {
+            const tab = document.getElementById('tab-statistiques');
+            if (!tab || !tab.classList.contains('active')) return;
+            try {
+                if (forceScores) {
+                    statsScoresCache = null;
+                    statsScoresCacheAt = 0;
+                }
+                const scores = await loadAllScoresForStats(!!forceScores);
+                if (statsScope === 'jury') {
+                    await renderJuryStats(scores);
+                } else if (statsScope === 'comparaison') {
+                    await renderCompareStats(scores);
+                } else {
+                    await renderCandidateStats(scores);
+                }
+            } catch (e) {
+                console.error('Erreur stats:', e);
+            }
+        };
+
+        async function renderCandidateStats(scores) {
+            const candId = document.getElementById('stats-candidate-select')?.value;
+            const roundId = document.getElementById('stats-candidate-round')?.value;
+            const titleEl = document.getElementById('stats-candidate-chart-title');
+            if (!candId) {
+                renderStatsCards('stats-candidate-cards', []);
+                destroyStatsCandidateChart();
+                return;
+            }
+
+            if (statsCandidateMode === 'notes') {
+                if (titleEl) titleEl.textContent = roundId === 'all'
+                    ? 'Évolution par note — tous les tours (remise sur 20)'
+                    : 'Évolution par note (remise sur 20)';
+
+                const onRound = CANDIDATES.filter(c => {
+                    if (roundId === 'all') {
+                        return scores.some(s => s.candidateId === c.id);
+                    }
+                    return c.tour === roundId || scores.some(s => s.roundId === roundId && s.candidateId === c.id);
+                });
+                const series = buildCandidateNotesSeries(candId, roundId, scores, onRound);
+
+                // Stats à partir des notes réellement collectées (jurys variables inclus)
+                const myPoints = series.notes || [];
+                const allNotesFlat = myPoints.map(p => p.value20);
+                const allWeights = myPoints.map(p => p.coefficient);
+                let classAvgs = [];
+                if (roundId === 'all') {
+                    const perCand = onRound.map(c => {
+                        const pts = collectCandidateNotePoints(c.id, 'all', scores);
+                        if (!pts.length) return null;
+                        return weightedAverage(pts.map(p => p.value20), pts.map(p => p.coefficient));
+                    }).filter(v => v != null);
+                    classAvgs = perCand;
+                } else {
+                    const round = ROUNDS.find(r => r.id === roundId);
+                    const noteTypes = round ? getNoteTypesForRound(round) : [];
+                    classAvgs = onRound
+                        .map(c => computeCandidateRoundAverages(c.id, roundId, scores, noteTypes).withCoef)
+                        .filter(v => v != null);
+                }
+
+                renderStatsCards('stats-candidate-cards', [
+                    { label: 'Notes prises en compte', value: String(allNotesFlat.length), hint: 'Hors 0, 1 et barème binaire' },
+                    { label: 'Moyenne avec coef', value: statsFmt(weightedAverage(allNotesFlat, allWeights)), hint: '/20 — chaque note jury × critère' },
+                    { label: 'Moyenne sans coef', value: statsFmt(averageOf(allNotesFlat)), hint: '/20' },
+                    { label: 'Écart-type', value: statsFmt(stdDev(allNotesFlat)), hint: 'Dispersion des notes' },
+                    { label: 'Note min / max', value: `${statsFmt(allNotesFlat.length ? Math.min(...allNotesFlat) : null)} / ${statsFmt(allNotesFlat.length ? Math.max(...allNotesFlat) : null)}` },
+                    { label: roundId === 'all' ? 'Moyenne global' : 'Moyenne global (tour)', value: statsFmt(averageOf(classAvgs)), hint: 'Moyenne des moyennes candidats' }
+                ]);
+
+                if (!series.labels.length) {
+                    destroyStatsCandidateChart();
+                    const canvas = document.getElementById('stats-candidate-chart');
+                    if (canvas && canvas.getContext) {
+                        const ctx = canvas.getContext('2d');
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    }
+                } else {
+                    drawStatsCandidateChart(series.labels, [
+                        {
+                            label: 'Moyenne générale',
+                            data: series.runningAvg,
+                            borderColor: '#3b6fd9',
+                            backgroundColor: '#3b6fd9',
+                            tension: 0.15,
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        },
+                        {
+                            label: 'Moyenne global',
+                            data: series.classAvg,
+                            borderColor: STATS_GLOBAL_COLOR,
+                            backgroundColor: STATS_GLOBAL_COLOR,
+                            tension: 0.15,
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        },
+                        {
+                            label: 'Note',
+                            data: series.noteValues,
+                            borderColor: '#e05a8c',
+                            backgroundColor: '#e05a8c',
+                            tension: 0.15,
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        }
+                    ]);
+                }
+                const rankingWrap = document.getElementById('stats-candidate-ranking-wrap');
+                if (rankingWrap) rankingWrap.style.display = 'none';
+            } else {
+                if (titleEl) titleEl.textContent = 'Évolution par tour';
+                const series = buildCandidateToursSeries(candId, scores);
+                const allWith = series.tourStats.map(t => t.withCoef);
+                const allWithout = series.tourStats.map(t => t.withoutCoef).filter(v => v != null);
+                renderStatsCards('stats-candidate-cards', [
+                    { label: 'Tours notés', value: String(series.tourStats.length) },
+                    { label: 'Moyenne globale (coef)', value: statsFmt(averageOf(allWith)), hint: 'Moyenne des moyennes de tours' },
+                    { label: 'Moyenne globale (sans coef)', value: statsFmt(averageOf(allWithout)) },
+                    { label: 'Meilleur tour', value: series.tourStats.length ? (() => {
+                        const best = [...series.tourStats].sort((a, b) => b.withCoef - a.withCoef)[0];
+                        return `${best.roundName} (${statsFmt(best.withCoef)})`;
+                    })() : '—' },
+                    { label: 'vs classe (dernier tour)', value: series.tourStats.length ? (() => {
+                        const last = series.tourStats[series.tourStats.length - 1];
+                        if (last.classWithCoef == null) return '—';
+                        const diff = last.withCoef - last.classWithCoef;
+                        return `${diff >= 0 ? '+' : ''}${statsFmt(diff)}`;
+                    })() : '—', hint: 'Écart à la moyenne global' }
+                ]);
+
+                if (series.labels.length) {
+                    drawStatsCandidateChart(series.labels, [
+                        {
+                            label: 'Moyenne du candidat',
+                            data: series.candAvg,
+                            borderColor: '#3b6fd9',
+                            backgroundColor: '#3b6fd9',
+                            tension: 0.15,
+                            pointRadius: 5
+                        },
+                        {
+                            label: 'Moyenne global',
+                            data: series.classAvg,
+                            borderColor: STATS_GLOBAL_COLOR,
+                            backgroundColor: STATS_GLOBAL_COLOR,
+                            tension: 0.15,
+                            pointRadius: 5
+                        }
+                    ]);
+                } else {
+                    destroyStatsCandidateChart();
+                }
+
+                // Classement sur le tour actif (ou dernier tour avec données)
+                const rankingWrap = document.getElementById('stats-candidate-ranking-wrap');
+                if (rankingWrap) rankingWrap.style.display = '';
+                let rankRoundId = activeRoundId;
+                let rankSource = series.tourStats.find(t => t.roundId === rankRoundId);
+                if (!rankSource && series.tourStats.length) {
+                    rankSource = series.tourStats[series.tourStats.length - 1];
+                    rankRoundId = rankSource.roundId;
+                }
+                if (rankSource) {
+                    const round = ROUNDS.find(r => r.id === rankRoundId);
+                    const title = document.querySelector('#stats-candidate-ranking-wrap .stats-section-title');
+                    if (title) title.textContent = `Classement candidats — ${rankSource.roundName} (meilleure moyenne)`;
+                    const noteTypes = round ? getNoteTypesForRound(round) : [];
+                    const rows = [];
+                    CANDIDATES.forEach(c => {
+                        const avg = computeCandidateRoundAverages(c.id, rankRoundId, scores, noteTypes);
+                        if (avg.withCoef == null) return;
+                        rows.push({
+                            id: c.id,
+                            name: c.name,
+                            withCoef: avg.withCoef,
+                            withoutCoef: avg.withoutCoef,
+                            count: avg.count
+                        });
+                    });
+                    rows.sort((a, b) => (b.withCoef || 0) - (a.withCoef || 0));
+                    renderStatsRanking('stats-candidate-ranking', rows, candId);
+                } else {
+                    renderStatsRanking('stats-candidate-ranking', [], candId);
+                }
+            }
+        }
+
+        async function renderJuryStats(scores) {
+            const juryId = document.getElementById('stats-jury-select')?.value;
+            const roundFilter = document.getElementById('stats-jury-round')?.value || 'all';
+            if (!juryId) {
+                renderStatsCards('stats-jury-cards', []);
+                renderStatsRanking('stats-jury-ranking', []);
+                return;
+            }
+
+            const mine = computeJuryAverages(juryId, scores, roundFilter);
+            const juryRows = [];
+            JURIES.forEach(j => {
+                const avg = computeJuryAverages(j.id, scores, roundFilter);
+                if (avg.count === 0) return;
+                juryRows.push({
+                    id: j.id,
+                    name: j.name || j.id,
+                    withCoef: avg.withCoef,
+                    withoutCoef: avg.withoutCoef,
+                    count: avg.count,
+                    std: avg.std
+                });
+            });
+
+            const globalValues = [];
+            const globalWeights = [];
+            scores.forEach(s => {
+                if (roundFilter !== 'all' && s.roundId !== roundFilter) return;
+                const round = ROUNDS.find(r => r.id === s.roundId);
+                if (!round || isRepechageRound(round)) return;
+                collectValidNotesFromScore(s, getNoteTypesForRound(round)).forEach(n => {
+                    globalValues.push(n.value20);
+                    globalWeights.push(n.coefficient);
+                });
+            });
+            const globalWith = weightedAverage(globalValues, globalWeights);
+            const globalWithout = averageOf(globalValues);
+
+            const severity = (mine.withCoef != null && globalWith != null)
+                ? (mine.withCoef - globalWith)
+                : null;
+
+            renderStatsCards('stats-jury-cards', [
+                { label: 'Notes données', value: String(mine.count), hint: 'Hors 0, 1 et binaire' },
+                { label: 'Sa moyenne (avec coef)', value: statsFmt(mine.withCoef), hint: '/20' },
+                { label: 'Sa moyenne (sans coef)', value: statsFmt(mine.withoutCoef), hint: '/20' },
+                { label: 'Moyenne tous jurys (coef)', value: statsFmt(globalWith), hint: 'Référence globale' },
+                { label: 'Moyenne tous jurys (sans coef)', value: statsFmt(globalWithout) },
+                { label: 'Écart à la moyenne', value: severity == null ? '—' : `${severity >= 0 ? '+' : ''}${statsFmt(severity)}`, hint: severity == null ? '' : (severity > 0.3 ? 'Plutôt généreux' : (severity < -0.3 ? 'Plutôt sévère' : 'Dans la moyenne')) },
+                { label: 'Écart-type', value: statsFmt(mine.std), hint: 'Régularité des notes' },
+                { label: 'Min / Max', value: `${statsFmt(mine.min)} / ${statsFmt(mine.max)}` }
+            ]);
+
+            juryRows.sort((a, b) => (b.withCoef || 0) - (a.withCoef || 0));
+            renderStatsRanking('stats-jury-ranking', juryRows, juryId);
+        }
 
         // Theme Toggle Logic - Propre à l'admin
         function initTheme() {

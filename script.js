@@ -4841,15 +4841,13 @@ async function showRepechageInterface() {
     const docSnap = await getDoc(doc(db, "candidats", "liste_actuelle"));
     if (docSnap.exists()) CANDIDATES = docSnap.data().candidates || [];
     
-    // Filtrer tous les candidats du tour actif (quel que soit leur statut)
-    const activeCandidates = CANDIDATES.filter(c => c.tour === activeRoundId);
-    
     // Charger la configuration des tours pour trouver le tour précédent
     const roundsSnap = await getDoc(doc(db, "config", "rounds"));
     let previousRoundId = null;
     let numToQualify = 0;
     if (roundsSnap.exists()) {
         const rounds = roundsSnap.data().rounds || [];
+        ROUNDS = rounds;
         const sortedRounds = [...rounds].sort((a, b) => a.order - b.order);
         const currentRoundIndex = sortedRounds.findIndex(r => r.id === activeRoundId);
         
@@ -4859,6 +4857,8 @@ async function showRepechageInterface() {
             numToQualify = parseInt(currentRound.nextRoundCandidates) || 0;
         }
     }
+
+    const activeCandidates = includeMysteryCandidatesInRepechage(CANDIDATES.filter(c => c.tour === activeRoundId));
     
     // Charger les scores du tour précédent pour calculer le classement initial
     let initiallyQualifiedSet = new Set();
@@ -4888,11 +4888,11 @@ async function showRepechageInterface() {
             }
         });
         
-        // Trier par score et prendre les N premiers
         const sortedCandidates = Object.values(candidateScores).sort((a, b) => b.total - a.total);
-        for (let i = 0; i < Math.min(numToQualify, sortedCandidates.length); i++) {
-            initiallyQualifiedSet.add(sortedCandidates[i].id);
-        }
+        window.repechageRankOrder = sortedCandidates.map(c => c.id);
+        pickRepechagePreQualifiedIds(window.repechageRankOrder, numToQualify).forEach(id => {
+            initiallyQualifiedSet.add(id);
+        });
     }
     
     // Stocker globalement pour renderRepechageLists
@@ -4912,23 +4912,7 @@ async function showRepechageInterface() {
     });
     
     // Initialiser les listes selon les scores existants
-    repechageQualified = [];
-    repechageEliminated = [];
-    
-    activeCandidates.forEach(c => {
-        // Utiliser le score existant ou, par défaut, le classement initial
-        let score = existingScores[c.id];
-        if (score === undefined || score === null) {
-            // Si pas de score existant, utiliser le classement initial
-            score = initiallyQualifiedSet.has(c.id) ? '1' : '0';
-        }
-        
-        if (score === '1') {
-            repechageQualified.push(c.id);
-        } else {
-            repechageEliminated.push(c.id);
-        }
-    });
+    assignRepechageColumns(activeCandidates, existingScores, initiallyQualifiedSet);
     
     // Afficher l'interface
     scoringPage.innerHTML = `
@@ -5053,7 +5037,8 @@ function setupRepechageListener() {
         if (!docSnap.exists()) return;
         
         const allCandidates = docSnap.data().candidates || [];
-        const activeCandidates = allCandidates.filter(c => c.tour === activeRoundId);
+        CANDIDATES = allCandidates;
+        const activeCandidates = includeMysteryCandidatesInRepechage(allCandidates.filter(c => c.tour === activeRoundId));
         
         // Construire un map des scores existants
         const existingScores = {};
@@ -5062,28 +5047,8 @@ function setupRepechageListener() {
             existingScores[data.candidateId] = data.score1; // score1 = score2 pour le repêchage
         });
         
-        // Récupérer les candidats initialement qualifiés
         const initiallyQualified = window.repechageInitiallyQualified || new Set();
-        
-        // Réinitialiser les listes
-        repechageQualified = [];
-        repechageEliminated = [];
-        
-        // Répartir tous les candidats selon leur score (ou valeur par défaut)
-        activeCandidates.forEach(c => {
-            let score = existingScores[c.id];
-            
-            // Si pas de score existant, utiliser le classement initial
-            if (score === undefined || score === null) {
-                score = initiallyQualified.has(c.id) ? '1' : '0';
-            }
-            
-            if (score === '1') {
-                repechageQualified.push(c.id);
-            } else {
-                repechageEliminated.push(c.id);
-            }
-        });
+        assignRepechageColumns(activeCandidates, existingScores, initiallyQualified);
         
         // Rafraîchir l'affichage
         renderRepechageLists();
@@ -5103,13 +5068,13 @@ function renderRepechageLists() {
     const initiallyQualified = window.repechageInitiallyQualified || new Set();
     
     // Trier les candidats par ID
-    const sortedQualified = repechageQualified.map(id => CANDIDATES.find(c => c.id === id)).sort((a, b) => parseInt(a.id) - parseInt(b.id));
-    const sortedEliminated = repechageEliminated.map(id => CANDIDATES.find(c => c.id === id)).sort((a, b) => parseInt(a.id) - parseInt(b.id));
+    const sortedQualified = repechageQualified.map(id => CANDIDATES.find(c => c.id === id)).filter(Boolean).sort((a, b) => parseInt(a.id) - parseInt(b.id));
+    const sortedEliminated = repechageEliminated.map(id => CANDIDATES.find(c => c.id === id)).filter(Boolean).sort((a, b) => parseInt(a.id) - parseInt(b.id));
     
     // Afficher les qualifiés
     qualifiedList.innerHTML = sortedQualified.map(c => {
         // Vert si initialement qualifié, rouge si initialement éliminé
-        const nameColor = initiallyQualified.has(c.id) ? '#28a745' : '#dc3545';
+        const nameColor = repechageSetHasId(initiallyQualified, c.id) ? '#28a745' : '#dc3545';
         return `
             <div style="padding: 10px; margin: 5px 0; background: var(--input-bg); border-radius: var(--radius); cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="moveToEliminated('${c.id}')">
                 <span style="color: ${nameColor}; font-weight: 500;"><strong>${c.id}</strong> - ${c.name}</span>
@@ -5121,7 +5086,7 @@ function renderRepechageLists() {
     // Afficher les éliminés
     eliminatedList.innerHTML = sortedEliminated.map(c => {
         // Vert si initialement qualifié, rouge si initialement éliminé
-        const nameColor = initiallyQualified.has(c.id) ? '#28a745' : '#dc3545';
+        const nameColor = repechageSetHasId(initiallyQualified, c.id) ? '#28a745' : '#dc3545';
         return `
             <div style="padding: 10px; margin: 5px 0; background: var(--input-bg); border-radius: var(--radius); cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="moveToQualified('${c.id}')">
                 <span style="color: ${nameColor}; font-weight: 500;"><strong>${c.id}</strong> - ${c.name}</span>
@@ -5137,9 +5102,7 @@ function renderRepechageLists() {
     // Activer/désactiver le bouton de validation selon le nombre requis
     const validateBtn = document.getElementById('repechage-validate-button');
     if (validateBtn) {
-        const expectedCount = activeRoundNextCandidates === 'ALL' 
-            ? (repechageQualified.length + repechageEliminated.length) // Tous les candidats doivent être qualifiés
-            : parseInt(activeRoundNextCandidates) || 0;
+        const expectedCount = getRepechageExpectedQualifiedCount();
         
         const isValid = repechageQualified.length === expectedCount;
         
@@ -5168,7 +5131,117 @@ function renderRepechageLists() {
 /**
  * Déplacer un candidat vers la liste des qualifiés (note 1)
  */
+function isMysteryCandidateForRepechage(candidateId) {
+    return (ROUNDS || []).some(r => r && r.hideFirstCandidate && String(r.mysteryCandidateId) === String(candidateId));
+}
+
+function repechageSetHasId(set, id) {
+    if (!set) return false;
+    if (set.has(id) || set.has(String(id))) return true;
+    for (const x of set) {
+        if (String(x) === String(id)) return true;
+    }
+    return false;
+}
+
+function pickRepechagePreQualifiedIds(sortedIds, n) {
+    const set = new Set();
+    const limit = parseInt(n, 10) || 0;
+    if (limit <= 0) return set;
+    for (const raw of sortedIds || []) {
+        if (isMysteryCandidateForRepechage(raw)) continue;
+        const c = (CANDIDATES || []).find(x => String(x.id) === String(raw));
+        set.add(c ? c.id : raw);
+        if (set.size >= limit) break;
+    }
+    return set;
+}
+
+function assignRepechageColumns(activeCandidates, existingScores, initiallyQualifiedSet) {
+    repechageQualified = [];
+    repechageEliminated = [];
+    const n = getRepechageExpectedQualifiedCount();
+    (activeCandidates || []).forEach(c => {
+        if (!c) return;
+        if (isMysteryCandidateForRepechage(c.id)) {
+            repechageEliminated.push(c.id);
+            return;
+        }
+        let score = existingScores ? existingScores[c.id] : undefined;
+        if (score === undefined && existingScores) score = existingScores[String(c.id)];
+        if (score === undefined || score === null) {
+            score = repechageSetHasId(initiallyQualifiedSet, c.id) ? '1' : '0';
+        }
+        if (score === '1') repechageQualified.push(c.id);
+        else repechageEliminated.push(c.id);
+    });
+    enforceMysteryCandidateRepechageLists();
+    const mysteryCount = (activeCandidates || []).filter(c => c && isMysteryCandidateForRepechage(c.id)).length;
+    let toFill = n > 0 ? Math.min(Math.max(0, n - repechageQualified.length), mysteryCount) : 0;
+    if (toFill > 0) {
+        const order = window.repechageRankOrder || [];
+        const rankedEliminated = repechageEliminated
+            .filter(id => !isMysteryCandidateForRepechage(id) && repechageSetHasId(initiallyQualifiedSet, id))
+            .sort((a, b) => {
+                const ia = order.findIndex(x => String(x) === String(a));
+                const ib = order.findIndex(x => String(x) === String(b));
+                const ra = ia === -1 ? Number.MAX_SAFE_INTEGER : ia;
+                const rb = ib === -1 ? Number.MAX_SAFE_INTEGER : ib;
+                return rb - ra;
+            });
+        for (const id of rankedEliminated) {
+            if (toFill <= 0) break;
+            const qi = repechageEliminated.findIndex(x => String(x) === String(id));
+            if (qi > -1) repechageEliminated.splice(qi, 1);
+            repechageQualified.push(id);
+            toFill--;
+        }
+    }
+}
+
+function includeMysteryCandidatesInRepechage(list) {
+    const out = [...(list || [])];
+    const seen = new Set(out.map(c => String(c.id)));
+    (ROUNDS || []).forEach(r => {
+        if (!r || !r.hideFirstCandidate || r.mysteryCandidateId == null || r.mysteryCandidateId === '') return;
+        const id = String(r.mysteryCandidateId);
+        if (seen.has(id)) return;
+        const c = (CANDIDATES || []).find(x => String(x.id) === id);
+        if (c) {
+            out.push(c);
+            seen.add(id);
+        }
+    });
+    return out;
+}
+
+function getRepechageExpectedQualifiedCount() {
+    if (activeRoundNextCandidates === 'ALL') {
+        const mysteryN = [...(repechageQualified || []), ...(repechageEliminated || [])]
+            .filter(id => isMysteryCandidateForRepechage(id)).length;
+        return Math.max(0, (repechageQualified.length + repechageEliminated.length) - mysteryN);
+    }
+    return parseInt(activeRoundNextCandidates) || 0;
+}
+
+function enforceMysteryCandidateRepechageLists() {
+    const mysteryIds = [];
+    (ROUNDS || []).forEach(r => {
+        if (r && r.hideFirstCandidate && r.mysteryCandidateId != null && r.mysteryCandidateId !== '') {
+            mysteryIds.push(String(r.mysteryCandidateId));
+        }
+    });
+    mysteryIds.forEach(id => {
+        const c = (CANDIDATES || []).find(x => String(x.id) === id);
+        const realId = c ? c.id : id;
+        const qi = repechageQualified.findIndex(x => String(x) === String(realId));
+        if (qi > -1) repechageQualified.splice(qi, 1);
+        if (!repechageEliminated.some(x => String(x) === String(realId))) repechageEliminated.push(realId);
+    });
+}
+
 window.moveToQualified = async function(candidateId) {
+    if (isMysteryCandidateForRepechage(candidateId)) return;
     const index = repechageEliminated.indexOf(candidateId);
     if (index > -1) {
         repechageEliminated.splice(index, 1);
@@ -5184,6 +5257,7 @@ window.moveToQualified = async function(candidateId) {
  * Déplacer un candidat vers la liste des éliminés (note 0)
  */
 window.moveToEliminated = async function(candidateId) {
+    if (isMysteryCandidateForRepechage(candidateId)) return;
     const index = repechageQualified.indexOf(candidateId);
     if (index > -1) {
         repechageQualified.splice(index, 1);
@@ -5491,9 +5565,7 @@ async function showRepechagePodium() {
  */
 async function confirmRepechage() {
     // Vérifier que le nombre de qualifiés correspond exactement au nombre requis
-    const expectedCount = activeRoundNextCandidates === 'ALL' 
-        ? (repechageQualified.length + repechageEliminated.length) // Tous les candidats doivent être qualifiés
-        : parseInt(activeRoundNextCandidates) || 0;
+    const expectedCount = getRepechageExpectedQualifiedCount();
     
     if (repechageQualified.length !== expectedCount) {
         await customAlert(`❌ Impossible de valider.\n\nVous devez sélectionner exactement ${expectedCount} candidat(s) qualifié(s).\n\nActuellement : ${repechageQualified.length} qualifié(s)`);
@@ -5517,6 +5589,7 @@ async function confirmRepechage() {
         
         // Mettre à jour le statut de chaque candidat selon les votes
         allCandidates = allCandidates.map(candidate => {
+            if (isMysteryCandidateForRepechage(candidate.id)) return candidate;
             // Vérifier si ce candidat est dans le tour de repêchage actif
             if (candidate.tour === activeRoundId) {
                 if (repechageQualified.includes(candidate.id)) {
