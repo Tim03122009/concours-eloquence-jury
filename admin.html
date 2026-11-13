@@ -1386,7 +1386,20 @@
                             <textarea id="email-body-non-retenu" rows="8" oninput="saveResultEmailTemplates()" style="width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--input-bg); color: var(--text-color); font-family: inherit; resize: vertical; line-height: 1.4;"></textarea>
                         </div>
                     </div>
-                    <p style="margin: 10px 0 0 0; color: var(--text-secondary); font-size: 0.85em;">Les emails seront ajoutés automatiquement en première ligne du message à l’ouverture. Les textes sont enregistrés automatiquement sur cet ordinateur.</p>
+                    <div style="margin-top: 16px; padding: 14px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-color, #fff);">
+                        <h4 style="margin: 0 0 8px 0; color: var(--text-color);">Comptes Gmail d’envoi</h4>
+                        <p style="margin: 0 0 10px 0; color: var(--text-secondary); font-size: 0.9em;">Ajoute tes adresses Gmail connectées sur cet ordi. Tu pourras choisir laquelle utiliser à l’ouverture du mail.</p>
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px;">
+                            <input type="email" id="gmail-account-input" placeholder="ex: concours@gmail.com" style="flex: 1; min-width: 220px; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--input-bg); color: var(--text-color); font-family: inherit;">
+                            <button type="button" onclick="addGmailSenderAccount()" class="action-button" style="background: linear-gradient(135deg, #ea4335 0%, #c5221f 100%); color: white;">+ Ajouter</button>
+                        </div>
+                        <div id="gmail-accounts-list" style="display: flex; flex-direction: column; gap: 6px;"></div>
+                        <label for="gmail-account-default" style="display: block; font-weight: 600; color: var(--text-color); margin: 12px 0 4px;">Compte Gmail par défaut</label>
+                        <select id="gmail-account-default" onchange="saveResultEmailTemplates()" style="min-width: 260px; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--input-bg); color: var(--text-color); font-family: inherit;">
+                            <option value="">Compte Gmail actif du navigateur</option>
+                        </select>
+                    </div>
+                    <p style="margin: 10px 0 0 0; color: var(--text-secondary); font-size: 0.85em;">Les emails seront ajoutés automatiquement en première ligne du message à l’ouverture. Les textes et comptes Gmail sont enregistrés automatiquement sur cet ordinateur.</p>
                 </div>
             </div>
 
@@ -10549,14 +10562,28 @@
             non_retenu: {
                 subject: 'Résultat du concours d’éloquence — suite de votre candidature',
                 body: 'Bonjour,\n\nMerci pour votre participation au concours d’éloquence.\n\nAprès examen des prestations, nous sommes au regret de vous informer que vous n’avez pas été retenu(e) pour la suite.\n\nNous vous félicitons pour votre engagement et espérons vous revoir lors d’une prochaine édition.\n\nBien cordialement,\nL’équipe du concours d’éloquence'
-            }
+            },
+            gmailAccounts: [],
+            selectedGmailFrom: ''
         };
 
         function getResultEmailTemplates() {
             try {
                 const raw = localStorage.getItem(RESULT_EMAIL_STORAGE_KEY);
-                if (!raw) return { ...DEFAULT_RESULT_EMAIL_TEMPLATES, retenu: { ...DEFAULT_RESULT_EMAIL_TEMPLATES.retenu }, non_retenu: { ...DEFAULT_RESULT_EMAIL_TEMPLATES.non_retenu } };
+                if (!raw) {
+                    return {
+                        retenu: { ...DEFAULT_RESULT_EMAIL_TEMPLATES.retenu },
+                        non_retenu: { ...DEFAULT_RESULT_EMAIL_TEMPLATES.non_retenu },
+                        gmailAccounts: [],
+                        selectedGmailFrom: ''
+                    };
+                }
                 const parsed = JSON.parse(raw);
+                const gmailAccounts = Array.isArray(parsed?.gmailAccounts)
+                    ? parsed.gmailAccounts.map(e => String(e || '').trim().toLowerCase()).filter(Boolean)
+                    : [];
+                let selectedGmailFrom = String(parsed?.selectedGmailFrom || '').trim().toLowerCase();
+                if (selectedGmailFrom && !gmailAccounts.includes(selectedGmailFrom)) selectedGmailFrom = '';
                 return {
                     retenu: {
                         subject: parsed?.retenu?.subject || DEFAULT_RESULT_EMAIL_TEMPLATES.retenu.subject,
@@ -10565,14 +10592,107 @@
                     non_retenu: {
                         subject: parsed?.non_retenu?.subject || DEFAULT_RESULT_EMAIL_TEMPLATES.non_retenu.subject,
                         body: parsed?.non_retenu?.body || DEFAULT_RESULT_EMAIL_TEMPLATES.non_retenu.body
-                    }
+                    },
+                    gmailAccounts,
+                    selectedGmailFrom
                 };
             } catch (e) {
                 return {
                     retenu: { ...DEFAULT_RESULT_EMAIL_TEMPLATES.retenu },
-                    non_retenu: { ...DEFAULT_RESULT_EMAIL_TEMPLATES.non_retenu }
+                    non_retenu: { ...DEFAULT_RESULT_EMAIL_TEMPLATES.non_retenu },
+                    gmailAccounts: [],
+                    selectedGmailFrom: ''
                 };
             }
+        }
+
+        function renderGmailAccountsEditor() {
+            const list = document.getElementById('gmail-accounts-list');
+            const select = document.getElementById('gmail-account-default');
+            if (!list || !select) return;
+            const data = getResultEmailTemplates();
+            const accounts = data.gmailAccounts || [];
+            const selected = data.selectedGmailFrom || '';
+
+            if (!accounts.length) {
+                list.innerHTML = '<p style="margin:0;color:var(--text-secondary);font-size:0.9em;">Aucun compte ajouté pour l’instant.</p>';
+            } else {
+                list.innerHTML = accounts.map((email, idx) => `
+                    <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--input-bg);">
+                        <span style="flex:1;word-break:break-all;">${escapeHtmlAttr(email)}</span>
+                        <button type="button" class="icon-btn delete" onclick="removeGmailSenderAccount(${idx})" title="Supprimer">🗑️</button>
+                    </div>
+                `).join('');
+            }
+
+            select.innerHTML = '<option value="">Compte Gmail actif du navigateur</option>' +
+                accounts.map(email => {
+                    const sel = email === selected ? ' selected' : '';
+                    return `<option value="${escapeHtmlAttr(email)}"${sel}>${escapeHtmlAttr(email)}</option>`;
+                }).join('');
+        }
+
+        window.addGmailSenderAccount = () => {
+            const input = document.getElementById('gmail-account-input');
+            const email = normalizeCandidateEmail(input?.value || '');
+            if (!email || !isValidEmail(email)) {
+                customAlert('Entre une adresse Gmail valide.');
+                return;
+            }
+            const data = getResultEmailTemplates();
+            if (!data.gmailAccounts.includes(email)) data.gmailAccounts.push(email);
+            if (!data.selectedGmailFrom) data.selectedGmailFrom = email;
+            // Sauvegarder messages + comptes
+            const subjectRetenu = document.getElementById('email-subject-retenu');
+            const bodyRetenu = document.getElementById('email-body-retenu');
+            const subjectNon = document.getElementById('email-subject-non-retenu');
+            const bodyNon = document.getElementById('email-body-non-retenu');
+            localStorage.setItem(RESULT_EMAIL_STORAGE_KEY, JSON.stringify({
+                retenu: {
+                    subject: subjectRetenu?.value || data.retenu.subject,
+                    body: bodyRetenu?.value || data.retenu.body
+                },
+                non_retenu: {
+                    subject: subjectNon?.value || data.non_retenu.subject,
+                    body: bodyNon?.value || data.non_retenu.body
+                },
+                gmailAccounts: data.gmailAccounts,
+                selectedGmailFrom: data.selectedGmailFrom
+            }));
+            if (input) input.value = '';
+            renderGmailAccountsEditor();
+        };
+
+        window.removeGmailSenderAccount = (index) => {
+            const data = getResultEmailTemplates();
+            const removed = data.gmailAccounts[index];
+            data.gmailAccounts.splice(index, 1);
+            if (data.selectedGmailFrom === removed) {
+                data.selectedGmailFrom = data.gmailAccounts[0] || '';
+            }
+            const subjectRetenu = document.getElementById('email-subject-retenu');
+            const bodyRetenu = document.getElementById('email-body-retenu');
+            const subjectNon = document.getElementById('email-subject-non-retenu');
+            const bodyNon = document.getElementById('email-body-non-retenu');
+            localStorage.setItem(RESULT_EMAIL_STORAGE_KEY, JSON.stringify({
+                retenu: {
+                    subject: subjectRetenu?.value || data.retenu.subject,
+                    body: bodyRetenu?.value || data.retenu.body
+                },
+                non_retenu: {
+                    subject: subjectNon?.value || data.non_retenu.subject,
+                    body: bodyNon?.value || data.non_retenu.body
+                },
+                gmailAccounts: data.gmailAccounts,
+                selectedGmailFrom: data.selectedGmailFrom
+            }));
+            renderGmailAccountsEditor();
+        };
+
+        function buildGmailComposeUrl(subject, fullBody, fromEmail) {
+            let url = `https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(fullBody)}`;
+            if (fromEmail) url += `&authuser=${encodeURIComponent(fromEmail)}`;
+            return url;
         }
 
         window.initResultEmailTemplates = () => {
@@ -10585,9 +10705,12 @@
             if (bodyRetenu) bodyRetenu.value = templates.retenu.body;
             if (subjectNon) subjectNon.value = templates.non_retenu.subject;
             if (bodyNon) bodyNon.value = templates.non_retenu.body;
+            renderGmailAccountsEditor();
         };
 
         window.saveResultEmailTemplates = () => {
+            const current = getResultEmailTemplates();
+            const selectedFromUi = document.getElementById('gmail-account-default')?.value || '';
             const templates = {
                 retenu: {
                     subject: document.getElementById('email-subject-retenu')?.value || DEFAULT_RESULT_EMAIL_TEMPLATES.retenu.subject,
@@ -10596,7 +10719,9 @@
                 non_retenu: {
                     subject: document.getElementById('email-subject-non-retenu')?.value || DEFAULT_RESULT_EMAIL_TEMPLATES.non_retenu.subject,
                     body: document.getElementById('email-body-non-retenu')?.value || DEFAULT_RESULT_EMAIL_TEMPLATES.non_retenu.body
-                }
+                },
+                gmailAccounts: current.gmailAccounts || [],
+                selectedGmailFrom: selectedFromUi
             };
             localStorage.setItem(RESULT_EMAIL_STORAGE_KEY, JSON.stringify(templates));
         };
@@ -10657,9 +10782,16 @@
 
         function showResultEmailPrepModal({ subject, fullBody, label }) {
             closeResultEmailPrepModal();
+            const stored = getResultEmailTemplates();
+            const accounts = stored.gmailAccounts || [];
+            let selectedFrom = stored.selectedGmailFrom || '';
             const mailto = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(fullBody)}`;
-            const gmail = `https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(fullBody)}`;
             const outlook = `https://outlook.live.com/mail/0/deeplink/compose?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(fullBody)}`;
+            const gmailOptions = '<option value="">Compte Gmail actif du navigateur</option>' +
+                accounts.map(email => {
+                    const sel = email === selectedFrom ? ' selected' : '';
+                    return `<option value="${escapeHtmlAttr(email)}"${sel}>${escapeHtmlAttr(email)}</option>`;
+                }).join('');
 
             const modal = document.createElement('div');
             modal.id = 'result-email-prep-modal';
@@ -10668,10 +10800,15 @@
                 <div style="width:100%;max-width:640px;background:var(--card-bg,#fff);color:var(--text-color,#111);border-radius:12px;border:1px solid var(--border-color,#ddd);box-shadow:0 12px 40px rgba(0,0,0,0.25);padding:18px;">
                     <h3 style="margin:0 0 8px 0;">Mail ${label} prêt</h3>
                     <p style="margin:0 0 12px 0;color:var(--text-secondary,#666);font-size:0.92em;line-height:1.4;">
-                        1) Ouvre ton client mail (Gmail recommandé si aucun logiciel n’est installé)<br>
-                        2) Coupe la 1<sup>re</sup> ligne du message → colle-la en <strong>CCI</strong><br>
-                        3) Envoie
+                        1) Choisis le compte Gmail d’envoi<br>
+                        2) Ouvre Gmail<br>
+                        3) Coupe la 1<sup>re</sup> ligne du message → colle-la en <strong>CCI</strong><br>
+                        4) Envoie
                     </p>
+                    <label for="result-email-gmail-from" style="display:block;font-weight:600;margin-bottom:4px;">Envoyer depuis</label>
+                    <select id="result-email-gmail-from" style="width:100%;box-sizing:border-box;padding:8px 10px;margin-bottom:10px;border:1px solid var(--border-color,#ccc);border-radius:6px;background:var(--input-bg,#f7f7f7);color:inherit;font-family:inherit;">
+                        ${gmailOptions}
+                    </select>
                     <label style="display:block;font-weight:600;margin-bottom:4px;">Objet</label>
                     <input id="result-email-prep-subject" type="text" readonly value="" style="width:100%;box-sizing:border-box;padding:8px 10px;margin-bottom:10px;border:1px solid var(--border-color,#ccc);border-radius:6px;background:var(--input-bg,#f7f7f7);color:inherit;font-family:inherit;">
                     <label style="display:block;font-weight:600;margin-bottom:4px;">Message (1<sup>re</sup> ligne = emails)</label>
@@ -10679,7 +10816,7 @@
                     <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;">
                         <button type="button" id="result-email-copy-body" class="action-button" style="background:linear-gradient(135deg,#28a745 0%,#1e7e34 100%);color:#fff;">Copier le message</button>
                         <button type="button" id="result-email-copy-subject" class="action-button" style="background:linear-gradient(135deg,#6c757d 0%,#495057 100%);color:#fff;">Copier l’objet</button>
-                        <a id="result-email-open-gmail" href="${gmail}" target="_blank" rel="noopener" class="action-button" style="display:inline-block;text-decoration:none;background:linear-gradient(135deg,#ea4335 0%,#c5221f 100%);color:#fff;text-align:center;">Ouvrir Gmail</a>
+                        <a id="result-email-open-gmail" href="#" target="_blank" rel="noopener" class="action-button" style="display:inline-block;text-decoration:none;background:linear-gradient(135deg,#ea4335 0%,#c5221f 100%);color:#fff;text-align:center;">Ouvrir Gmail</a>
                         <a id="result-email-open-outlook" href="${outlook}" target="_blank" rel="noopener" class="action-button" style="display:inline-block;text-decoration:none;background:linear-gradient(135deg,#0078d4 0%,#106ebe 100%);color:#fff;text-align:center;">Ouvrir Outlook</a>
                         <button type="button" id="result-email-open-mailto" class="action-button" style="background:linear-gradient(135deg,#2196f3 0%,#1565c0 100%);color:#fff;">Client mail (mailto)</button>
                         <button type="button" id="result-email-prep-close" class="action-button" style="margin-left:auto;background:#e9ecef;color:#333;">Fermer</button>
@@ -10692,8 +10829,26 @@
             const subjectInput = modal.querySelector('#result-email-prep-subject');
             const bodyArea = modal.querySelector('#result-email-prep-body');
             const statusEl = modal.querySelector('#result-email-prep-status');
+            const fromSelect = modal.querySelector('#result-email-gmail-from');
+            const gmailLink = modal.querySelector('#result-email-open-gmail');
             subjectInput.value = subject;
             bodyArea.value = fullBody;
+
+            function refreshGmailLink() {
+                selectedFrom = (fromSelect?.value || '').trim().toLowerCase();
+                gmailLink.href = buildGmailComposeUrl(subject, fullBody, selectedFrom);
+                // Mémoriser le choix
+                const data = getResultEmailTemplates();
+                data.selectedGmailFrom = selectedFrom;
+                localStorage.setItem(RESULT_EMAIL_STORAGE_KEY, JSON.stringify(data));
+            }
+            refreshGmailLink();
+            fromSelect.addEventListener('change', () => {
+                refreshGmailLink();
+                statusEl.textContent = selectedFrom
+                    ? `Gmail s’ouvrira avec le compte ${selectedFrom}.`
+                    : 'Gmail s’ouvrira avec le compte actuellement actif dans le navigateur.';
+            });
 
             modal.addEventListener('click', (e) => {
                 if (e.target === modal) closeResultEmailPrepModal();

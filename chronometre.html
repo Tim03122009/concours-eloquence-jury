@@ -153,6 +153,34 @@
             pointer-events: auto;
         }
 
+        /* Classement projecteur : page réelle en plein écran (hors cadre téléphone) */
+        .classement-fullscreen {
+            position: fixed;
+            inset: 0;
+            z-index: 100000;
+            display: none;
+            background: #f4f7f6;
+        }
+        .classement-fullscreen.is-open {
+            display: block;
+        }
+        .classement-fullscreen iframe {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            background: #f4f7f6;
+        }
+        html.classement-proj-open {
+            zoom: 1;
+        }
+        body.classement-proj-open {
+            overflow: hidden;
+        }
+        body.classement-proj-open .stage {
+            visibility: hidden;
+            pointer-events: none;
+        }
+
         .digital-time {
             font-size: clamp(3.2rem, 11vh, 5.6rem);
             font-weight: 200;
@@ -809,6 +837,14 @@
     </style>
 </head>
 <body>
+    <div id="classement-fullscreen" class="classement-fullscreen" hidden aria-hidden="true">
+        <iframe
+            id="classement-frame"
+            title="Classement"
+            loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade"
+        ></iframe>
+    </div>
     <div class="stage">
         <div class="phone" id="phone" role="application" aria-label="Chronomètre">
             <div class="status-bar" aria-hidden="true"><div class="notch"></div></div>
@@ -900,6 +936,7 @@
                                     <option value="0">1 — Minuteur numérique</option>
                                     <option value="1">2 — Horloge analogique</option>
                                     <option value="2">3 — Enregistrements</option>
+                                    <option value="4">4 — Classement</option>
                                 </select>
                             </div>
                             <div class="remote-btns-col">
@@ -1001,7 +1038,7 @@ let laps = [];
 let lastLapElapsed = 0;
 let saved = [];        // chronomètres enregistrés
 let currentView = 0;
-let displayView = 0;   // vue imposée au projecteur (0|1|2)
+let displayView = 0;   // vue imposée au projecteur (0|1|2|4)
 let applyingRemote = false;
 let lastPushedRev = 0;
 let lastAppliedRev = 0;
@@ -1018,7 +1055,78 @@ const bellAudio = new Audio(encodeURI('son clochette.mp3'));
 bellAudio.preload = 'auto';
 
 const TITLES = ['Chronomètre', 'Chronomètre', 'Enregistrements', 'Télécommande'];
+const TITLES_BY_VIEW = { 0: 'Chronomètre', 1: 'Chronomètre', 2: 'Enregistrements', 3: 'Télécommande', 4: 'Classement' };
 const MAX_VIEW = 3;
+const PROJ_DISPLAY_VIEWS = new Set([0, 1, 2, 4]);
+const classementFullscreen = document.getElementById('classement-fullscreen');
+const classementFrame = document.getElementById('classement-frame');
+
+function ensureClassementFrame() {
+    if (!classementFrame) return;
+    if (!classementFrame.getAttribute('src')) {
+        classementFrame.src = 'classement.html';
+    }
+    bindClassementFrameKeys();
+}
+
+/** Sortie du classement plein écran → télécommande (flèches ←/→). */
+function exitClassementToRemote() {
+    if (currentView !== 4 && !document.body.classList.contains('classement-proj-open')) return;
+    const nextDisplay = (displayView === 4) ? 0 : displayView;
+    if (displayView === 4) {
+        displayView = nextDisplay;
+        if (projViewSelect) projViewSelect.value = String(displayView);
+        pushState({ displayView });
+    }
+    showView(3, { localOnly: true, force: true });
+}
+
+function onClassementEscapeKey(e) {
+    if (e.code !== 'ArrowLeft' && e.code !== 'ArrowRight') return;
+    e.preventDefault();
+    e.stopPropagation();
+    exitClassementToRemote();
+}
+
+function bindClassementFrameKeys() {
+    if (!classementFrame || classementFrame.dataset.keysBound === '1') return;
+    classementFrame.dataset.keysBound = '1';
+    const attach = () => {
+        try {
+            const win = classementFrame.contentWindow;
+            const doc = classementFrame.contentDocument;
+            if (!win || !doc) return;
+            win.removeEventListener('keydown', onClassementEscapeKey);
+            doc.removeEventListener('keydown', onClassementEscapeKey);
+            win.addEventListener('keydown', onClassementEscapeKey);
+            doc.addEventListener('keydown', onClassementEscapeKey);
+        } catch (_) { /* ignore */ }
+    };
+    classementFrame.addEventListener('load', attach);
+    attach();
+}
+
+function setClassementFullscreen(open) {
+    if (!classementFullscreen) return;
+    if (open) {
+        ensureClassementFrame();
+        classementFullscreen.hidden = false;
+        classementFullscreen.classList.add('is-open');
+        classementFullscreen.setAttribute('aria-hidden', 'false');
+        document.documentElement.classList.add('classement-proj-open');
+        document.body.classList.add('classement-proj-open');
+    } else {
+        classementFullscreen.classList.remove('is-open');
+        classementFullscreen.hidden = true;
+        classementFullscreen.setAttribute('aria-hidden', 'true');
+        document.documentElement.classList.remove('classement-proj-open');
+        document.body.classList.remove('classement-proj-open');
+    }
+}
+
+function isProjDisplayView(v) {
+    return PROJ_DISPLAY_VIEWS.has(Number(v));
+}
 const params = new URLSearchParams(location.search);
 const isController = params.get('remote') === '1' || params.get('view') === 'remote';
 const projViewSelect = document.getElementById('proj-view-select');
@@ -1720,7 +1828,7 @@ function applyRemoteState(data, { fromDirect = false } = {}) {
         updateDisplay(localElapsed);
     }
 
-    if (typeof data.displayView === 'number' && data.displayView >= 0 && data.displayView <= 2) {
+    if (typeof data.displayView === 'number' && isProjDisplayView(data.displayView)) {
         displayView = data.displayView;
         if (projViewSelect) projViewSelect.value = String(displayView);
         // Le projecteur suit la vue choisie ; la télécommande (?remote=1) reste sur sa vue
@@ -1818,6 +1926,10 @@ function showView(index, { localOnly = false, force = false } = {}) {
     if (viewsLocked && !force && !localOnly && index !== currentView) return;
 
     currentView = index;
+    // Sur le projecteur : classement = vraie page plein écran (pas dans le téléphone)
+    if (!isController) {
+        setClassementFullscreen(index === 4);
+    }
     document.querySelectorAll('.view').forEach((v) => {
         v.classList.toggle('active', Number(v.dataset.view) === index);
     });
@@ -1825,9 +1937,9 @@ function showView(index, { localOnly = false, force = false } = {}) {
         const dot = document.getElementById('dot-' + i);
         if (dot) dot.classList.toggle('active', i === index);
     }
-    phone.classList.toggle('hide-chrono-controls', index === 2 || index === 3);
+    phone.classList.toggle('hide-chrono-controls', index === 2 || index === 3 || index === 4);
     phone.classList.toggle('remote-mode', index === 3);
-    pageTitle.textContent = TITLES[index] || 'Chronomètre';
+    pageTitle.textContent = TITLES_BY_VIEW[index] || TITLES[index] || 'Chronomètre';
     updateDisplay(nowElapsed());
 
     // Sur le projecteur, naviguer vers 0/1/2 met à jour la vue « officielle »
@@ -1847,7 +1959,7 @@ document.getElementById('remote-plus').addEventListener('click', () => adjustTim
 document.getElementById('remote-save').addEventListener('click', saveCurrentChrono);
 projViewSelect.addEventListener('change', () => {
     const v = Number(projViewSelect.value);
-    if (v < 0 || v > 2) return;
+    if (!isProjDisplayView(v)) return;
     displayView = v;
     pushState({ displayView });
 });
@@ -1902,10 +2014,15 @@ document.addEventListener('keydown', (e) => {
         lapOrReset();
     } else if (e.code === 'KeyS') {
         saveCurrentChrono();
-    } else if (e.code === 'ArrowLeft') {
-        showView(Math.max(0, currentView - 1));
-    } else if (e.code === 'ArrowRight') {
-        showView(Math.min(MAX_VIEW, currentView + 1));
+    } else if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+        // Depuis le classement plein écran : ←/→ ramènent à la télécommande
+        if (currentView === 4 || document.body.classList.contains('classement-proj-open')) {
+            e.preventDefault();
+            exitClassementToRemote();
+            return;
+        }
+        if (e.code === 'ArrowLeft') showView(Math.max(0, currentView - 1));
+        else showView(Math.min(MAX_VIEW, currentView + 1));
     }
 });
 

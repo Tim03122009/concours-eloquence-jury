@@ -765,6 +765,25 @@
                     }
                 }
             }, 5000);
+
+            // Revenu depuis la télécommande chronomètre : si l'affichage projecteur
+            // repasse à une vue chrono (0/1/2), revenir sur chronometre.html
+            const fromChrono =
+                new URLSearchParams(location.search).get('from') === 'chrono' ||
+                (() => {
+                    try { return sessionStorage.getItem('chronoProjActive') === '1'; }
+                    catch (_) { return false; }
+                })();
+            if (fromChrono) {
+                onSnapshot(doc(db, 'config', 'chronoSync'), (snap) => {
+                    if (!snap.exists()) return;
+                    const v = snap.data().displayView;
+                    if (typeof v === 'number' && v >= 0 && v <= 2) {
+                        try { sessionStorage.removeItem('chronoProjActive'); } catch (_) { /* ignore */ }
+                        location.href = 'chronometre.html';
+                    }
+                });
+            }
         })();
     </script>
 </body>
