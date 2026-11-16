@@ -18,8 +18,17 @@
 
 import { db } from './firebase-init.js';
 import { 
-    collection, addDoc, query, where, getDocs, getDoc, doc, setDoc, updateDoc, deleteDoc, onSnapshot, increment 
+    collection, addDoc, query, where, getDocs, getDoc, getDocFromServer, doc, setDoc, updateDoc, deleteDoc, onSnapshot, increment, serverTimestamp 
 } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
+import {
+    isJuryTutorialMode,
+    initJuryTutorial,
+    onIdentificationShown,
+    onScoringInterfaceReady,
+    onNewAccountConfirmShown,
+    onNewAccountConfirmClosed,
+    refreshTutorialPlacement
+} from './jury-tutorial.js';
 
 // --- VARIABLES GLOBALES (Ajout de localStorage) ---
 let currentJuryName = localStorage.getItem('currentJuryName') || ''; // Stocke le juryId
@@ -88,6 +97,12 @@ let juryAccountRealtimeListener = null;
 let scoresRealtimeListener = null;
 let juryLayoutPingListener = null;
 let chronoSyncListener = null;
+let juryMessagesListener = null;
+let identificationMessagesListener = null;
+const JURY_MSG_IDENTIFICATION_ID = 'screen_identification';
+const juryMessageInfoTimers = new Map();
+const juryMessageDismissedLocal = new Set();
+const juryMessageLastSignalAt = new Map();
 let lastSavedChronoMs = null; // dernier temps enregistré (config/chronoSync.saved)
 let chronoTargetEnabled = false;
 let chronoTargetMs = 0;
@@ -347,6 +362,8 @@ async function checkSessionAndStart() {
             localStorage.removeItem('currentJuryDisplayName');
             localStorage.removeItem('sessionId');
             showIdentificationOnly();
+            setupIdentificationMessagesListener();
+            setupJuryDiscussionListener();
             await displayActiveRoundOnLogin();
             const display = document.getElementById('active-round-display');
             if (display) display.textContent = 'Session verrouillée. Vous n\'avez plus accès aux modifications.';
@@ -362,10 +379,14 @@ async function checkSessionAndStart() {
             startScoring();
         } else {
             showIdentificationOnly();
+            setupIdentificationMessagesListener();
+            setupJuryDiscussionListener();
             await displayActiveRoundOnLogin(); // Afficher le tour en cours
         }
     } catch (e) {
         showIdentificationOnly();
+        setupIdentificationMessagesListener();
+        setupJuryDiscussionListener();
         await displayActiveRoundOnLogin(); // Afficher le tour en cours
     }
 }
@@ -381,6 +402,9 @@ function showIdentificationOnly() {
     if (identificationPage) {
         identificationPage.classList.add('active');
         identificationPage.style.display = '';
+    }
+    if (isJuryTutorialMode) {
+        try { onIdentificationShown(); } catch (e) { console.error('tutoriel identification', e); }
     }
 }
 
@@ -444,6 +468,17 @@ function logout() {
         chronoSyncListener();
         chronoSyncListener = null;
     }
+    if (juryMessagesListener) {
+        juryMessagesListener();
+        juryMessagesListener = null;
+    }
+    stopIdentificationMessagesListener();
+    stopJuryDiscussionListener();
+    juryMessageInfoTimers.forEach((t) => clearTimeout(t));
+    juryMessageInfoTimers.clear();
+    juryMessageLastSignalAt.clear();
+    const msgRoot = document.getElementById('jury-admin-messages-root');
+    if (msgRoot) msgRoot.innerHTML = '';
     lastSavedChronoMs = null;
     chronoTargetEnabled = false;
     chronoTargetMs = 0;
@@ -468,22 +503,35 @@ window.refreshCandidateList = async function() {
     // Fermer le menu burger après le rafraîchissement
     const menuContent = document.getElementById('menu-content-scoring');
     if (menuContent) {
-        menuContent.classList.remove('show');
+        menuContent.classList.remove('active');
     }
 };
 
 /** Forcer la synchronisation avec les données admin (tours, candidats, duels) sans recharger la page. */
 window.syncWithAdmin = async function() {
     try {
-        const snapRounds = await getDoc(doc(db, "config", "rounds"));
+        const prevType = activeRoundType;
+        const prevEpreuve = activeRoundTypeEpreuve;
+        const prevRoundId = activeRoundId;
+        const prevUiRev = juryUiRevisionOf((ROUNDS || []).find(r => r.id === activeRoundId));
+
+        const snapRounds = await getDocFromServer(doc(db, "config", "rounds"));
         if (snapRounds.exists()) applyRoundsData(snapRounds.data());
-        const snapCandidates = await getDoc(doc(db, "candidats", "liste_actuelle"));
+        const snapCandidates = await getDocFromServer(doc(db, "candidats", "liste_actuelle"));
         if (snapCandidates.exists()) CANDIDATES = snapCandidates.data().candidates || [];
+
         const roundDisplay = document.getElementById('scoring-round-display');
         if (roundDisplay) roundDisplay.textContent = activeRoundName ? `Tour en cours : ${activeRoundName}` : '';
-        refreshCurrentJuryPanel();
+
+        const nextUiRev = juryUiRevisionOf((ROUNDS || []).find(r => r.id === activeRoundId));
+        if (prevType !== activeRoundType || prevEpreuve !== activeRoundTypeEpreuve || prevRoundId !== activeRoundId || prevUiRev !== nextUiRev) {
+            showInterfaceForCurrentRound();
+        } else {
+            refreshCurrentJuryPanel();
+        }
+
         const menuContent = document.getElementById('menu-content-scoring');
-        if (menuContent) menuContent.classList.remove('show');
+        if (menuContent) menuContent.classList.remove('active');
         if (typeof customAlert === 'function') await customAlert('✓ Données synchronisées avec l\'admin.');
         else alert('✓ Données synchronisées avec l\'admin.');
     } catch (e) {
@@ -543,7 +591,7 @@ window.changePassword = async function() {
         // Fermer le menu burger
         const menuContent = document.getElementById('menu-content-scoring');
         if (menuContent) {
-            menuContent.classList.remove('show');
+            menuContent.classList.remove('active');
         }
     } catch (e) {
         console.error('Erreur lors du changement de mot de passe:', e);
@@ -1182,8 +1230,20 @@ document.getElementById('start-scoring-button').onclick = async () => {
                 return;
             }
             
-            // Proposer de créer le compte
-            if (await confirm(`Ce compte n'existe pas. Voulez-vous le créer ?`)) {
+            // Proposer de créer le compte (customConfirm en tutoriel pour flécher « Confirmer »)
+            let createAccountOk = false;
+            if (isJuryTutorialMode && typeof customConfirm === 'function') {
+                const confirmPromise = customConfirm(`Ce compte n'existe pas. Voulez-vous le créer ?`);
+                try { onNewAccountConfirmShown(); } catch (e) { console.error('tutoriel confirm', e); }
+                createAccountOk = await confirmPromise;
+                try { onNewAccountConfirmClosed(); } catch (_) {}
+                if (!createAccountOk && typeof window.__juryTutorialResumeLogin === 'function') {
+                    window.__juryTutorialResumeLogin();
+                }
+            } else {
+                createAccountOk = await confirm(`Ce compte n'existe pas. Voulez-vous le créer ?`);
+            }
+            if (createAccountOk) {
                 // Générer un nouvel ID numérique
                 let maxNum = 0;
                 accountsSnap.forEach(doc => {
@@ -1282,6 +1342,11 @@ async function displayActiveRoundOnLogin() {
         }
     } else {
         display.textContent = 'Tour en cours : 1er tour';
+    }
+
+    // Le texte du tour décale le champ identifiant : recaler le cadre tutoriel
+    if (isJuryTutorialMode) {
+        try { refreshTutorialPlacement(); } catch (e) { console.error('tutoriel refresh', e); }
     }
 }
 
@@ -1661,6 +1726,9 @@ function showInterfaceForCurrentRound() {
     }
     Promise.resolve(done).finally(() => {
         updateJuryChronoBadge();
+        if (isJuryTutorialMode) {
+            try { onScoringInterfaceReady(); } catch (e) { console.error('tutoriel scoring', e); }
+        }
     });
 }
 
@@ -1814,6 +1882,10 @@ async function startScoring() {
     setupRealtimeListeners();
     // Dernier temps chronomètre enregistré (télécommande / chronometre.html)
     setupChronoSyncListener();
+    // Messages envoyés par l'admin (plus ceux de l'écran d'identification)
+    stopIdentificationMessagesListener();
+    setupJuryMessagesListener();
+    setupJuryDiscussionListener();
     updateJuryChronoBadge();
 }
 
@@ -2024,6 +2096,303 @@ function setupRoundChangeListener() {
     }, (error) => {
         console.error('❌ Error listening to round changes:', error);
     });
+}
+
+/**
+ * Messages envoyés par l'admin (notifications silencieuses sur l'interface jury).
+ */
+function loadDismissedJuryMessages(recipientId) {
+    const dismissedKey = `juryMsgDismissed_${recipientId}`;
+    try {
+        const stored = JSON.parse(localStorage.getItem(dismissedKey) || '[]');
+        if (Array.isArray(stored)) stored.forEach(id => juryMessageDismissedLocal.add(`${recipientId}:${id}`));
+    } catch (_) { /* ignore */ }
+}
+
+function isJuryMessageLocallyDismissed(recipientId, msgId) {
+    return juryMessageDismissedLocal.has(`${recipientId}:${msgId}`);
+}
+
+function persistJuryMessageDismissed(msgId, recipientId) {
+    const rid = recipientId || currentJuryName;
+    if (!msgId || !rid) return;
+    juryMessageDismissedLocal.add(`${rid}:${msgId}`);
+    const key = `juryMsgDismissed_${rid}`;
+    try {
+        const prefix = `${rid}:`;
+        const arr = Array.from(juryMessageDismissedLocal)
+            .filter(k => k.startsWith(prefix))
+            .map(k => k.slice(prefix.length))
+            .slice(-80);
+        localStorage.setItem(key, JSON.stringify(arr));
+    } catch (_) { /* ignore */ }
+}
+
+function bindJuryMessagesSnapshot(recipientId, onUnsubStore) {
+    const root = document.getElementById('jury-admin-messages-root');
+    if (!root || !recipientId) return null;
+    loadDismissedJuryMessages(recipientId);
+
+    const qMsg = query(
+        collection(db, 'jury_messages'),
+        where('recipients', 'array-contains', recipientId)
+    );
+
+    return onSnapshot(qMsg, (snap) => {
+        const visibleIds = new Set();
+        snap.forEach((docSnap) => {
+            const data = docSnap.data() || {};
+            const id = docSnap.id;
+            const responseType = data.responseType || 'info';
+            const myResp = (data.responses && data.responses[recipientId]) || { status: 'pending' };
+
+            if (isJuryMessageLocallyDismissed(recipientId, id)) return;
+            if (responseType === 'info' && (myResp.status === 'seen' || myResp.seen === true)) return;
+            if (responseType !== 'info' && myResp.status && myResp.status !== 'pending') return;
+
+            visibleIds.add(id);
+            upsertJuryAdminToast(id, data, recipientId);
+        });
+
+        root.querySelectorAll('.jury-admin-toast').forEach((el) => {
+            if (el.getAttribute('data-recipient-id') !== recipientId) return;
+            const mid = el.getAttribute('data-msg-id');
+            if (mid && !visibleIds.has(mid)) {
+                removeJuryAdminToast(mid, false);
+            }
+        });
+    }, (err) => {
+        console.error('juryMessagesListener', recipientId, err);
+    });
+}
+
+function setupJuryMessagesListener() {
+    if (juryMessagesListener || !currentJuryName) return;
+    juryMessagesListener = bindJuryMessagesSnapshot(currentJuryName);
+}
+
+function setupIdentificationMessagesListener() {
+    if (identificationMessagesListener || currentJuryName) return;
+    identificationMessagesListener = bindJuryMessagesSnapshot(JURY_MSG_IDENTIFICATION_ID);
+}
+
+function stopIdentificationMessagesListener() {
+    if (identificationMessagesListener) {
+        identificationMessagesListener();
+        identificationMessagesListener = null;
+    }
+    const root = document.getElementById('jury-admin-messages-root');
+    if (!root) return;
+    root.querySelectorAll(`.jury-admin-toast[data-recipient-id="${JURY_MSG_IDENTIFICATION_ID}"]`).forEach(el => {
+        const mid = el.getAttribute('data-msg-id');
+        if (mid) removeJuryAdminToast(mid, false);
+        else el.remove();
+    });
+}
+
+function escapeJuryToastHtml(str) {
+    return String(str == null ? '' : str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function applyJuryMessageSignal(el, msgId, data, responseType) {
+    const signalAt = Number(data.signalAt || 0);
+    if (!signalAt) return;
+    const prev = juryMessageLastSignalAt.get(msgId) || 0;
+    if (signalAt <= prev) return;
+    juryMessageLastSignalAt.set(msgId, signalAt);
+
+    if (responseType === 'text') {
+        el.classList.remove('is-collapsed');
+        const collapseEl = el.querySelector('.jury-admin-toast-collapse');
+        if (collapseEl) collapseEl.textContent = '▲';
+    }
+
+    el.classList.remove('is-signaling');
+    // Force restart animation
+    void el.offsetWidth;
+    el.classList.add('is-signaling');
+    const onEnd = () => {
+        el.classList.remove('is-signaling');
+        el.removeEventListener('animationend', onEnd);
+    };
+    el.addEventListener('animationend', onEnd);
+}
+
+function upsertJuryAdminToast(msgId, data, recipientId) {
+    const root = document.getElementById('jury-admin-messages-root');
+    if (!root) return;
+    const rid = recipientId || currentJuryName || JURY_MSG_IDENTIFICATION_ID;
+
+    let el = null;
+    root.querySelectorAll('.jury-admin-toast').forEach((node) => {
+        if (node.getAttribute('data-msg-id') === msgId) el = node;
+    });
+    const responseType = data.responseType || 'info';
+    const message = data.message || '';
+    const isNew = !el;
+
+    if (!el) {
+        el = document.createElement('div');
+        el.className = 'jury-admin-toast';
+        el.setAttribute('data-msg-id', msgId);
+        el.setAttribute('data-response-type', responseType);
+        el.setAttribute('data-recipient-id', rid);
+        root.prepend(el);
+    }
+
+    // Ne pas reconstruire si le jury est en train de taper une réponse
+    if (!isNew && responseType === 'text' && el.querySelector('textarea') === document.activeElement) {
+        applyJuryMessageSignal(el, msgId, data, responseType);
+        return;
+    }
+    if (!isNew && el.dataset.builtMessage === message && el.dataset.builtType === responseType) {
+        applyJuryMessageSignal(el, msgId, data, responseType);
+        return;
+    }
+
+    const collapsed = el.classList.contains('is-collapsed');
+    let actionsHtml = '';
+    if (responseType === 'yesno') {
+        actionsHtml = `<div class="jury-admin-toast-actions">
+            <button type="button" class="jury-admin-toast-square yes" title="Oui" aria-label="Oui" data-answer="yes">✓</button>
+            <button type="button" class="jury-admin-toast-square no" title="Non" aria-label="Non" data-answer="no">✕</button>
+        </div>`;
+    } else if (responseType === 'text') {
+        actionsHtml = `<div class="jury-admin-toast-reply">
+            <textarea placeholder="Votre réponse…" rows="3"></textarea>
+            <button type="button" class="jury-admin-toast-send">Envoyer la réponse</button>
+        </div>`;
+    }
+
+    const progressHtml = responseType === 'info'
+        ? `<div class="jury-admin-toast-progress" aria-hidden="true"><div class="jury-admin-toast-progress-bar"></div></div>`
+        : '';
+
+    const collapseBtn = responseType === 'text'
+        ? `<button type="button" class="jury-admin-toast-collapse" title="Réduire / agrandir" aria-label="Réduire ou agrandir">${collapsed ? '▼' : '▲'}</button>`
+        : '';
+
+    el.innerHTML = `
+        ${progressHtml}
+        <div class="jury-admin-toast-header">
+            <span>Equipe d'organisation</span>
+            ${collapseBtn}
+        </div>
+        <div class="jury-admin-toast-body">${escapeJuryToastHtml(message)}</div>
+        ${actionsHtml}
+    `;
+    el.dataset.builtMessage = message;
+    el.dataset.builtType = responseType;
+    el.setAttribute('data-recipient-id', rid);
+    if (collapsed) el.classList.add('is-collapsed');
+
+    const collapseEl = el.querySelector('.jury-admin-toast-collapse');
+    if (collapseEl) {
+        collapseEl.onclick = () => {
+            const nowCollapsed = el.classList.toggle('is-collapsed');
+            collapseEl.textContent = nowCollapsed ? '▼' : '▲';
+        };
+    }
+
+    el.querySelectorAll('.jury-admin-toast-square').forEach((btn) => {
+        btn.onclick = () => answerJuryAdminMessage(msgId, btn.getAttribute('data-answer'), rid);
+    });
+
+    const sendBtn = el.querySelector('.jury-admin-toast-send');
+    if (sendBtn) {
+        sendBtn.onclick = () => {
+            const ta = el.querySelector('textarea');
+            const text = (ta && ta.value || '').trim();
+            if (!text) return;
+            answerJuryAdminMessage(msgId, text, rid);
+        };
+    }
+
+    if (responseType === 'info' && isNew && !juryMessageInfoTimers.has(msgId)) {
+        const timer = setTimeout(() => {
+            juryMessageInfoTimers.delete(msgId);
+            markJuryAdminMessageSeen(msgId, rid);
+            removeJuryAdminToast(msgId, true);
+        }, 15000);
+        juryMessageInfoTimers.set(msgId, timer);
+    }
+
+    applyJuryMessageSignal(el, msgId, data, responseType);
+}
+
+function removeJuryAdminToast(msgId, animate) {
+    const root = document.getElementById('jury-admin-messages-root');
+    if (!root) return;
+    let el = null;
+    root.querySelectorAll('.jury-admin-toast').forEach((node) => {
+        if (node.getAttribute('data-msg-id') === msgId) el = node;
+    });
+    if (!el) return;
+    const clearTimer = juryMessageInfoTimers.get(msgId);
+    if (clearTimer) {
+        clearTimeout(clearTimer);
+        juryMessageInfoTimers.delete(msgId);
+    }
+    if (!animate) {
+        el.remove();
+        return;
+    }
+    el.classList.add('is-leaving');
+    setTimeout(() => el.remove(), 280);
+}
+
+async function markJuryAdminMessageSeen(msgId, recipientId) {
+    const rid = recipientId || currentJuryName;
+    persistJuryMessageDismissed(msgId, rid);
+    if (!rid || !msgId) return;
+    try {
+        await updateDoc(doc(db, 'jury_messages', msgId), {
+            [`responses.${rid}`]: {
+                status: 'seen',
+                seen: true,
+                answeredAtMs: Date.now()
+            }
+        });
+    } catch (e) {
+        console.error('markJuryAdminMessageSeen', e);
+    }
+}
+
+async function answerJuryAdminMessage(msgId, answer, recipientId) {
+    const rid = recipientId || currentJuryName;
+    if (!rid || !msgId) return;
+    const root = document.getElementById('jury-admin-messages-root');
+    const toastEl = root && Array.from(root.querySelectorAll('.jury-admin-toast')).find(n => n.getAttribute('data-msg-id') === msgId);
+    if (toastEl) {
+        toastEl.querySelectorAll('button').forEach(b => { b.disabled = true; });
+        const ta = toastEl.querySelector('textarea');
+        if (ta) ta.disabled = true;
+    }
+    try {
+        await updateDoc(doc(db, 'jury_messages', msgId), {
+            [`responses.${rid}`]: {
+                status: 'answered',
+                answer,
+                answeredAtMs: Date.now()
+            }
+        });
+        persistJuryMessageDismissed(msgId, rid);
+        removeJuryAdminToast(msgId, true);
+    } catch (e) {
+        console.error('answerJuryAdminMessage', e);
+        if (toastEl) {
+            toastEl.querySelectorAll('button').forEach(b => { b.disabled = false; });
+            const ta = toastEl.querySelector('textarea');
+            if (ta) ta.disabled = false;
+        }
+        if (typeof customAlert === 'function') {
+            await customAlert('Impossible d\'envoyer la réponse : ' + (e.message || e));
+        }
+    }
 }
 
 async function updateCandidateSelect(preserveSelection = null) {
@@ -2302,6 +2671,7 @@ async function showGrandeFinaleInterface() {
 
     scoringPage.innerHTML = `
         <div class="burger-menu">
+            <button type="button" class="jury-help-btn" title="Contacter l'équipe d'organisation" aria-label="Contacter l'équipe d'organisation" onclick="openJuryHelpToAdmin()">?</button>
             <div class="burger-icon" onclick="toggleMenu()">
                 <span></span><span></span><span></span>
             </div>
@@ -2903,6 +3273,7 @@ function showJuryUiInterface(ui) {
     const showBar = !!(ui.showTabsBar && tabs.length);
     scoringPage.innerHTML = `
         <div class="burger-menu">
+            <button type="button" class="jury-help-btn" title="Contacter l'équipe d'organisation" aria-label="Contacter l'équipe d'organisation" onclick="openJuryHelpToAdmin()">?</button>
             <div class="burger-icon" onclick="toggleMenu()"><span></span><span></span><span></span></div>
             <div class="burger-menu-content" id="menu-content-scoring">
                 <div class="theme-toggle">
@@ -3192,6 +3563,7 @@ function showNotationInterface() {
     
     scoringPage.innerHTML = `
         <div class="burger-menu">
+            <button type="button" class="jury-help-btn" title="Contacter l'équipe d'organisation" aria-label="Contacter l'équipe d'organisation" onclick="openJuryHelpToAdmin()">?</button>
             <div class="burger-icon" onclick="toggleMenu()">
                 <span></span>
                 <span></span>
@@ -4538,6 +4910,7 @@ async function showClassementInterface() {
 
     scoringPage.innerHTML = `
         <div class="burger-menu">
+            <button type="button" class="jury-help-btn" title="Contacter l'équipe d'organisation" aria-label="Contacter l'équipe d'organisation" onclick="openJuryHelpToAdmin()">?</button>
             <div class="burger-icon" onclick="toggleMenu()"><span></span><span></span><span></span></div>
             <div class="burger-menu-content" id="menu-content-scoring">
                 <div class="theme-toggle"><span>Mode sombre</span><div class="toggle-switch" id="theme-toggle-scoring" onclick="toggleTheme()"><div class="toggle-slider"></div></div></div>
@@ -4917,6 +5290,7 @@ async function showRepechageInterface() {
     // Afficher l'interface
     scoringPage.innerHTML = `
         <div class="burger-menu">
+            <button type="button" class="jury-help-btn" title="Contacter l'équipe d'organisation" aria-label="Contacter l'équipe d'organisation" onclick="openJuryHelpToAdmin()">?</button>
             <div class="burger-icon" onclick="toggleMenu()">
                 <span></span>
                 <span></span>
@@ -5471,6 +5845,7 @@ async function showRepechagePodium() {
     // Afficher le podium
     scoringPage.innerHTML = `
         <div class="burger-menu">
+            <button type="button" class="jury-help-btn" title="Contacter l'équipe d'organisation" aria-label="Contacter l'équipe d'organisation" onclick="openJuryHelpToAdmin()">?</button>
             <div class="burger-icon" onclick="toggleMenu()">
                 <span></span>
                 <span></span>
@@ -5661,6 +6036,7 @@ async function showDuelsInterface() {
     // Afficher l'interface avec onglets Notation | Duels | Mon classement (Fond + Forme pour chaque candidat)
     scoringPage.innerHTML = `
         <div class="burger-menu">
+            <button type="button" class="jury-help-btn" title="Contacter l'équipe d'organisation" aria-label="Contacter l'équipe d'organisation" onclick="openJuryHelpToAdmin()">?</button>
             <div class="burger-icon" onclick="toggleMenu()">
                 <span></span>
                 <span></span>
@@ -5817,6 +6193,329 @@ async function confirmDuel() {
         await customAlert("Erreur lors de l'enregistrement : " + e.message);
     }
 }
+
+window.openJuryHelpToAdmin = function() {
+    const modal = document.getElementById('jury-help-modal');
+    const ta = document.getElementById('jury-help-message');
+    const status = document.getElementById('jury-help-send-status');
+    if (!modal) return;
+    if (ta) ta.value = '';
+    if (status) status.textContent = '';
+    modal.style.display = 'flex';
+    modal.setAttribute('aria-hidden', 'false');
+    setTimeout(() => { if (ta) ta.focus(); }, 50);
+};
+
+window.closeJuryHelpToAdmin = function() {
+    const modal = document.getElementById('jury-help-modal');
+    if (!modal) return;
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden', 'true');
+};
+
+window.sendJuryHelpToAdmin = async function() {
+    const ta = document.getElementById('jury-help-message');
+    const status = document.getElementById('jury-help-send-status');
+    const sendBtn = document.querySelector('.jury-help-send-btn');
+    const message = (ta && ta.value || '').trim();
+    if (!message) {
+        if (status) status.textContent = 'Écrivez un message.';
+        return;
+    }
+
+    const idPage = document.getElementById('identification-page');
+    const onIdentification = !currentJuryName || !!(idPage && idPage.classList.contains('active'));
+    let fromName = currentJuryDisplayName || currentJuryName || '';
+    if (onIdentification || !fromName) {
+        const nameInput = document.getElementById('jury-name-input');
+        fromName = (nameInput && nameInput.value.trim()) || 'Écran d\'identification';
+    }
+    const participantKey = currentJuryName || JURY_MSG_IDENTIFICATION_ID;
+    const now = Date.now();
+
+    if (sendBtn) sendBtn.disabled = true;
+    if (status) status.textContent = 'Envoi…';
+    try {
+        await addDoc(collection(db, 'admin_inbox'), {
+            message,
+            fromType: (onIdentification || !currentJuryName) ? 'identification' : 'jury',
+            fromName,
+            fromJuryId: currentJuryName || null,
+            participantKey,
+            status: 'open',
+            toastDismissed: false,
+            unreadAdmin: true,
+            unreadJury: false,
+            messages: [{ from: 'jury', text: message, atMs: now }],
+            lastMessageAtMs: now,
+            createdAt: serverTimestamp(),
+            createdAtMs: now
+        });
+        if (status) status.textContent = '✓ Message envoyé';
+        setTimeout(() => closeJuryHelpToAdmin(), 700);
+        setupJuryDiscussionListener();
+    } catch (e) {
+        console.error('sendJuryHelpToAdmin', e);
+        if (status) status.textContent = '';
+        if (typeof customAlert === 'function') {
+            await customAlert('Impossible d\'envoyer le message : ' + (e.message || e));
+        }
+    } finally {
+        if (sendBtn) sendBtn.disabled = false;
+    }
+};
+
+let juryDiscussionListener = null;
+const juryMinimizedDiscussionIds = new Set();
+
+function getJuryDiscussionParticipantKey() {
+    if (currentJuryName) return currentJuryName;
+    return JURY_MSG_IDENTIFICATION_ID;
+}
+
+function setupJuryDiscussionListener() {
+    const participantKey = getJuryDiscussionParticipantKey();
+    if (!participantKey) return;
+    if (juryDiscussionListener) {
+        juryDiscussionListener();
+        juryDiscussionListener = null;
+    }
+    const qDisc = query(
+        collection(db, 'admin_inbox'),
+        where('participantKey', '==', participantKey)
+    );
+    juryDiscussionListener = onSnapshot(qDisc, (snap) => {
+        const items = [];
+        snap.forEach(docSnap => {
+            const data = docSnap.data() || {};
+            if ((data.status || 'open') === 'closed') return;
+            items.push({ id: docSnap.id, ...data });
+        });
+        items.sort((a, b) => (a.createdAtMs || 0) - (b.createdAtMs || 0));
+        renderJuryDiscussionPanels(items);
+    }, (err) => {
+        console.error('juryDiscussionListener', err);
+    });
+}
+
+function stopJuryDiscussionListener() {
+    if (juryDiscussionListener) {
+        juryDiscussionListener();
+        juryDiscussionListener = null;
+    }
+    juryMinimizedDiscussionIds.clear();
+    const root = document.getElementById('jury-discussion-root');
+    if (root) root.innerHTML = '';
+}
+
+window.minimizeJuryDiscussion = function(msgId) {
+    if (!msgId) return;
+    juryMinimizedDiscussionIds.add(msgId);
+    const root = document.getElementById('jury-discussion-root');
+    if (!root) return;
+    // Re-render from last snapshot via forcing listener isn't available; update DOM directly
+    const panel = root.querySelector(`.jury-discussion-panel[data-discussion-id="${msgId}"]`);
+    if (panel) panel.remove();
+    let chip = root.querySelector(`.jury-discussion-chip[data-discussion-id="${msgId}"]`);
+    if (!chip) {
+        chip = document.createElement('div');
+        chip.className = 'jury-discussion-chip';
+        chip.setAttribute('data-discussion-id', msgId);
+        chip.setAttribute('role', 'button');
+        chip.tabIndex = 0;
+        chip.innerHTML = `<span>Discussion en cours</span><span aria-hidden="true">💬</span>`;
+        chip.onclick = () => reopenJuryDiscussion(msgId);
+        chip.onkeydown = (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                reopenJuryDiscussion(msgId);
+            }
+        };
+        root.appendChild(chip);
+    }
+};
+
+window.reopenJuryDiscussion = function(msgId) {
+    if (!msgId) return;
+    juryMinimizedDiscussionIds.delete(msgId);
+    // Relancer un rendu en re-souscrivant n'est pas nécessaire : on force via getDoc
+    refreshJuryDiscussionPanels();
+};
+
+async function refreshJuryDiscussionPanels() {
+    const participantKey = getJuryDiscussionParticipantKey();
+    if (!participantKey) return;
+    try {
+        const qDisc = query(
+            collection(db, 'admin_inbox'),
+            where('participantKey', '==', participantKey)
+        );
+        const snap = await getDocs(qDisc);
+        const items = [];
+        snap.forEach(docSnap => {
+            const data = docSnap.data() || {};
+            if ((data.status || 'open') === 'closed') return;
+            items.push({ id: docSnap.id, ...data });
+        });
+        items.sort((a, b) => (a.createdAtMs || 0) - (b.createdAtMs || 0));
+        renderJuryDiscussionPanels(items);
+    } catch (e) {
+        console.error('refreshJuryDiscussionPanels', e);
+    }
+}
+
+function renderJuryDiscussionPanels(items) {
+    const root = document.getElementById('jury-discussion-root');
+    if (!root) return;
+    const openIds = new Set(items.map(i => i.id));
+    root.querySelectorAll('.jury-discussion-panel, .jury-discussion-chip').forEach(el => {
+        const id = el.getAttribute('data-discussion-id');
+        if (id && !openIds.has(id)) el.remove();
+    });
+
+    items.forEach(item => {
+        // Nouvelle réponse admin → rouvrir automatiquement le panneau
+        if (item.unreadJury) {
+            juryMinimizedDiscussionIds.delete(item.id);
+        }
+
+        const minimized = juryMinimizedDiscussionIds.has(item.id);
+        const existingPanel = root.querySelector(`.jury-discussion-panel[data-discussion-id="${item.id}"]`);
+        const existingChip = root.querySelector(`.jury-discussion-chip[data-discussion-id="${item.id}"]`);
+
+        if (minimized) {
+            if (existingPanel) existingPanel.remove();
+            let chip = existingChip;
+            if (!chip) {
+                chip = document.createElement('div');
+                chip.className = 'jury-discussion-chip';
+                chip.setAttribute('data-discussion-id', item.id);
+                chip.setAttribute('role', 'button');
+                chip.tabIndex = 0;
+                chip.onclick = () => reopenJuryDiscussion(item.id);
+                chip.onkeydown = (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        reopenJuryDiscussion(item.id);
+                    }
+                };
+                root.appendChild(chip);
+            }
+            chip.className = 'jury-discussion-chip' + (item.unreadJury ? ' has-unread' : '');
+            chip.innerHTML = `<span>Discussion en cours${item.unreadJury ? ' · nouveau' : ''}</span><span aria-hidden="true">💬</span>`;
+            return;
+        }
+
+        if (existingChip) existingChip.remove();
+
+        let panel = existingPanel;
+        const msgs = Array.isArray(item.messages) && item.messages.length
+            ? item.messages
+            : [{ from: 'jury', text: item.message || '', atMs: item.createdAtMs || Date.now() }];
+        const composing = panel && panel.querySelector('textarea') === document.activeElement;
+        const draft = composing ? panel.querySelector('textarea').value : '';
+
+        const threadHtml = msgs.map(m => {
+            const mine = m.from !== 'admin';
+            const who = mine ? 'Vous' : 'Equipe d\'organisation';
+            const t = m.atMs ? new Date(m.atMs).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
+            return `<div class="jury-discussion-row ${mine ? 'mine' : 'admin'}">
+                <div class="jury-discussion-bubble">
+                    <span class="jury-discussion-bubble-meta">${who}${t ? ' · ' + escapeJuryToastHtml(t) : ''}</span>
+                    <span class="jury-discussion-bubble-text">${escapeJuryToastHtml(m.text || '')}</span>
+                </div>
+            </div>`;
+        }).join('');
+
+        if (!panel) {
+            panel = document.createElement('div');
+            panel.className = 'jury-discussion-panel';
+            panel.setAttribute('data-discussion-id', item.id);
+            root.appendChild(panel);
+        }
+
+        panel.innerHTML = `
+            <div class="jury-discussion-header">
+                <span>Discussion avec l'organisation</span>
+                <button type="button" class="jury-discussion-close-btn" title="Réduire" aria-label="Réduire">×</button>
+            </div>
+            <div class="jury-discussion-thread">${threadHtml}</div>
+            <div class="jury-discussion-compose">
+                <textarea rows="2" placeholder="Votre réponse…"></textarea>
+                <button type="button">Envoyer</button>
+            </div>
+        `;
+        const threadEl = panel.querySelector('.jury-discussion-thread');
+        if (threadEl) threadEl.scrollTop = threadEl.scrollHeight;
+        const ta = panel.querySelector('textarea');
+        if (ta && draft) ta.value = draft;
+        const closeBtn = panel.querySelector('.jury-discussion-close-btn');
+        if (closeBtn) closeBtn.onclick = () => minimizeJuryDiscussion(item.id);
+        const btn = panel.querySelector('.jury-discussion-compose button');
+        if (btn) {
+            btn.onclick = () => {
+                const text = (ta && ta.value || '').trim();
+                if (!text) return;
+                replyJuryDiscussion(item.id, text);
+            };
+        }
+        if (item.unreadJury) {
+            markJuryDiscussionRead(item.id);
+        }
+    });
+}
+
+async function markJuryDiscussionRead(msgId) {
+    try {
+        await updateDoc(doc(db, 'admin_inbox', msgId), { unreadJury: false });
+    } catch (e) {
+        console.error('markJuryDiscussionRead', e);
+    }
+}
+
+async function replyJuryDiscussion(msgId, text) {
+    if (!msgId || !text) return;
+    try {
+        const ref = doc(db, 'admin_inbox', msgId);
+        const snap = await getDoc(ref);
+        if (!snap.exists()) return;
+        const data = snap.data() || {};
+        if ((data.status || 'open') === 'closed') {
+            if (typeof customAlert === 'function') await customAlert('Cette discussion est terminée.');
+            return;
+        }
+        const messages = Array.isArray(data.messages) ? [...data.messages] : [];
+        if (!messages.length && data.message) {
+            messages.push({ from: 'jury', text: data.message, atMs: data.createdAtMs || Date.now() });
+        }
+        messages.push({ from: 'jury', text, atMs: Date.now() });
+        await updateDoc(ref, {
+            messages,
+            lastMessageAtMs: Date.now(),
+            unreadAdmin: true,
+            unreadJury: false,
+            toastDismissed: false
+        });
+    } catch (e) {
+        console.error('replyJuryDiscussion', e);
+        if (typeof customAlert === 'function') {
+            await customAlert('Impossible d\'envoyer la réponse : ' + (e.message || e));
+        }
+    }
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const modal = document.getElementById('jury-help-modal');
+    if (modal && modal.style.display !== 'none') closeJuryHelpToAdmin();
+});
+
+initJuryTutorial({
+    fetchDefaultPassword: async () => {
+        const snap = await getDoc(doc(db, 'config', 'juryDefaults'));
+        return snap.exists() ? (snap.data().defaultPassword || '') : '';
+    }
+});
 
 checkSessionAndStart();
 

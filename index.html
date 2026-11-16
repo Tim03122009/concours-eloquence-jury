@@ -12,8 +12,28 @@
 </head>
 <body>
 
+    <div id="jury-admin-messages-root" aria-live="polite" aria-relevant="additions"></div>
+    <div id="jury-discussion-root" aria-live="polite"></div>
+    <div id="jury-tutorial-root" aria-live="polite"></div>
+
+    <div id="jury-help-modal" class="jury-help-modal" style="display: none;" aria-hidden="true">
+        <div class="jury-help-modal-card" role="dialog" aria-labelledby="jury-help-modal-title">
+            <div class="jury-help-modal-header">
+                <h3 id="jury-help-modal-title">Message à l'équipe d'organisation</h3>
+                <button type="button" class="jury-help-modal-close" onclick="closeJuryHelpToAdmin()" title="Fermer" aria-label="Fermer">×</button>
+            </div>
+            <p class="jury-help-modal-hint">Décrivez votre problème (connexion, mot de passe, affichage…).</p>
+            <textarea id="jury-help-message" rows="4" placeholder="Votre message…"></textarea>
+            <div class="jury-help-modal-actions">
+                <button type="button" class="jury-help-send-btn" onclick="sendJuryHelpToAdmin()">Envoyer</button>
+                <span id="jury-help-send-status"></span>
+            </div>
+        </div>
+    </div>
+
     <div id="identification-page" class="page">
         <div class="burger-menu">
+            <button type="button" class="jury-help-btn" title="Contacter l'équipe d'organisation" aria-label="Contacter l'équipe d'organisation" onclick="openJuryHelpToAdmin()">?</button>
             <div class="burger-icon" onclick="toggleMenu()">
                 <span></span>
                 <span></span>
@@ -44,6 +64,7 @@
 
     <div id="scoring-page" class="page">
         <div class="burger-menu">
+            <button type="button" class="jury-help-btn" title="Contacter l'équipe d'organisation" aria-label="Contacter l'équipe d'organisation" onclick="openJuryHelpToAdmin()">?</button>
             <div class="burger-icon" onclick="toggleMenu()">
                 <span></span>
                 <span></span>
@@ -188,8 +209,9 @@
             });
         }
 
-        // Close menu when clicking outside
+        // Close menu when clicking outside (sauf bouton Suivant du tutoriel)
         document.addEventListener('click', function(event) {
+            if (event.target.closest('.tutorial-next-btn')) return;
             const menus = document.querySelectorAll('.burger-menu-content');
             const burgerIcon = event.target.closest('.burger-icon');
             

@@ -959,6 +959,482 @@
             background: var(--border-color);
         }
 
+        /* Panneau message aux jurys (onglet Jury uniquement) */
+        .jury-message-panel {
+            background: var(--card-bg, #fff);
+            border: 2px solid #17a2b8;
+            border-radius: 10px;
+            margin: 0 0 18px 0;
+            overflow: hidden;
+            box-shadow: 0 4px 16px rgba(23, 162, 184, 0.15);
+        }
+        .jury-message-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 16px;
+            background: linear-gradient(135deg, rgba(23, 162, 184, 0.12) 0%, rgba(17, 122, 139, 0.08) 100%);
+            border-bottom: 1px solid var(--border-color);
+        }
+        .jury-message-close-btn {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 6px;
+            background: var(--bg-secondary, #eee);
+            color: var(--text-color);
+            font-size: 1.4em;
+            line-height: 1;
+            cursor: pointer;
+        }
+        .jury-message-close-btn:hover { background: #dc3545; color: #fff; }
+        .jury-message-panel-body { padding: 16px; }
+        .jury-message-label {
+            display: block;
+            font-weight: 600;
+            color: var(--text-color);
+            margin: 0 0 6px 0;
+            font-size: 0.95em;
+        }
+        .jury-message-multiselect { position: relative; margin-bottom: 14px; }
+        .jury-message-multiselect-toggle {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--input-bg);
+            color: var(--text-color);
+            font-size: 0.95em;
+            cursor: pointer;
+            text-align: left;
+            font-family: inherit;
+        }
+        .jury-message-multiselect-toggle:hover,
+        .jury-message-multiselect-toggle:focus {
+            border-color: #17a2b8;
+            outline: none;
+        }
+        .jury-message-multiselect-menu {
+            position: absolute;
+            z-index: 40;
+            left: 0;
+            right: 0;
+            top: calc(100% + 4px);
+            max-height: 240px;
+            overflow: auto;
+            background: var(--card-bg, #fff);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+            padding: 8px;
+        }
+        .jury-message-multiselect-actions {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .jury-message-multiselect-actions button {
+            border: 1px solid var(--border-color);
+            background: var(--input-bg);
+            color: var(--text-color);
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 0.8em;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .jury-message-recipient-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 4px;
+            color: var(--text-color);
+            font-size: 0.92em;
+            cursor: pointer;
+        }
+        .jury-message-recipient-item:hover { background: var(--bg-secondary, rgba(0,0,0,0.04)); border-radius: 4px; }
+        .jury-message-response-types {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .jury-message-radio {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            padding: 10px 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            background: var(--input-bg);
+            color: var(--text-color);
+        }
+        .jury-message-radio:has(input:checked) {
+            border-color: #17a2b8;
+            background: rgba(23, 162, 184, 0.08);
+        }
+        .jury-message-radio input { margin: 0 0 4px 0; }
+        .jury-message-radio span { font-weight: 600; }
+        .jury-message-radio small { color: var(--text-secondary); font-size: 0.8em; line-height: 1.3; }
+        #jury-message-text {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--input-bg);
+            color: var(--text-color);
+            font-family: inherit;
+            font-size: 0.95em;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+        #jury-message-text:focus { border-color: #17a2b8; outline: none; }
+        .jury-message-responses-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 320px;
+            overflow: auto;
+        }
+        .jury-message-card {
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 12px;
+            background: var(--input-bg);
+        }
+        .jury-message-card-meta {
+            font-size: 0.8em;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+        .jury-message-card-text {
+            color: var(--text-color);
+            font-size: 0.92em;
+            margin: 0 0 8px 0;
+            white-space: pre-wrap;
+        }
+        .jury-message-card-answers {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 0.85em;
+        }
+        .jury-message-answer-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            color: var(--text-color);
+        }
+        .jury-message-answer-badge {
+            display: inline-block;
+            padding: 1px 7px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.85em;
+        }
+        .jury-message-answer-badge.yes { background: #d4edda; color: #155724; }
+        .jury-message-answer-badge.no { background: #f8d7da; color: #721c24; }
+        .jury-message-answer-badge.pending { background: #fff3cd; color: #856404; }
+        .jury-message-answer-badge.info { background: #d1ecf1; color: #0c5460; }
+        .jury-message-answer-badge.text { background: #e2e3e5; color: #383d41; }
+        .jury-message-card-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+        .jury-message-card-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+        .jury-message-card-btn {
+            border: 1px solid var(--border-color);
+            background: var(--card-bg, #fff);
+            color: var(--text-color);
+            border-radius: 5px;
+            padding: 3px 8px;
+            font-size: 0.75em;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            line-height: 1.3;
+        }
+        .jury-message-card-btn:hover { border-color: #17a2b8; color: #117a8b; }
+        .jury-message-card-btn.signal:hover { border-color: #ff9800; color: #e65100; }
+        .jury-message-card-btn.delete {
+            width: 26px;
+            height: 26px;
+            padding: 0;
+            font-size: 1.1em;
+            line-height: 1;
+            color: #dc3545;
+            border-color: #f5c6cb;
+        }
+        .jury-message-card-btn.delete:hover { background: #dc3545; color: #fff; border-color: #dc3545; }
+        .jury-message-card.is-active {
+            border-color: #17a2b8;
+            box-shadow: 0 0 0 1px rgba(23, 162, 184, 0.2);
+        }
+        .jury-message-recipient-item.is-special {
+            border-top: 1px solid var(--border-color);
+            margin-top: 4px;
+            padding-top: 8px;
+            font-weight: 600;
+        }
+
+        /* Messages entrants jury → admin */
+        .admin-inbox-root {
+            position: fixed;
+            top: 12px;
+            right: 12px;
+            z-index: 10080;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: min(400px, calc(100vw - 24px));
+            width: 100%;
+            pointer-events: none;
+        }
+        .admin-inbox-toast {
+            pointer-events: auto;
+            background: var(--card-bg, #fff);
+            color: var(--text-color);
+            border: 2px solid #ff9800;
+            border-radius: 10px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.18);
+            overflow: hidden;
+            animation: admin-inbox-in 0.25s ease-out;
+        }
+        @keyframes admin-inbox-in {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .admin-inbox-toast-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 8px 10px 8px 12px;
+            background: linear-gradient(135deg, rgba(255, 152, 0, 0.18) 0%, rgba(255, 152, 0, 0.08) 100%);
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 700;
+            font-size: 0.88em;
+        }
+        .admin-inbox-toast-close {
+            width: 30px;
+            height: 30px;
+            border: none;
+            border-radius: 6px;
+            background: transparent;
+            color: var(--text-color);
+            font-size: 1.35em;
+            line-height: 1;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .admin-inbox-toast-close:hover {
+            background: #dc3545;
+            color: #fff;
+        }
+        .admin-inbox-toast-meta {
+            padding: 6px 12px 0;
+            font-size: 0.8em;
+            color: var(--text-secondary);
+        }
+        .admin-inbox-toast-body {
+            padding: 8px 12px 12px;
+            font-size: 0.95em;
+            line-height: 1.45;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .admin-inbox-toast {
+            cursor: pointer;
+        }
+        .admin-inbox-toast-close {
+            cursor: pointer;
+        }
+        .admin-inbox-toast.has-unread {
+            border-color: #e65100;
+            box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.35), 0 8px 20px rgba(0,0,0,0.18);
+        }
+        .admin-discussion-root {
+            position: fixed;
+            bottom: 12px;
+            right: 12px;
+            z-index: 10085;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-width: min(420px, calc(100vw - 24px));
+            width: 100%;
+            pointer-events: none;
+        }
+        .admin-discussion-panel {
+            pointer-events: auto;
+            background: var(--card-bg, #fff);
+            color: var(--text-color);
+            border: 2px solid #17a2b8;
+            border-radius: 12px;
+            box-shadow: 0 10px 28px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            max-height: min(480px, 70vh);
+            overflow: hidden;
+        }
+        .admin-discussion-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 10px 12px;
+            background: linear-gradient(135deg, rgba(23, 162, 184, 0.18) 0%, rgba(23, 162, 184, 0.08) 100%);
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 700;
+            font-size: 0.9em;
+        }
+        .admin-discussion-header-actions {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        .admin-discussion-end-btn {
+            border: 1px solid #dc3545;
+            background: #fff;
+            color: #dc3545;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 0.75em;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .admin-discussion-end-btn:hover {
+            background: #dc3545;
+            color: #fff;
+        }
+        .admin-discussion-close-btn {
+            width: 28px;
+            height: 28px;
+            border: none;
+            border-radius: 6px;
+            background: transparent;
+            color: var(--text-color);
+            font-size: 1.25em;
+            cursor: pointer;
+            line-height: 1;
+        }
+        .admin-discussion-close-btn:hover { background: rgba(0,0,0,0.08); }
+        .admin-discussion-meta {
+            padding: 6px 12px;
+            font-size: 0.78em;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border-color);
+        }
+        .admin-discussion-thread {
+            flex: 1 1 auto;
+            overflow-y: auto;
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-height: 0;
+        }
+        .admin-discussion-row {
+            display: flex;
+            width: 100%;
+            flex: 0 0 auto;
+        }
+        .admin-discussion-row.jury { justify-content: flex-start; }
+        .admin-discussion-row.admin { justify-content: flex-end; }
+        .admin-discussion-bubble {
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 2px;
+            flex: 0 0 auto;
+            width: max-content;
+            max-width: min(75%, 260px);
+            height: auto;
+            min-height: 0;
+            padding: 6px 10px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            line-height: 1.25;
+            text-align: left;
+        }
+        .admin-discussion-row.jury .admin-discussion-bubble {
+            background: rgba(255, 152, 0, 0.15);
+            border: 1px solid rgba(255, 152, 0, 0.35);
+        }
+        .admin-discussion-row.admin .admin-discussion-bubble {
+            background: rgba(23, 162, 184, 0.15);
+            border: 1px solid rgba(23, 162, 184, 0.35);
+        }
+        .admin-discussion-bubble-meta {
+            display: block;
+            width: max-content;
+            max-width: 100%;
+            font-size: 0.72em;
+            line-height: 1.2;
+            color: var(--text-secondary);
+            margin: 0;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .admin-discussion-bubble-text {
+            display: block;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            line-height: 1.35;
+            white-space: pre-wrap;
+            overflow-wrap: break-word;
+            word-break: break-word;
+        }
+        .admin-discussion-compose {
+            display: flex;
+            gap: 8px;
+            padding: 10px 12px;
+            border-top: 1px solid var(--border-color);
+            background: var(--input-bg, #f8f9fa);
+        }
+        .admin-discussion-compose textarea {
+            flex: 1;
+            min-height: 42px;
+            max-height: 90px;
+            resize: vertical;
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--card-bg, #fff);
+            color: var(--text-color);
+            font-family: inherit;
+            font-size: 0.9em;
+        }
+        .admin-discussion-compose button {
+            border: none;
+            border-radius: 8px;
+            padding: 8px 12px;
+            background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%);
+            color: #fff;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+            align-self: flex-end;
+        }
+
         /* Indicateur remplissage jury (rouge = incomplet, vert = tout rempli/validé) */
         .jury-fill-indicator {
             position: absolute;
@@ -1172,6 +1648,8 @@
     </style>
 </head>
 <body>
+    <div id="admin-inbox-root" class="admin-inbox-root" aria-live="polite" aria-relevant="additions"></div>
+    <div id="admin-discussion-root" class="admin-discussion-root"></div>
     <div class="container">
         <div id="jury-fill-indicator" class="jury-fill-indicator is-neutral" title="Indicateur de saisie des jurys" aria-label="Indicateur de saisie des jurys"></div>
         <div class="burger-menu">
@@ -1249,6 +1727,96 @@
 
         <!-- TAB 2: JURY -->
         <div id="tab-jury" class="tab-content">
+            <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px;">
+                <button type="button" onclick="toggleJuryMessagePanel()" id="jury-message-open-btn" class="action-button" style="background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%); color:white; margin: 0;">✉ Envoyer un message</button>
+            </div>
+
+            <div class="candidate-zone" style="background: var(--input-bg); border: 2px solid var(--border-color); padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                <h3 style="color: var(--text-color); margin-top: 0;">📱 QR code vers une page</h3>
+                <p style="color: var(--text-secondary); font-size: 0.9em; margin: 5px 0 12px;">Choisissez une page du site, puis téléchargez un QR code en JPG (lien absolu vers cette page).</p>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+                    <label for="jury-qr-page-select" style="color: var(--text-color); font-weight: 600;">Page :</label>
+                    <select id="jury-qr-page-select" style="flex: 1; min-width: 220px; padding: 10px 12px; border: 2px solid var(--border-color); border-radius: 6px; background: var(--input-bg); color: var(--text-color); font-size: 1em; font-family: inherit;">
+                        <option value="index.html">Connexion / Interface jury</option>
+                        <option value="index.html?tutoriel=1">Tutoriel jury</option>
+                        <option value="admin.html">Administration</option>
+                        <option value="classement.html">Classement</option>
+                        <option value="malus.html">Malus</option>
+                        <option value="accueil.html">Accueil candidats</option>
+                        <option value="qr.html">QR code (affichage vote)</option>
+                        <option value="vote.html">Vote du public</option>
+                        <option value="chronometre.html">Chronomètre</option>
+                        <option value="chronometre.html?remote=1">Télécommande chronomètre</option>
+                        <option value="video.html">Vidéo</option>
+                        <option value="finale.html">Grande finale (salle)</option>
+                        <option value="test.html">Test jury</option>
+                        <option value="jury-maquette.html">Maquette jury</option>
+                        <option value="guide-interfaces.html">Guide des interfaces</option>
+                    </select>
+                    <button type="button" onclick="generatePageQRCode()" class="action-button" style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: white; margin: 0;">Générer un QR</button>
+                </div>
+                <div id="jury-qr-generator" aria-hidden="true" style="position: absolute; left: -9999px; top: 0; width: 512px; height: 512px; overflow: hidden;"></div>
+            </div>
+
+            <div id="jury-message-panel" class="jury-message-panel" style="display: none;" aria-hidden="true">
+                <div class="jury-message-panel-header">
+                    <h4 style="margin: 0; color: var(--text-color);">Envoyer un message aux jurys</h4>
+                    <button type="button" onclick="toggleJuryMessagePanel(false)" class="jury-message-close-btn" title="Fermer" aria-label="Fermer">×</button>
+                </div>
+                <div class="jury-message-panel-body">
+                    <label class="jury-message-label" for="jury-message-recipients-toggle">Destinataires</label>
+                    <div class="jury-message-multiselect" id="jury-message-multiselect">
+                        <button type="button" id="jury-message-recipients-toggle" class="jury-message-multiselect-toggle" onclick="toggleJuryMessageRecipientMenu()">
+                            <span id="jury-message-recipients-label">Sélectionner des jurys…</span>
+                            <span aria-hidden="true">▾</span>
+                        </button>
+                        <div id="jury-message-recipients-menu" class="jury-message-multiselect-menu" style="display: none;">
+                            <div class="jury-message-multiselect-actions">
+                                <button type="button" onclick="setAllJuryMessageRecipients(true)">Tout sélectionner</button>
+                                <button type="button" onclick="setAllJuryMessageRecipients(false)">Tout désélectionner</button>
+                            </div>
+                            <div id="jury-message-recipients-list"></div>
+                        </div>
+                    </div>
+
+                    <label class="jury-message-label">Type de réponse</label>
+                    <div class="jury-message-response-types" role="radiogroup" aria-label="Type de réponse">
+                        <label class="jury-message-radio">
+                            <input type="radio" name="jury-message-response-type" value="info" checked>
+                            <span>Juste information</span>
+                            <small>Notification 15 s puis disparaît</small>
+                        </label>
+                        <label class="jury-message-radio">
+                            <input type="radio" name="jury-message-response-type" value="yesno">
+                            <span>Oui ou non</span>
+                            <small>Reste jusqu’à validation ou refus</small>
+                        </label>
+                        <label class="jury-message-radio">
+                            <input type="radio" name="jury-message-response-type" value="text">
+                            <span>Réponse libre</span>
+                            <small>Zone de texte + repli possible</small>
+                        </label>
+                    </div>
+
+                    <label class="jury-message-label" for="jury-message-text">Message</label>
+                    <textarea id="jury-message-text" rows="4" placeholder="Écrivez votre message aux jurys…"></textarea>
+
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px;">
+                        <button type="button" onclick="sendJuryMessage()" class="action-button" style="background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%); color: white; margin: 0;">Envoyer</button>
+                        <button type="button" onclick="clearJuryMessageHistory()" class="action-button" style="background: linear-gradient(135deg, #6c757d 0%, #495057 100%); color: white; margin: 0;" title="Supprime uniquement les messages déjà traités (plus affichés côté jury)">🗑 Supprimer l’historique</button>
+                        <span id="jury-message-send-status" style="color: var(--text-secondary); font-size: 0.9em;"></span>
+                    </div>
+
+                    <div id="jury-message-responses" class="jury-message-responses" style="margin-top: 18px;">
+                        <h5 style="margin: 0 0 8px 0; color: var(--text-color);">Messages récents &amp; réponses</h5>
+                        <p style="margin: 0 0 8px 0; color: var(--text-secondary); font-size: 0.8em;">Sur chaque message : renvoyer · resignaler (clignote 3×) · Discussion (réponse libre) · × pour retirer un message encore affiché.</p>
+                        <div id="jury-message-responses-list" class="jury-message-responses-list">
+                            <p style="color: var(--text-secondary); margin: 0; font-size: 0.9em;">Aucun message envoyé pour l’instant.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="candidate-zone" style="background: var(--primary-light, #e3f2fd); border: 2px solid var(--primary-color, #2196f3); padding: 20px; border-radius: 8px; margin-bottom: 20px;">
                 <h3 style="color: var(--primary-color, #1565c0);">🔑 Mot de passe par défaut</h3>
                 <p style="color: var(--text-color); font-size: 0.9em; margin: 5px 0;">Ce mot de passe sera requis pour créer un nouveau compte jury et sera défini par défaut lors de la création.</p>
@@ -1274,7 +1842,9 @@
             </div>
 
             <h3 style="color: var(--text-color);">Liste des jurys</h3>
-            <button onclick="addJury()" class="action-button" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color:white;">+ Ajouter un jury</button>
+            <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px;">
+                <button onclick="addJury()" class="action-button" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color:white; margin: 0;">+ Ajouter un jury</button>
+            </div>
             
             <table class="candidate-table" id="jury-table">
                 <thead>
@@ -1811,6 +2381,7 @@
 
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs@gh-pages/qrcode.min.js"></script>
     <script type="module">
         import { db } from './firebase-init.js';
         import { collection, getDocs, deleteDoc, doc, setDoc, getDoc, addDoc, query, where, writeBatch, onSnapshot, serverTimestamp, updateDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
@@ -2773,6 +3344,11 @@
             } else if (tabName === 'jury') {
                 renderJuryTable();
                 loadSessionLockState();
+                populateJuryMessageRecipients();
+                const msgPanel = document.getElementById('jury-message-panel');
+                if (msgPanel && msgPanel.style.display !== 'none') {
+                    startJuryMessagesAdminListener();
+                }
             } else if (tabName === 'tours') {
                 renderRoundsTable();
             } else if (tabName === 'notes') {
@@ -3743,7 +4319,717 @@
             });
             
             await loadJuries();
+            populateJuryMessageRecipients();
         };
+
+        // --- Messages admin → jurys ---
+        const JURY_MSG_IDENTIFICATION_ID = 'screen_identification';
+        const JURY_MSG_IDENTIFICATION_LABEL = 'Écran d\'identification';
+        let juryMessagesAdminListener = null;
+        let juryMessagesAdminCache = [];
+
+        function escapeJuryMsgHtml(str) {
+            return String(str == null ? '' : str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function juryMessageRecipientLabel(rid) {
+            if (rid === JURY_MSG_IDENTIFICATION_ID) return JURY_MSG_IDENTIFICATION_LABEL;
+            const j = (JURIES || []).find(x => x.id === rid);
+            return (j && j.name) || rid;
+        }
+
+        function isJuryMessageActive(item) {
+            const type = item.responseType || 'info';
+            const recipients = Array.isArray(item.recipients) ? item.recipients : [];
+            const responses = item.responses || {};
+            if (recipients.length === 0) return false;
+            return recipients.some(rid => {
+                const r = responses[rid] || { status: 'pending' };
+                if (type === 'info') return !(r.status === 'seen' || r.seen === true);
+                return !r.status || r.status === 'pending';
+            });
+        }
+
+        window.generatePageQRCode = function() {
+            const select = document.getElementById('jury-qr-page-select');
+            const container = document.getElementById('jury-qr-generator');
+            if (!select || !container) return;
+            const pagePath = select.value;
+            if (!pagePath) {
+                if (typeof customAlert === 'function') customAlert('Choisissez une page.');
+                else alert('Choisissez une page.');
+                return;
+            }
+            if (typeof QRCode === 'undefined') {
+                if (typeof customAlert === 'function') customAlert('Bibliothèque QR indisponible. Vérifiez votre connexion.');
+                else alert('Bibliothèque QR indisponible. Vérifiez votre connexion.');
+                return;
+            }
+
+            const absoluteUrl = new URL(pagePath, window.location.href).href;
+            const label = (select.options[select.selectedIndex] && select.options[select.selectedIndex].text) || pagePath;
+            const safeName = String(label)
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-zA-Z0-9]+/g, '-')
+                .replace(/^-|-$/g, '')
+                .toLowerCase() || 'page';
+
+            container.innerHTML = '';
+            new QRCode(container, {
+                text: absoluteUrl,
+                width: 512,
+                height: 512,
+                colorDark: '#1a1a1a',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.M
+            });
+
+            const downloadJpg = () => {
+                let canvas = container.querySelector('canvas');
+                if (!canvas) {
+                    const img = container.querySelector('img');
+                    if (!img) {
+                        if (typeof customAlert === 'function') customAlert('Impossible de générer le QR code.');
+                        else alert('Impossible de générer le QR code.');
+                        return;
+                    }
+                    canvas = document.createElement('canvas');
+                    canvas.width = img.naturalWidth || img.width || 512;
+                    canvas.height = img.naturalHeight || img.height || 512;
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0);
+                }
+                const jpgUrl = canvas.toDataURL('image/jpeg', 0.92);
+                const a = document.createElement('a');
+                a.href = jpgUrl;
+                a.download = `qr-${safeName}.jpg`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                container.innerHTML = '';
+            };
+
+            // Laisser le temps à qrcode.js de peindre le canvas / l'image
+            setTimeout(downloadJpg, 80);
+        };
+
+        window.toggleJuryMessagePanel = function(forceOpen) {
+            const panel = document.getElementById('jury-message-panel');
+            const btn = document.getElementById('jury-message-open-btn');
+            if (!panel) return;
+            const willOpen = typeof forceOpen === 'boolean'
+                ? forceOpen
+                : panel.style.display === 'none';
+            panel.style.display = willOpen ? 'block' : 'none';
+            panel.setAttribute('aria-hidden', willOpen ? 'false' : 'true');
+            if (btn) btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+            if (willOpen) {
+                populateJuryMessageRecipients();
+                startJuryMessagesAdminListener();
+            } else {
+                const menu = document.getElementById('jury-message-recipients-menu');
+                if (menu) menu.style.display = 'none';
+            }
+        };
+
+        window.toggleJuryMessageRecipientMenu = function() {
+            const menu = document.getElementById('jury-message-recipients-menu');
+            if (!menu) return;
+            const open = menu.style.display === 'none';
+            menu.style.display = open ? 'block' : 'none';
+            if (open) populateJuryMessageRecipients();
+        };
+
+        function populateJuryMessageRecipients() {
+            const list = document.getElementById('jury-message-recipients-list');
+            if (!list) return;
+            const existingBoxes = list.querySelectorAll('input[type="checkbox"]');
+            const hadBoxes = existingBoxes.length > 0;
+            const prevChecked = new Set(
+                Array.from(list.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value)
+            );
+            const sorted = [...(JURIES || [])].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
+            const entries = [
+                ...sorted.map(j => ({ id: j.id, label: j.name || j.id, special: false })),
+                { id: JURY_MSG_IDENTIFICATION_ID, label: JURY_MSG_IDENTIFICATION_LABEL, special: true }
+            ];
+            list.innerHTML = entries.map(entry => {
+                const wasChecked = hadBoxes ? prevChecked.has(entry.id) : !entry.special;
+                return `<label class="jury-message-recipient-item${entry.special ? ' is-special' : ''}">
+                    <input type="checkbox" value="${escapeJuryMsgHtml(entry.id)}" ${wasChecked ? 'checked' : ''} onchange="updateJuryMessageRecipientsLabel()">
+                    <span>${escapeJuryMsgHtml(entry.label)}</span>
+                </label>`;
+            }).join('');
+            updateJuryMessageRecipientsLabel();
+        }
+
+        window.setAllJuryMessageRecipients = function(selected) {
+            const list = document.getElementById('jury-message-recipients-list');
+            if (!list) return;
+            list.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = !!selected; });
+            updateJuryMessageRecipientsLabel();
+        };
+
+        window.updateJuryMessageRecipientsLabel = function() {
+            const label = document.getElementById('jury-message-recipients-label');
+            const list = document.getElementById('jury-message-recipients-list');
+            if (!label || !list) return;
+            const checked = Array.from(list.querySelectorAll('input[type="checkbox"]:checked'));
+            const total = list.querySelectorAll('input[type="checkbox"]').length;
+            if (checked.length === 0) {
+                label.textContent = 'Sélectionner des destinataires…';
+            } else if (checked.length === total) {
+                label.textContent = `Tous les destinataires (${total})`;
+            } else if (checked.length <= 3) {
+                const names = checked.map(cb => {
+                    const span = cb.parentElement && cb.parentElement.querySelector('span');
+                    return span ? span.textContent : cb.value;
+                });
+                label.textContent = names.join(', ');
+            } else {
+                label.textContent = `${checked.length} destinataires sélectionnés`;
+            }
+        };
+
+        function getSelectedJuryMessageRecipients() {
+            const list = document.getElementById('jury-message-recipients-list');
+            if (!list) return [];
+            return Array.from(list.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+        }
+
+        function getSelectedJuryMessageResponseType() {
+            const el = document.querySelector('input[name="jury-message-response-type"]:checked');
+            return el ? el.value : 'info';
+        }
+
+        async function createJuryMessageDoc({ message, responseType, recipients }) {
+            const responses = {};
+            recipients.forEach(id => {
+                responses[id] = { status: 'pending' };
+            });
+            return addDoc(collection(db, 'jury_messages'), {
+                message,
+                responseType,
+                recipients,
+                responses,
+                createdAt: serverTimestamp(),
+                createdAtMs: Date.now(),
+                signalAt: 0
+            });
+        }
+
+        window.sendJuryMessage = async function() {
+            const statusEl = document.getElementById('jury-message-send-status');
+            const textEl = document.getElementById('jury-message-text');
+            const recipients = getSelectedJuryMessageRecipients();
+            const message = (textEl && textEl.value || '').trim();
+            const responseType = getSelectedJuryMessageResponseType();
+
+            if (recipients.length === 0) {
+                await customAlert('Sélectionnez au moins un destinataire.');
+                return;
+            }
+            if (!message) {
+                await customAlert('Saisissez un message.');
+                return;
+            }
+
+            if (statusEl) statusEl.textContent = 'Envoi…';
+            try {
+                await createJuryMessageDoc({ message, responseType, recipients });
+                if (textEl) textEl.value = '';
+                if (statusEl) statusEl.textContent = `✓ Envoyé à ${recipients.length} destinataire(s)`;
+                setTimeout(() => { if (statusEl && statusEl.textContent.startsWith('✓')) statusEl.textContent = ''; }, 4000);
+                const menu = document.getElementById('jury-message-recipients-menu');
+                if (menu) menu.style.display = 'none';
+            } catch (e) {
+                console.error('sendJuryMessage', e);
+                if (statusEl) statusEl.textContent = '';
+                await customAlert('Erreur lors de l\'envoi : ' + (e.message || e));
+            }
+        };
+
+        window.clearJuryMessageHistory = async function() {
+            const inactive = juryMessagesAdminCache.filter(item => !isJuryMessageActive(item));
+            if (inactive.length === 0) {
+                await customAlert('Aucun message d\'historique à supprimer.\n(Les messages encore affichés côté jury sont conservés.)');
+                return;
+            }
+            if (!await confirm(`Supprimer ${inactive.length} message(s) d'historique ?\nLes messages encore affichés côté jury ne seront pas touchés.`)) return;
+            try {
+                const batch = writeBatch(db);
+                inactive.forEach(item => batch.delete(doc(db, 'jury_messages', item.id)));
+                await batch.commit();
+                const statusEl = document.getElementById('jury-message-send-status');
+                if (statusEl) {
+                    statusEl.textContent = `✓ ${inactive.length} message(s) d'historique supprimé(s)`;
+                    setTimeout(() => { if (statusEl && statusEl.textContent.startsWith('✓')) statusEl.textContent = ''; }, 4000);
+                }
+            } catch (e) {
+                console.error('clearJuryMessageHistory', e);
+                await customAlert('Erreur lors de la suppression : ' + (e.message || e));
+            }
+        };
+
+        window.resendJuryMessage = async function(msgId) {
+            const item = juryMessagesAdminCache.find(m => m.id === msgId);
+            if (!item) {
+                await customAlert('Message introuvable.');
+                return;
+            }
+            try {
+                await createJuryMessageDoc({
+                    message: item.message || '',
+                    responseType: item.responseType || 'info',
+                    recipients: Array.isArray(item.recipients) ? [...item.recipients] : []
+                });
+                const statusEl = document.getElementById('jury-message-send-status');
+                if (statusEl) {
+                    statusEl.textContent = '✓ Message renvoyé';
+                    setTimeout(() => { if (statusEl && statusEl.textContent.startsWith('✓')) statusEl.textContent = ''; }, 3000);
+                }
+            } catch (e) {
+                console.error('resendJuryMessage', e);
+                await customAlert('Erreur lors du renvoi : ' + (e.message || e));
+            }
+        };
+
+        window.signalJuryMessage = async function(msgId) {
+            try {
+                await updateDoc(doc(db, 'jury_messages', msgId), {
+                    signalAt: Date.now()
+                });
+            } catch (e) {
+                console.error('signalJuryMessage', e);
+                await customAlert('Erreur lors du signalement : ' + (e.message || e));
+            }
+        };
+
+        window.deleteActiveJuryMessage = async function(msgId) {
+            const item = juryMessagesAdminCache.find(m => m.id === msgId);
+            if (!item) return;
+            if (!isJuryMessageActive(item)) {
+                await customAlert('Ce message n\'est plus actuel (déjà traité). Utilisez « Supprimer l\'historique ».');
+                return;
+            }
+            if (!await confirm('Retirer ce message des interfaces jury maintenant ?')) return;
+            try {
+                await deleteDoc(doc(db, 'jury_messages', msgId));
+            } catch (e) {
+                console.error('deleteActiveJuryMessage', e);
+                await customAlert('Erreur lors de la suppression : ' + (e.message || e));
+            }
+        };
+
+        /** Passe un message « réponse libre » en discussions bilatérales (une par destinataire). */
+        window.convertJuryMessageToDiscussion = async function(msgId) {
+            const item = juryMessagesAdminCache.find(m => m.id === msgId);
+            if (!item) {
+                await customAlert('Message introuvable.');
+                return;
+            }
+            if ((item.responseType || 'info') !== 'text') {
+                await customAlert('Seuls les messages en réponse libre peuvent passer en discussion.');
+                return;
+            }
+            if (item.convertedToDiscussion === true) {
+                await customAlert('Ce message a déjà été passé en discussion.');
+                return;
+            }
+            const recipients = Array.isArray(item.recipients) ? item.recipients : [];
+            if (recipients.length === 0) {
+                await customAlert('Aucun destinataire.');
+                return;
+            }
+
+            const now = Date.now();
+            const baseText = String(item.message || '').trim();
+            const responses = item.responses || {};
+            const createdIds = [];
+
+            try {
+                for (const rid of recipients) {
+                    const fromName = juryMessageRecipientLabel(rid);
+                    const isIdent = rid === JURY_MSG_IDENTIFICATION_ID;
+                    const r = responses[rid] || {};
+                    const messages = [
+                        { from: 'admin', text: baseText, atMs: item.createdAtMs || now }
+                    ];
+                    if (r.status === 'answered' && r.answer != null && String(r.answer).trim() !== '') {
+                        messages.push({
+                            from: 'jury',
+                            text: String(r.answer),
+                            atMs: r.answeredAtMs || now
+                        });
+                    }
+                    const ref = await addDoc(collection(db, 'admin_inbox'), {
+                        message: baseText,
+                        fromType: isIdent ? 'identification' : 'jury',
+                        fromName,
+                        fromJuryId: isIdent ? null : rid,
+                        participantKey: rid,
+                        status: 'open',
+                        toastDismissed: false,
+                        unreadAdmin: messages.some(m => m.from === 'jury'),
+                        unreadJury: true,
+                        messages,
+                        lastMessageAtMs: messages[messages.length - 1].atMs || now,
+                        createdAt: serverTimestamp(),
+                        createdAtMs: now,
+                        sourceJuryMessageId: msgId
+                    });
+                    createdIds.push(ref.id);
+                }
+
+                // Retirer le toast « réponse libre » côté jury
+                await deleteDoc(doc(db, 'jury_messages', msgId));
+
+                createdIds.forEach(id => adminOpenDiscussionIds.add(id));
+                startAdminInboxListener();
+
+                const statusEl = document.getElementById('jury-message-send-status');
+                if (statusEl) {
+                    statusEl.textContent = `✓ ${createdIds.length} discussion(s) ouverte(s)`;
+                    setTimeout(() => { if (statusEl && statusEl.textContent.startsWith('✓')) statusEl.textContent = ''; }, 4000);
+                }
+            } catch (e) {
+                console.error('convertJuryMessageToDiscussion', e);
+                await customAlert('Erreur lors du passage en discussion : ' + (e.message || e));
+            }
+        };
+
+        function startJuryMessagesAdminListener() {
+            if (juryMessagesAdminListener) return;
+            const listEl = document.getElementById('jury-message-responses-list');
+            if (!listEl) return;
+            juryMessagesAdminListener = onSnapshot(collection(db, 'jury_messages'), (snap) => {
+                const items = [];
+                snap.forEach(docSnap => {
+                    items.push({ id: docSnap.id, ...docSnap.data() });
+                });
+                items.sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0));
+                juryMessagesAdminCache = items;
+                renderJuryMessagesAdminList(items.slice(0, 40));
+            }, (err) => {
+                console.error('juryMessagesAdminListener', err);
+            });
+        }
+
+        // --- Boîte de réception admin (messages depuis le ?) + discussions ---
+        let adminInboxListener = null;
+        let adminInboxCache = [];
+        const adminOpenDiscussionIds = new Set();
+
+        function startAdminInboxListener() {
+            if (adminInboxListener) return;
+            const root = document.getElementById('admin-inbox-root');
+            if (!root) return;
+            adminInboxListener = onSnapshot(collection(db, 'admin_inbox'), (snap) => {
+                const items = [];
+                snap.forEach(docSnap => {
+                    items.push({ id: docSnap.id, ...docSnap.data() });
+                });
+                items.sort((a, b) => (a.createdAtMs || 0) - (b.createdAtMs || 0));
+                adminInboxCache = items;
+                renderAdminInboxToasts(items);
+                renderAdminDiscussionPanels(items);
+            }, (err) => {
+                console.error('adminInboxListener', err);
+            });
+        }
+
+        function adminInboxPreviewText(item) {
+            const msgs = Array.isArray(item.messages) ? item.messages : [];
+            if (msgs.length) return String(msgs[msgs.length - 1].text || '');
+            return String(item.message || '');
+        }
+
+        function renderAdminInboxToasts(items) {
+            const root = document.getElementById('admin-inbox-root');
+            if (!root) return;
+            const toastItems = items.filter(item => {
+                if ((item.status || 'open') === 'closed') return false;
+                if (adminOpenDiscussionIds.has(item.id)) return false;
+                if (item.toastDismissed === true && item.unreadAdmin !== true) return false;
+                return true;
+            });
+            const visible = new Set(toastItems.map(i => i.id));
+            root.querySelectorAll('.admin-inbox-toast').forEach(el => {
+                const id = el.getAttribute('data-inbox-id');
+                if (id && !visible.has(id)) el.remove();
+            });
+            toastItems.forEach(item => {
+                let el = root.querySelector(`.admin-inbox-toast[data-inbox-id="${item.id}"]`);
+                const when = item.lastMessageAtMs || item.createdAtMs
+                    ? new Date(item.lastMessageAtMs || item.createdAtMs).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+                    : '';
+                const fromLabel = escapeJuryMsgHtml(item.fromName || 'Jury');
+                const source = item.fromType === 'identification' ? 'écran de connexion' : 'interface jury';
+                const preview = escapeJuryMsgHtml(adminInboxPreviewText(item));
+                const unreadClass = item.unreadAdmin ? ' has-unread' : '';
+                if (!el) {
+                    el = document.createElement('div');
+                    el.className = 'admin-inbox-toast' + unreadClass;
+                    el.setAttribute('data-inbox-id', item.id);
+                    el.title = 'Cliquer pour ouvrir la discussion';
+                    root.appendChild(el);
+                } else {
+                    el.className = 'admin-inbox-toast' + unreadClass;
+                }
+                el.innerHTML = `
+                    <div class="admin-inbox-toast-header">
+                        <span>Message jury${item.unreadAdmin ? ' · nouveau' : ''}</span>
+                        <button type="button" class="admin-inbox-toast-close" title="Fermer la notification" aria-label="Fermer">×</button>
+                    </div>
+                    <div class="admin-inbox-toast-meta">${fromLabel} · ${escapeJuryMsgHtml(source)}${when ? ' · ' + escapeJuryMsgHtml(when) : ''}</div>
+                    <div class="admin-inbox-toast-body">${preview}</div>
+                `;
+                el.onclick = (e) => {
+                    if (e.target.closest('.admin-inbox-toast-close')) return;
+                    openAdminDiscussion(item.id);
+                };
+                el.querySelector('.admin-inbox-toast-close').onclick = (e) => {
+                    e.stopPropagation();
+                    dismissAdminInboxMessage(item.id);
+                };
+            });
+        }
+
+        window.dismissAdminInboxMessage = async function(msgId) {
+            if (!msgId) return;
+            try {
+                await updateDoc(doc(db, 'admin_inbox', msgId), {
+                    toastDismissed: true,
+                    unreadAdmin: false,
+                    dismissedAtMs: Date.now()
+                });
+            } catch (e) {
+                console.error('dismissAdminInboxMessage', e);
+                const root = document.getElementById('admin-inbox-root');
+                const el = root && root.querySelector(`.admin-inbox-toast[data-inbox-id="${msgId}"]`);
+                if (el) el.remove();
+                await customAlert('Impossible de fermer la notification : ' + (e.message || e));
+            }
+        };
+
+        window.openAdminDiscussion = async function(msgId) {
+            if (!msgId) return;
+            adminOpenDiscussionIds.add(msgId);
+            try {
+                await updateDoc(doc(db, 'admin_inbox', msgId), {
+                    toastDismissed: true,
+                    unreadAdmin: false,
+                    discussionOpenedAtMs: Date.now()
+                });
+            } catch (e) {
+                console.error('openAdminDiscussion', e);
+            }
+            renderAdminInboxToasts(adminInboxCache);
+            renderAdminDiscussionPanels(adminInboxCache);
+        };
+
+        window.closeAdminDiscussionPanel = function(msgId) {
+            adminOpenDiscussionIds.delete(msgId);
+            renderAdminInboxToasts(adminInboxCache);
+            renderAdminDiscussionPanels(adminInboxCache);
+        };
+
+        function renderAdminDiscussionPanels(items) {
+            const root = document.getElementById('admin-discussion-root');
+            if (!root) return;
+            const openItems = items.filter(i => adminOpenDiscussionIds.has(i.id) && (i.status || 'open') !== 'closed');
+            const visible = new Set(openItems.map(i => i.id));
+            root.querySelectorAll('.admin-discussion-panel').forEach(el => {
+                const id = el.getAttribute('data-discussion-id');
+                if (id && !visible.has(id)) el.remove();
+            });
+            // Fermer les panels des discussions terminées
+            Array.from(adminOpenDiscussionIds).forEach(id => {
+                const item = items.find(i => i.id === id);
+                if (!item || (item.status || 'open') === 'closed') adminOpenDiscussionIds.delete(id);
+            });
+
+            openItems.forEach(item => {
+                let panel = root.querySelector(`.admin-discussion-panel[data-discussion-id="${item.id}"]`);
+                const msgs = Array.isArray(item.messages) ? item.messages : [{ from: 'jury', text: item.message || '', atMs: item.createdAtMs || Date.now() }];
+                const fromLabel = escapeJuryMsgHtml(item.fromName || 'Jury');
+                const source = item.fromType === 'identification' ? 'écran de connexion' : 'interface jury';
+                const threadHtml = msgs.map(m => {
+                    const role = m.from === 'admin' ? 'admin' : 'jury';
+                    const who = role === 'admin' ? 'Vous' : fromLabel;
+                    const t = m.atMs ? new Date(m.atMs).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
+                    return `<div class="admin-discussion-row ${role}">
+                        <div class="admin-discussion-bubble">
+                            <span class="admin-discussion-bubble-meta">${who}${t ? ' · ' + escapeJuryMsgHtml(t) : ''}</span>
+                            <span class="admin-discussion-bubble-text">${escapeJuryMsgHtml(m.text || '')}</span>
+                        </div>
+                    </div>`;
+                }).join('');
+
+                const composing = panel && panel.querySelector('textarea') === document.activeElement;
+                const draft = composing ? panel.querySelector('textarea').value : '';
+
+                if (!panel) {
+                    panel = document.createElement('div');
+                    panel.className = 'admin-discussion-panel';
+                    panel.setAttribute('data-discussion-id', item.id);
+                    root.appendChild(panel);
+                }
+
+                panel.innerHTML = `
+                    <div class="admin-discussion-header">
+                        <span>Discussion</span>
+                        <div class="admin-discussion-header-actions">
+                            <button type="button" class="admin-discussion-end-btn" title="Mettre fin à la discussion">Fin</button>
+                            <button type="button" class="admin-discussion-close-btn" title="Réduire" aria-label="Réduire">×</button>
+                        </div>
+                    </div>
+                    <div class="admin-discussion-meta">${fromLabel} · ${escapeJuryMsgHtml(source)}</div>
+                    <div class="admin-discussion-thread">${threadHtml}</div>
+                    <div class="admin-discussion-compose">
+                        <textarea rows="2" placeholder="Votre réponse…"></textarea>
+                        <button type="button">Envoyer</button>
+                    </div>
+                `;
+
+                const threadEl = panel.querySelector('.admin-discussion-thread');
+                if (threadEl) threadEl.scrollTop = threadEl.scrollHeight;
+                const ta = panel.querySelector('textarea');
+                if (ta && draft) ta.value = draft;
+                panel.querySelector('.admin-discussion-close-btn').onclick = () => closeAdminDiscussionPanel(item.id);
+                panel.querySelector('.admin-discussion-end-btn').onclick = () => endAdminDiscussion(item.id);
+                panel.querySelector('.admin-discussion-compose button').onclick = () => {
+                    const text = (ta && ta.value || '').trim();
+                    if (!text) return;
+                    replyAdminDiscussion(item.id, text);
+                };
+            });
+        }
+
+        window.replyAdminDiscussion = async function(msgId, text) {
+            if (!msgId || !text) return;
+            try {
+                const ref = doc(db, 'admin_inbox', msgId);
+                const snap = await getDoc(ref);
+                if (!snap.exists()) return;
+                const data = snap.data() || {};
+                if ((data.status || 'open') === 'closed') {
+                    await customAlert('Cette discussion est terminée.');
+                    return;
+                }
+                const messages = Array.isArray(data.messages) ? [...data.messages] : [];
+                if (!messages.length && data.message) {
+                    messages.push({ from: 'jury', text: data.message, atMs: data.createdAtMs || Date.now() });
+                }
+                messages.push({ from: 'admin', text, atMs: Date.now() });
+                await updateDoc(ref, {
+                    messages,
+                    lastMessageAtMs: Date.now(),
+                    unreadJury: true,
+                    unreadAdmin: false
+                });
+            } catch (e) {
+                console.error('replyAdminDiscussion', e);
+                await customAlert('Impossible d\'envoyer la réponse : ' + (e.message || e));
+            }
+        };
+
+        window.endAdminDiscussion = async function(msgId) {
+            if (!msgId) return;
+            try {
+                await updateDoc(doc(db, 'admin_inbox', msgId), {
+                    status: 'closed',
+                    closedAtMs: Date.now(),
+                    unreadAdmin: false,
+                    unreadJury: false,
+                    toastDismissed: true
+                });
+                adminOpenDiscussionIds.delete(msgId);
+            } catch (e) {
+                console.error('endAdminDiscussion', e);
+                await customAlert('Impossible de terminer la discussion : ' + (e.message || e));
+            }
+        };
+
+        function responseTypeLabel(type) {
+            if (type === 'yesno') return 'Oui / Non';
+            if (type === 'text') return 'Réponse libre';
+            return 'Information';
+        }
+
+        function renderJuryMessagesAdminList(items) {
+            const listEl = document.getElementById('jury-message-responses-list');
+            if (!listEl) return;
+            if (!items || items.length === 0) {
+                listEl.innerHTML = '<p style="color: var(--text-secondary); margin: 0; font-size: 0.9em;">Aucun message envoyé pour l’instant.</p>';
+                return;
+            }
+
+            listEl.innerHTML = items.map(item => {
+                const type = item.responseType || 'info';
+                const recipients = Array.isArray(item.recipients) ? item.recipients : [];
+                const responses = item.responses || {};
+                const active = isJuryMessageActive(item);
+                const when = item.createdAtMs
+                    ? new Date(item.createdAtMs).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+                    : '—';
+                const answersHtml = recipients.map(rid => {
+                    const r = responses[rid] || { status: 'pending' };
+                    const juryName = escapeJuryMsgHtml(juryMessageRecipientLabel(rid));
+                    if (type === 'info') {
+                        const seen = r.status === 'seen' || r.seen === true;
+                        return `<div class="jury-message-answer-row"><strong>${juryName}</strong>
+                            <span class="jury-message-answer-badge ${seen ? 'info' : 'pending'}">${seen ? 'Vu' : 'Envoyé'}</span></div>`;
+                    }
+                    if (r.status === 'pending' || !r.status) {
+                        return `<div class="jury-message-answer-row"><strong>${juryName}</strong>
+                            <span class="jury-message-answer-badge pending">En attente</span></div>`;
+                    }
+                    if (type === 'yesno') {
+                        const yes = r.answer === 'yes' || r.answer === true;
+                        return `<div class="jury-message-answer-row"><strong>${juryName}</strong>
+                            <span class="jury-message-answer-badge ${yes ? 'yes' : 'no'}">${yes ? 'Oui' : 'Non'}</span></div>`;
+                    }
+                    return `<div class="jury-message-answer-row"><strong>${juryName}</strong>
+                        <span class="jury-message-answer-badge text">${escapeJuryMsgHtml(r.answer || '—')}</span></div>`;
+                }).join('');
+
+                const deleteBtn = active
+                    ? `<button type="button" class="jury-message-card-btn delete" title="Retirer le message actuel" onclick="deleteActiveJuryMessage('${escapeJuryMsgHtml(item.id)}')">×</button>`
+                    : '';
+                const discussionBtn = type === 'text'
+                    ? `<button type="button" class="jury-message-card-btn" title="Ouvrir une discussion avec chaque destinataire" onclick="convertJuryMessageToDiscussion('${escapeJuryMsgHtml(item.id)}')">Discussion</button>`
+                    : '';
+
+                return `<div class="jury-message-card${active ? ' is-active' : ''}" data-msg-id="${escapeJuryMsgHtml(item.id)}">
+                    <div class="jury-message-card-top">
+                        <div class="jury-message-card-meta">${escapeJuryMsgHtml(when)} · ${escapeJuryMsgHtml(responseTypeLabel(type))} · ${recipients.length} destinataire(s)${active ? ' · actuel' : ''}</div>
+                        <div class="jury-message-card-actions">
+                            <button type="button" class="jury-message-card-btn" title="Renvoyer comme nouveau message" onclick="resendJuryMessage('${escapeJuryMsgHtml(item.id)}')">Renvoyer</button>
+                            <button type="button" class="jury-message-card-btn signal" title="Resignaler (clignote 3 fois)" onclick="signalJuryMessage('${escapeJuryMsgHtml(item.id)}')" ${active ? '' : 'disabled style="opacity:0.45;cursor:not-allowed;"'}>Resignaler</button>
+                            ${discussionBtn}
+                            ${deleteBtn}
+                        </div>
+                    </div>
+                    <p class="jury-message-card-text">${escapeJuryMsgHtml(item.message || '')}</p>
+                    <div class="jury-message-card-answers">${answersHtml || '<span style="color:var(--text-secondary)">Aucun destinataire</span>'}</div>
+                </div>`;
+            }).join('');
+        }
+
+        // Fermer le menu destinataires si clic à l'extérieur
+        document.addEventListener('click', (e) => {
+            const wrap = document.getElementById('jury-message-multiselect');
+            const menu = document.getElementById('jury-message-recipients-menu');
+            if (!wrap || !menu || menu.style.display === 'none') return;
+            if (!wrap.contains(e.target)) menu.style.display = 'none';
+        });
         
         window.deleteJury = async (juryId) => {
             const jury = JURIES.find(j => j.id === juryId);
@@ -4849,6 +6135,7 @@
             setupMalusListener();
             setupJuryFillIndicatorListeners();
             scheduleJuryFillIndicatorRefresh();
+            startAdminInboxListener();
             console.log('%c[CLASSEMENT] Pour déboguer le bonus: filtrez la console par "CLASSEMENT". Puis: Activation classements → activer +5 pour un candidat → Notes → revenir Activation. Copiez toutes les lignes [CLASSEMENT].', 'color: #0a0; font-weight: bold;');
         })();
 
