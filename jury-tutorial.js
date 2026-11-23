@@ -32,6 +32,8 @@ function setInputLock(enabled) {
 function clearChrome() {
     const root = document.getElementById('jury-tutorial-root');
     if (root) root.innerHTML = '';
+    // Bouton Suivant monté sur body (hors root) pour rester au premier plan
+    document.querySelectorAll('.tutorial-next-btn').forEach((el) => el.remove());
     document.querySelectorAll('.tutorial-target-active').forEach((el) => {
         el.classList.remove('tutorial-target-active');
     });
@@ -56,6 +58,20 @@ function firstVisible(selectors) {
     return null;
 }
 
+function syncNextBtnToKeyboard() {
+    const btn = document.querySelector('.tutorial-next-btn');
+    if (!btn) return;
+    const vv = window.visualViewport;
+    const base = window.matchMedia('(max-width: 480px)').matches ? 14 : 20;
+    if (!vv) {
+        btn.style.bottom = `${base}px`;
+        return;
+    }
+    // Remonte le bouton au-dessus du clavier virtuel
+    const occluded = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    btn.style.bottom = `${base + occluded}px`;
+}
+
 function placeCallout(target, opts = {}) {
     const {
         box = false,
@@ -63,7 +79,8 @@ function placeCallout(target, opts = {}) {
         showNext = false,
         arrowOnly = false,
         stabilize = true,
-        onNext = null
+        onNext = null,
+        lock = true
     } = opts;
     clearChrome();
     if (!target) {
@@ -73,7 +90,7 @@ function placeCallout(target, opts = {}) {
 
     const root = ensureRoot();
     target.classList.add('tutorial-target-active');
-    setInputLock(true);
+    setInputLock(!!lock);
 
     // Mesurer après style (évite un cadre décalé pendant fadeIn translateY)
     const rect = target.getBoundingClientRect();
@@ -119,10 +136,12 @@ function placeCallout(target, opts = {}) {
             if (typeof onNext === 'function') onNext();
             else advanceScoring();
         });
-        root.appendChild(next);
+        // Sur body (pas dans le root) pour ne jamais passer sous la zone encadrée
+        document.body.appendChild(next);
+        syncNextBtnToKeyboard();
     }
 
-    const baseOpts = { box, label, showNext, arrowOnly, onNext };
+    const baseOpts = { box, label, showNext, arrowOnly, onNext, lock };
     pendingReposition = () => placeCallout(target, { ...baseOpts, stabilize: false });
 
     // Recaler après l'animation fadeIn (0.4s) et les décalages de layout (texte du tour, etc.)
@@ -147,12 +166,16 @@ export function refreshTutorialPlacement() {
 function bindResize() {
     if (resizeBound) return;
     resizeBound = true;
-    window.addEventListener('resize', () => {
+    const onViewportChange = () => {
+        syncNextBtnToKeyboard();
         if (pendingReposition) pendingReposition();
-    });
-    window.addEventListener('scroll', () => {
-        if (pendingReposition) pendingReposition();
-    }, true);
+    };
+    window.addEventListener('resize', onViewportChange);
+    window.addEventListener('scroll', onViewportChange, true);
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', syncNextBtnToKeyboard);
+        window.visualViewport.addEventListener('scroll', syncNextBtnToKeyboard);
+    }
 }
 
 async function loadDefaultPassword(fetchFn) {
@@ -206,7 +229,15 @@ function goLoginStep(index) {
         placeCallout(el, {
             box: true,
             arrowOnly: false,
-            label: 'Appuyez sur Commencer'
+            label: 'Appuyez sur Commencer',
+            showNext: true,
+            onNext: () => {
+                // Masque le tutoriel jusqu'au clic sur Commencer (formulaire libre)
+                clearChrome();
+                pendingReposition = null;
+                phase = 'login-waiting';
+                stepIndex = 2;
+            }
         });
     }
 }

@@ -2639,7 +2639,7 @@ la /* Sortable table headers */
     position: fixed;
     right: 16px;
     bottom: 20px;
-    z-index: 12003;
+    z-index: 13000;
     pointer-events: auto;
     border: none;
     border-radius: 999px;
@@ -2650,6 +2650,7 @@ la /* Sortable table headers */
     color: #fff;
     background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
     box-shadow: 0 6px 20px rgba(234, 88, 12, 0.4);
+    transition: bottom 0.15s ease;
 }
 
 .tutorial-next-btn:hover {
@@ -2662,7 +2663,8 @@ la /* Sortable table headers */
 
 .tutorial-target-active {
     position: relative;
-    z-index: 12001;
+    /* Sous le bouton Suivant (13000) et le chrome tutoriel */
+    z-index: 11990;
 }
 
 /* Ne laisser remplir / cliquer que la zone encadrée */
