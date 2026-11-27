@@ -5263,7 +5263,7 @@ async function showRepechageInterface() {
         
         const sortedCandidates = Object.values(candidateScores).sort((a, b) => b.total - a.total);
         window.repechageRankOrder = sortedCandidates.map(c => c.id);
-        pickRepechagePreQualifiedIds(window.repechageRankOrder, numToQualify).forEach(id => {
+        pickRepechagePreQualifiedIds(sortedCandidates, numToQualify).forEach(id => {
             initiallyQualifiedSet.add(id);
         });
     }
@@ -5281,10 +5281,14 @@ async function showRepechageInterface() {
     const existingScores = {};
     scoresSnap.forEach(docSnap => {
         const data = docSnap.data();
-        existingScores[data.candidateId] = data.score1; // Pour le repêchage, score1 = score2
+        // Seuls les déplacements manuels du jury surchargent la pré-sélection (égalité à la charnière, etc.)
+        existingScores[data.candidateId] = {
+            score: data.score1,
+            manual: data.repechageManual === true
+        };
     });
     
-    // Initialiser les listes selon les scores existants
+    // Initialiser les listes : pré-qualification (+ overrides manuels uniquement)
     assignRepechageColumns(activeCandidates, existingScores, initiallyQualifiedSet);
     
     // Afficher l'interface
@@ -5325,6 +5329,7 @@ async function showRepechageInterface() {
         <p style="text-align: center; color: var(--text-secondary); font-size: 0.9em; margin-bottom: 20px;">
             <span style="color: #28a745;">■ Vert</span> = Initialement qualifié • 
             <span style="color: #dc3545;">■ Rouge</span> = Initialement éliminé
+            <br>En cas d'égalité à la charnière, tous les ex æquo sont pré-éliminés (à départager manuellement).
         </p>
         
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing); margin-bottom: var(--spacing);">
@@ -5414,11 +5419,14 @@ function setupRepechageListener() {
         CANDIDATES = allCandidates;
         const activeCandidates = includeMysteryCandidatesInRepechage(allCandidates.filter(c => c.tour === activeRoundId));
         
-        // Construire un map des scores existants
+        // Construire un map des scores existants (overrides manuels uniquement)
         const existingScores = {};
         snapshot.forEach(docSnap => {
             const data = docSnap.data();
-            existingScores[data.candidateId] = data.score1; // score1 = score2 pour le repêchage
+            existingScores[data.candidateId] = {
+                score: data.score1,
+                manual: data.repechageManual === true
+            };
         });
         
         const initiallyQualified = window.repechageInitiallyQualified || new Set();
@@ -5518,17 +5526,48 @@ function repechageSetHasId(set, id) {
     return false;
 }
 
-function pickRepechagePreQualifiedIds(sortedIds, n) {
+/**
+ * Pré-qualifie les N premiers du tour précédent.
+ * En cas d'égalité à la charnière (même score que le N-ième, partagé avec des candidats hors top N),
+ * tous les candidats à ce score sont pré-éliminés ; seuls ceux strictement au-dessus restent pré-qualifiés.
+ * @param {Array<{id: string, total: number}>} sortedCandidates - déjà triés par total décroissant
+ */
+function pickRepechagePreQualifiedIds(sortedCandidates, n) {
     const set = new Set();
     const limit = parseInt(n, 10) || 0;
     if (limit <= 0) return set;
-    for (const raw of sortedIds || []) {
-        if (isMysteryCandidateForRepechage(raw)) continue;
-        const c = (CANDIDATES || []).find(x => String(x.id) === String(raw));
-        set.add(c ? c.id : raw);
-        if (set.size >= limit) break;
+
+    const eligible = [];
+    for (const entry of sortedCandidates || []) {
+        if (!entry) continue;
+        const rawId = entry.id;
+        if (isMysteryCandidateForRepechage(rawId)) continue;
+        const c = (CANDIDATES || []).find(x => String(x.id) === String(rawId));
+        eligible.push({ id: c ? c.id : rawId, total: Number(entry.total) || 0 });
+    }
+
+    if (eligible.length === 0) return set;
+    if (eligible.length <= limit) {
+        eligible.forEach(e => set.add(e.id));
+        return set;
+    }
+
+    const cutoffScore = eligible[limit - 1].total;
+    const tieAcrossBoundary = eligible.slice(limit).some(e => e.total === cutoffScore);
+
+    if (tieAcrossBoundary) {
+        eligible.filter(e => e.total > cutoffScore).forEach(e => set.add(e.id));
+    } else {
+        eligible.slice(0, limit).forEach(e => set.add(e.id));
     }
     return set;
+}
+
+function resolveRepechageScoreEntry(existingScores, candidateId) {
+    if (!existingScores) return undefined;
+    let entry = existingScores[candidateId];
+    if (entry === undefined) entry = existingScores[String(candidateId)];
+    return entry;
 }
 
 function assignRepechageColumns(activeCandidates, existingScores, initiallyQualifiedSet) {
@@ -5541,9 +5580,13 @@ function assignRepechageColumns(activeCandidates, existingScores, initiallyQuali
             repechageEliminated.push(c.id);
             return;
         }
-        let score = existingScores ? existingScores[c.id] : undefined;
-        if (score === undefined && existingScores) score = existingScores[String(c.id)];
-        if (score === undefined || score === null) {
+        // Par défaut : pré-sélection (ex æquo à la charnière → éliminés).
+        // Un score Firebase ne compte que s'il a été posé manuellement par le jury.
+        const entry = resolveRepechageScoreEntry(existingScores, c.id);
+        let score;
+        if (entry && typeof entry === 'object' && entry.manual === true && (entry.score === '1' || entry.score === '0')) {
+            score = entry.score;
+        } else {
             score = repechageSetHasId(initiallyQualifiedSet, c.id) ? '1' : '0';
         }
         if (score === '1') repechageQualified.push(c.id);
@@ -5670,6 +5713,8 @@ async function updateRepechageScore(candidateId, scoreValue) {
             score1: scoreValue,
             score2: scoreValue, // Les deux scores sont identiques pour le repêchage
             score_base: v,
+            // Marque un choix jury (sinon la pré-sélection / égalités reprennent le dessus)
+            repechageManual: true,
             timestamp: new Date()
         };
         
